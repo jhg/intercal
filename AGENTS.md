@@ -60,9 +60,42 @@ This compiler compiles INTERCAL source directly to native executable binary. It 
 - Output: native executable binary (no extension on Linux/macOS, `.exe` on Windows)
 - No intermediate language files are generated (no .c, no .rs, no .o)
 
+Phase 1 (bootstrap): `intercalc.sh < program.i > binary`
+- Shell script reads INTERCAL source from stdin
+- Writes native Mach-O binary to stdout
+- Shell handles file redirection: `intercalc.sh < source.i > output && chmod +x output`
+
+Phase 2+ (self-hosted): `intercal program.i -o output`
+- INTERCAL compiler (compiled by `intercalc.sh`) with normal CLI interface
+- Bootstrapped once, then self-reproducing
+
+### Bootstrap strategy (three-phase approach)
+
+Phase 1 — Shell script bootstrap (`intercalc.sh`):
+- Single bash/zsh file implementing a basic but complete INTERCAL compiler
+- Targets macOS arm64 (initial release)
+- Functions as stdin/stdout filter: `intercalc.sh < program.i > binary`
+- Shell handles file redirection, not INTERCAL
+- Generates native Mach-O binaries with embedded runtime
+- No syscall mechanism in bootstrap (simpler, cleaner)
+- Complex enough to be useful, simple enough to iterate quickly
+
+Phase 2 — Self-hosted INTERCAL compiler:
+- Write the actual compiler in INTERCAL
+- Compile it using the shell bootstrap from Phase 1
+- Produces an `intercal` executable with normal CLI: `intercal program.i -o output`
+- Generates binaries with embedded runtime
+- Implements custom simplified syscall mechanism (inspired by Label 666 but not CLC-INTERCAL compatible)
+- This is the first true self-compiled release
+
+Phase 3 — Continuous improvement:
+- Use the self-compiled interpreter to improve itself
+- GitHub workflow: fetch previous release binary, use it to compile the new version, test and release
+- Iterate on features and optimizations
+
 ### Fallback: Rust as intermediate language
 
-If compiling directly to executable turns out to be infeasible (missing linker, too complex for bootstrap), the fallback is to transpile to Rust and use rustc as backend. This is a last resort and should be avoided if possible.
+If the shell bootstrap becomes too complex or if direct machine code generation becomes infeasible, the fallback is to make `intercalc.sh` (or phase 2) transpile to Rust instead of generating native code directly. This would preserve the bootstrap strategy while using rustc as the backend code generation engine. This is a last resort and should be avoided if possible.
 
 ### Linking strategy
 
@@ -107,6 +140,20 @@ In summary, the executable contains three parts:
 - User code: compiled from the .i source file.
 - Syslib: arithmetic in INTERCAL (compiled alongside user code) + random routines bridging to native.
 - Runtime: assembly providing syscalls for I/O, exit, memory, and randomness.
+
+### Syscall extension (Phase 2+)
+
+INTERCAL standard does not provide file I/O, process control, or OS access. Phase 2 will extend INTERCAL with a custom simplified syscall mechanism (not CLC-INTERCAL compatible).
+
+The Phase 1 bootstrap (`intercalc.sh`) does NOT include syscalls — it operates as a stdin/stdout filter and links compiled programs to a runtime that provides basic I/O via the Turing Text Model.
+
+Phase 2+ will add a simplified syscall interface for practical programs:
+- Exact design TBD, but will use Label 666 as the entry point (stylistic nod to CLC-INTERCAL)
+- Simpler parameter convention than CLC-INTERCAL's "call by vague resemblance" (which is deliberately obscure)
+- Clear, documented syscall numbers and parameter passing
+- Will support: file I/O, process control, environment access, and other OS operations needed by practical INTERCAL programs
+
+This design decision derives from investigation of CLC-INTERCAL (see CLC-INTERCAL-INVESTIGATION.md): while CLC-INTERCAL's syscall mechanism exists, its documentation is deliberately obscure and reverse-engineering it would add complexity without strategic benefit. Instead, we design our own simpler, fully-documented extension.
 
 ## INTERCAL language reference
 
@@ -416,32 +463,48 @@ Counted loop (iterate N times):
 
 ## Viability
 
-La investigación revela una situación clara con implicaciones importantes para el proyecto.
+A shell script bootstrap (`intercalc.sh`) is pragmatic and viable:
 
-INTERCAL estandar NO tiene:
+Why shell script is the right first step:
+- Avoids trying to write a compiler in INTERCAL puro without any compiler to start with
+- Can easily handle machine code generation, assembly, and linking to the system
+- Enables fast iteration and debugging
+- Clear separation: shell handles system-level tasks, INTERCAL handles language semantics
 
-- Lectura/escritura de archivos (solo stdin/stdout)
-- Acceso a argumentos de linea de comandos (argc/argv)
-- FFI ni llamadas a funciones nativas
-- Llamadas al sistema operativo
-- Carga de librerias dinamicas
+Why INTERCAL self-compilation works:
 
-INTERCAL estandar SI tiene:
+INTERCAL standard limitations:
+- No direct file I/O, command-line arguments, FFI, or OS access
+- But it is Turing-complete with 65535 variables and labels per type
+- Precedent: complex INTERCAL programs exist (Unlambda interpreter ~857 lines, Befunge-93 ~713 lines, floating-point library ~2000 lines)
 
-- Turing-completeness (demostrado formalmente)
-- I/O binario via Turing Text Model (arrays): puede leer/escribir TODOS los 256 valores de byte (0x00-0xFF) via stdin/stdout
-- 65535 variables de cada tipo, 65535 labels (suficiente para un compilador)
-- Programas complejos existentes: un interprete Unlambda (~857 lineas), un interprete Befunge-93 (~713 lineas), una libreria de punto flotante (~2000 lineas)
+The Label 666 syscall extension (adopted from CLC-INTERCAL):
+- Adds a minimal but sufficient gateway to OS operations
+- Uses standard syslib calling convention (.1-.4, :1-:4)
+- Requires no external FFI or linker support — only a runtime handler in assembly
+- Enables the INTERCAL compiler (phase 2) to:
+  1. Generate machine code (via Turing Text Model binary I/O)
+  2. Embed pre-assembled runtime bytes (which call OS syscalls via label 666)
+  3. Produce final executables without relying on external tools
 
-El camino viable: compilador como filtro stdin/stdout
+The three-phase strategy avoids the trap of an INTERCAL-only bootstrap:
 
-El compilador puede funcionar asi:
-./compiler < source.i > output
-chmod +x output
+Phase 1 (shell bootstrap):
+- Generates binaries with embedded runtime
+- Implements label 666 syscall dispatch in assembly
+- Pragmatic, debuggable, fast
 
-- Lee el codigo fuente byte a byte desde stdin via Turing Text Model
-- Escribe el binario ejecutable byte a byte a stdout via Turing Text Model
-- El shell maneja la redireccion de archivos, no INTERCAL
+Phase 2 (INTERCAL self-compiler):
+- Written in INTERCAL with label 666 support
+- Bootstrapped by phase 1
+- Generates binaries identical in structure to phase 1 output
+- Now the system is self-hosted and can improve itself
+
+Phase 3+ (improvement and iteration):
+- Use the self-compiler to improve itself
+- GitHub workflow handles continuous compilation and release
+
+## Other info
 
 Esto es suficiente para un compilador self-compiled. Muchos compiladores historicos funcionaban asi.
 
