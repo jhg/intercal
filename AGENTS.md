@@ -31,6 +31,17 @@ Other doc to review:
 [ ] Add a GitHub workflow that can download latest release binary to use it to compile the new version, then use the new version to compile itself, and release the new version
 [ ] Improve the compiler and release it using the GitHub workflow
 
+## Development
+
+- Does NOT use gh cli, it is not available
+- Request any additional detail you need or help/actions you need from user
+
+### Examples that could be a test of this compiler, compiling and executing it
+
+- https://github.com/leachim6/hello-world/blob/main/i/Intercal.i
+- https://github.com/lazy-ninja/HELLO-INTERCAL/blob/master/ickhello.i
+- http://progopedia.com/example/hello-world/259/
+
 ## Additional details
 
 <... to be filled ...>
