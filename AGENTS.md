@@ -486,4 +486,4 @@ Es posible. El compilador self-compiled en INTERCAL puro es teoricamente viable 
 
 Las limitaciones practicas son: sera extremadamente lento, muy dificil de depurar, y el codigo sera muy extenso. Pero no es imposible.
 
-Sería interesante revisar las opciones de C-INTERCAL de external calls y CLC-INTERCAL de syscalls con label 666, a priori parece la más idiomatica y que se acercaría al estandar aunque sea algo propio de este compilador y CLC-INTERCAL solo.
+Sería interesante revisar las opciones de C-INTERCAL de external calls y CLC-INTERCAL de syscalls con label 666, a priori parece la más idiomatica y que se acercaría al estandar aunque sea algo propio de este compilador y CLC-INTERCAL solo. La primera versión deberia usar las pipes por simplicidad y asegurar compatibilidad con cualquier compilador de intercal actual, y luego podriamos explorar el extenderlo con alguna de estas soluciones para evitar que tanto el compilador como los programas creados se vean demasiado limitados sin posibilidad de extension.
