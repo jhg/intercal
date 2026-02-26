@@ -413,3 +413,77 @@ Counted loop (iterate N times):
 - Assigning 32-bit expression results to 16-bit variables without checking range (E275).
 - STASH in a loop without RETRIEVE (unbounded stack growth).
 - Deep NEXT chains without FORGET (E123 after 79 levels).
+
+## Viability
+
+La investigación revela una situación clara con implicaciones importantes para el proyecto.
+
+INTERCAL estandar NO tiene:
+
+- Lectura/escritura de archivos (solo stdin/stdout)
+- Acceso a argumentos de linea de comandos (argc/argv)
+- FFI ni llamadas a funciones nativas
+- Llamadas al sistema operativo
+- Carga de librerias dinamicas
+
+INTERCAL estandar SI tiene:
+
+- Turing-completeness (demostrado formalmente)
+- I/O binario via Turing Text Model (arrays): puede leer/escribir TODOS los 256 valores de byte (0x00-0xFF) via stdin/stdout
+- 65535 variables de cada tipo, 65535 labels (suficiente para un compilador)
+- Programas complejos existentes: un interprete Unlambda (~857 lineas), un interprete Befunge-93 (~713 lineas), una libreria de punto flotante (~2000 lineas)
+
+El camino viable: compilador como filtro stdin/stdout
+
+El compilador puede funcionar asi:
+./compiler < source.i > output
+chmod +x output
+
+- Lee el codigo fuente byte a byte desde stdin via Turing Text Model
+- Escribe el binario ejecutable byte a byte a stdout via Turing Text Model
+- El shell maneja la redireccion de archivos, no INTERCAL
+
+Esto es suficiente para un compilador self-compiled. Muchos compiladores historicos funcionaban asi.
+
+El problema critico: necesitamos una libreria nativa para las extensiones
+
+El compilador INTERCAL puro puede compilarse a si mismo usando stdin/stdout.
+
+Pero los programas compilados por el necesitan un runtime nativo (para I/O, syscalls, exit, etc.). El compilador necesita:
+
+1. Poder generar bytes de codigo maquina (posible via Turing Text Model)
+2. Tener el runtime en ensamblador como datos embebidos o como archivo separado
+
+Sobre enlazar con librerias estaticas en ensamblador
+
+INTERCAL estandar NO puede enlazar con librerias externas. Sin embargo:
+- C-INTERCAL tiene un sistema de "external calls" (-e) que permite enlazar archivos C
+- CLC-INTERCAL tiene syscalls via label (666)
+- Nuestro compilador NO necesita estas extensiones para compilarse
+
+La razon: nuestro compilador no necesita enlazar con nada durante su propia ejecucion. El genera el ejecutable de salida como un stream de bytes (que incluye el runtime embebido). El runtime solo se
+necesita dentro del ejecutable generado, no en el compilador mismo.
+
+Estructura propuesta
+
+compilador (ejecutable INTERCAL):
+  - lee .i desde stdin
+  - escribe binario nativo a stdout
+  - internamente contiene:
+    - parser del lenguaje INTERCAL
+    - generador de codigo maquina
+    - datos del runtime (bytes de ensamblador pre-ensamblados)
+    - datos del syslib (compilado desde INTERCAL puro)
+
+Conclusion de viabilidad
+
+Es posible. El compilador self-compiled en INTERCAL puro es teoricamente viable porque:
+1. INTERCAL es Turing-complete
+2. Puede leer/escribir bytes arbitrarios via stdin/stdout
+3. Hay precedente de programas INTERCAL complejos (interpretes, libreria FP)
+4. El limite de 65535 labels y variables es suficiente
+5. No necesita file I/O ni argv (usa redireccion del shell)
+
+Las limitaciones practicas son: sera extremadamente lento, muy dificil de depurar, y el codigo sera muy extenso. Pero no es imposible.
+
+Sería interesante revisar las opciones de C-INTERCAL de external calls y CLC-INTERCAL de syscalls con label 666, a priori parece la más idiomatica y que se acercaría al estandar aunque sea algo propio de este compilador y CLC-INTERCAL solo.
