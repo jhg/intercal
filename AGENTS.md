@@ -35,6 +35,8 @@ Other doc to review:
 
 - Does NOT use gh cli, it is not available
 - Request any additional detail you need or help/actions you need from user
+- Does NOT use code from documentation or examples to avoid license conflicts
+- Does NOT use text from documentation or examples to avoid license conflicts
 
 ### Examples that could be a test of this compiler, compiling and executing it
 
