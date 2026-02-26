@@ -34,15 +34,54 @@ Other doc to review:
 ## Development
 
 - Does NOT use gh cli, it is not available
+- Does NOT use bold `**` when write markdown
 - Request any additional detail you need or help/actions you need from user
 - Does NOT use code from documentation or examples to avoid license conflicts
 - Does NOT use text from documentation or examples to avoid license conflicts
+
+### Files and conventions
+
+- `CLAUDE.md` is a symlink to `AGENTS.md` — always edit `AGENTS.md`, never `CLAUDE.md` directly
+- `TODO.md` at root is a working notes file for Claude between iterations (not project docs)
 
 ### Examples that could be a test of this compiler, compiling and executing it
 
 - https://github.com/leachim6/hello-world/blob/main/i/Intercal.i
 - https://github.com/lazy-ninja/HELLO-INTERCAL/blob/master/ickhello.i
 - http://progopedia.com/example/hello-world/259/
+
+## Architecture
+
+This compiler compiles INTERCAL source directly to native executable binary. It does NOT transpile to C or any other intermediate language. Unlike C-INTERCAL (ick), which goes through .i -> .c -> .o -> executable, this compiler goes directly from .i to executable.
+
+### Compilation pipeline
+
+- Input: `.i` source files (or `.3i` to `.7i` for bases 3-7)
+- Output: native executable binary (no extension on Linux/macOS, `.exe` on Windows)
+- No intermediate language files are generated (no .c, no .rs, no .o)
+
+### Fallback: Rust as intermediate language
+
+If compiling directly to executable turns out to be infeasible (missing linker, too complex for bootstrap), the fallback is to transpile to Rust and use rustc as backend. This is a last resort and should be avoided if possible.
+
+### Linking strategy
+
+The compiler needs a linker to produce final executables. Available tools:
+- System linker: `ld` (Apple ld on macOS, GNU ld on Linux)
+- System C compiler as linker driver: `cc` (can invoke as `cc -o output file.o`)
+- Rust-bundled LLD linker (available via Rust toolchain):
+  - `rust-lld` — generic LLD entry point
+  - `ld.lld` — ELF (Linux)
+  - `ld64.lld` — Mach-O (macOS)
+  - `lld-link` — COFF/PE (Windows)
+  - Located at: `$(rustc --print sysroot)/lib/rustlib/<target>/bin/`
+
+The compiler should generate machine code (or assembled object files) and then invoke one of these linkers. Prefer the system linker (`cc` as driver) for simplicity. The Rust-bundled LLD is a backup if no system linker is available.
+
+### Source file extensions
+
+- `.i` — INTERCAL source (base 2)
+- `.3i` to `.7i` — INTERCAL source for bases 3 to 7
 
 ## Additional details
 

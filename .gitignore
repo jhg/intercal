@@ -1,0 +1,24 @@
+# Compiled executables
+*.exe
+
+# Rust fallback intermediate files (only if fallback is used)
+*.rs
+!src/**/*.rs
+*.rlib
+target/
+
+# Object files (linking step)
+*.o
+*.obj
+
+# Editor and OS artifacts
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Archives
+*.tar.gz
+*.tar.bz2
+*.tar.lzma
