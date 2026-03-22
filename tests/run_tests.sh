@@ -1,0 +1,84 @@
+#!/bin/zsh
+# Test runner for intercalc.sh
+setopt NO_ERR_EXIT
+setopt PIPE_FAIL
+
+SCRIPT_DIR="${0:A:h}"
+COMPILER="${SCRIPT_DIR}/../intercalc.sh"
+PASS=0
+FAIL=0
+
+run_test() {
+  local name=$1 input=$2 expected=$3 stdin_data=${4:-}
+  local binary=$(mktemp /tmp/intercal_test.XXXXXX)
+
+  if ! zsh "$COMPILER" < "$input" > "$binary" 2>/dev/null; then
+    echo "FAIL $name (compile error)"
+    zsh "$COMPILER" < "$input" > /dev/null 2>&1 | head -1 >&2
+    FAIL=$((FAIL + 1))
+    rm -f "$binary"
+    return
+  fi
+  chmod +x "$binary"
+
+  local actual
+  if [[ -n "$stdin_data" ]]; then
+    actual=$(echo "$stdin_data" | "$binary" 2>/dev/null) || true
+  else
+    actual=$("$binary" 2>/dev/null) || true
+  fi
+
+  if [[ "$actual" == "$expected" ]]; then
+    echo "PASS $name"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL $name"
+    echo "  expected: [$(echo -n "$expected" | cat -v)]"
+    echo "  actual:   [$(echo -n "$actual" | cat -v)]"
+    FAIL=$((FAIL + 1))
+  fi
+  rm -f "$binary"
+}
+
+run_test_error() {
+  local name=$1 input=$2 expected_code=$3
+  local binary=$(mktemp /tmp/intercal_test.XXXXXX)
+  local errfile=$(mktemp /tmp/intercal_err.XXXXXX)
+  zsh "$COMPILER" < "$input" > "$binary" 2>"$errfile"
+  local exit_code=$?
+  local err=$(cat "$errfile")
+  rm -f "$errfile"
+
+  if [[ $exit_code -ne 0 ]] && echo "$err" | grep -q "ICL${expected_code}I"; then
+    echo "PASS $name (expected error $expected_code)"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL $name (expected error $expected_code)"
+    echo "  exit=$exit_code err=[$err]"
+    FAIL=$((FAIL + 1))
+  fi
+  rm -f "$binary"
+}
+
+cd "$SCRIPT_DIR"
+
+echo "Running INTERCAL compiler tests..."
+echo ""
+
+# Positive tests
+run_test "give_up" test_give_up.i ""
+run_test "read_out_5" test_read_out_num.i "V"
+run_test "variables" test_variables.i "XLII"
+run_test "hello_world" test_hello.i "$(printf 'Hello, World!\n')"
+run_test "control_flow" test_control.i "VII"
+run_test "syslib_add" test_syslib.i "VIII"
+run_test "stash_retrieve" test_stash.i "VII"
+run_test "abstain" test_abstain.i "V"
+
+# Error tests
+run_test_error "politeness_rude" test_errors_rude.i "079"
+run_test_error "politeness_polite" test_errors_polite.i "099"
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[[ $FAIL -eq 0 ]]

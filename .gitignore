@@ -18,6 +18,9 @@ target/
 .DS_Store
 Thumbs.db
 
+# Test outputs
+/tmp/intercal*
+
 # Archives
 *.tar.gz
 *.tar.bz2

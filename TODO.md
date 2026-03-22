@@ -1,60 +1,62 @@
 # TODO - Working notes
 
-## Estado actual (2026-02-27)
+## Estado actual (2026-03-22)
 
-- AGENTS.md actualizado: arquitectura, bootstrap strategy, syscall extension, viabilidad
-- Decidido: three-phase bootstrap (shell → INTERCAL → improvement cycle)
-- Target: macOS arm64
-- Syscall mechanism: Label 666 (inspirado en CLC-INTERCAL)
-- No se ha escrito codigo aun
+intercalc.sh Phase 1 bootstrap compiler: IMPLEMENTADO Y FUNCIONANDO
 
-## CLC-INTERCAL Investigation (COMPLETADO)
+- Compilador shell que genera ARM64 assembly y usa `cc` como backend
+- Genera binarios Mach-O arm64 nativos para macOS
+- Pipeline: `intercalc.sh < source.i > binary && chmod +x binary`
 
-Resultado: `/Users/jesus/Repos/intercal/666.md`
+## Features implementados
 
-**Key Findings**:
-- CLC-INTERCAL uses label 666 for syscalls via hidden "PLEASE NEXT FROM (666)"
-- Parameter passing: "call by vague resemblance to last assignment" (%OS binding) - deliberadamente obscuro
-- Only syscall #1 (version info) is publicly documented
-- Full syscall list NOT publicly available (reverse-engineering required)
-- **Decision**: NO retrocompatibility con CLC-INTERCAL
+- [x] Lexer/tokenizer (statement splitting, label parsing, politeness tracking)
+- [x] Parser (all 14 statement types)
+- [x] Politeness checking (E079/E099, exemption for < 5 stmts)
+- [x] Label validation (E182 duplicates, E197 range)
+- [x] COME FROM resolution (E555 multiple)
+- [x] Expression parser (constants, variables, mingle, select, unary ops, grouping)
+- [x] Variable storage (spot, twospot, with ignore flags)
+- [x] Array support (tail, hybrid, dimensioning with BY, subscript access)
+- [x] GIVE UP (exit)
+- [x] Assignment with overflow check (E275)
+- [x] READ OUT scalar (Roman numerals)
+- [x] READ OUT array (Turing Text Model output)
+- [x] WRITE IN scalar (English digit names)
+- [x] WRITE IN array (Turing Text Model input)
+- [x] NEXT/RESUME/FORGET (with stack limit E123, E621, E632)
+- [x] COME FROM (with abstain-aware redirect)
+- [x] ABSTAIN/REINSTATE (by label and by gerund)
+- [x] IGNORE/REMEMBER
+- [x] STASH/RETRIEVE (with E436)
+- [x] Probability (%N)
+- [x] Native syslib (labels 1000-1550, 1900, 1910)
+- [x] Error handlers (E000-E633, 16 runtime errors)
+- [x] NOT/N'T initial abstain
+- [x] 10/10 tests passing
 
-**Plan adjustment**:
-- Fase 1 (bootstrap shell): stdin/stdout filter, sin syscalls
-- Fase 2 (compilador INTERCAL): syscalls propios simplificados (no CLC-compatible)
+## Test suite
 
-## Plan de fases
+All tests pass: `zsh tests/run_tests.sh`
 
-### Fase 1: Shell script bootstrap (`intercalc.sh`)
-Compilador shell que funciona como filtro stdin/stdout: `intercalc.sh < source.i > binary`
+- test_give_up.i - minimal exit
+- test_read_out_num.i - Roman numeral output
+- test_variables.i - variable assignment
+- test_hello.i - Hello World (Turing Text Model)
+- test_control.i - NEXT/RESUME
+- test_syslib.i - syslib addition
+- test_stash.i - STASH/RETRIEVE
+- test_abstain.i - ABSTAIN FROM
+- test_errors_rude.i - E079 politeness
+- test_errors_polite.i - E099 politeness
 
-- [ ] Disenar arquitectura del compilador (lexer, parser, codegen, linker)
-- [ ] Implementar lexer/parser en bash/zsh
-- [ ] Implementar codegen (machine code generation para arm64)
-- [ ] Implementar runtime en ensamblador arm64 (embebido, mínimo)
-  - [ ] I/O routines (READ OUT, WRITE IN, Roman numerals, Turing Text Model)
-  - [ ] Memory management (array allocation, STASH stacks)
-  - [ ] Random source (via /dev/urandom)
-  - [ ] Process exit handling
-  - [ ] (NO syscall handler en Fase 1 — simplificar)
-- [ ] Soporte para syslib (auto-include labels 1000-1999)
-- [ ] Politeness checking
-- [ ] Error reporting
-- [ ] Testing con hello world y ejemplos basicos
+## Proximo paso
 
-### Fase 2: Compilador INTERCAL (self-hosted) + Syscalls propios
-- [ ] Disenar mecanismo de syscalls simplificado (inspirado en Label 666, no CLC-compatible)
-- [ ] Escribir compilador en INTERCAL (usando intercalc.sh como bootstrap)
-- [ ] Compilador genera binarios con runtime que soporte syscalls
-- [ ] CLI normal: `./intercal program.i -o output`
-- [ ] Documentar completamente: qué syscalls, qué parámetros, qué retorna
+### Fase 2: Compilador INTERCAL (self-hosted)
+- [ ] Escribir syslib.i (aritmetica en INTERCAL puro)
+- [ ] Escribir compilador en INTERCAL
+- [ ] Bootstrapear con intercalc.sh
+- [ ] Disenar mecanismo de syscalls (Label 666)
 
-### Fase 3: Iteración
-- [ ] Optimizaciones
-- [ ] Nuevas features
-- [ ] GitHub workflow (bootstrap → compile → test → release)
-
-## Proximo paso inmediato
-
-1. Disenar la arquitectura de intercalc.sh (lexer, parser, codegen, linker)
-2. Empezar a escribir intercalc.sh
+### Fase 3: GitHub workflow
+- [ ] Workflow que descarga release anterior, compila nueva version, testa y publica
