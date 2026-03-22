@@ -1,0 +1,650 @@
+// runtime_macos_arm64.s - INTERCAL runtime for macOS ARM64
+// Part of the primordial spark (chispa primigenea)
+
+.section __TEXT,__text
+.align 2
+
+_rt_mingle:
+  mov x2, #0
+  mov w3, #0
+.Lmingle_loop:
+  cmp w3, #16
+  b.ge .Lmingle_done
+  lsr w4, w1, w3
+  and w4, w4, #1
+  lsl w5, w3, #1
+  lsl w4, w4, w5
+  orr x2, x2, x4
+  lsr w4, w0, w3
+  and w4, w4, #1
+  add w5, w5, #1
+  lsl w4, w4, w5
+  orr x2, x2, x4
+  add w3, w3, #1
+  b .Lmingle_loop
+.Lmingle_done:
+  mov x0, x2
+  ret
+
+_rt_select:
+  mov x3, #0
+  mov w4, #0
+  mov w5, #0
+.Lselect_loop:
+  cmp w5, w2
+  b.ge .Lselect_done
+  lsr x6, x1, x5
+  tbz x6, #0, .Lselect_next
+  lsr x6, x0, x5
+  and x6, x6, #1
+  lsl x6, x6, x4
+  orr x3, x3, x6
+  add w4, w4, #1
+.Lselect_next:
+  add w5, w5, #1
+  b .Lselect_loop
+.Lselect_done:
+  mov x0, x3
+  ret
+
+_rt_unary_and_16:
+  lsr w1, w0, #1
+  lsl w2, w0, #15
+  orr w1, w1, w2
+  and w1, w1, #0xFFFF
+  and w0, w0, w1
+  and w0, w0, #0xFFFF
+  ret
+
+_rt_unary_or_16:
+  lsr w1, w0, #1
+  lsl w2, w0, #15
+  orr w1, w1, w2
+  and w1, w1, #0xFFFF
+  orr w0, w0, w1
+  and w0, w0, #0xFFFF
+  ret
+
+_rt_unary_xor_16:
+  lsr w1, w0, #1
+  lsl w2, w0, #15
+  orr w1, w1, w2
+  and w1, w1, #0xFFFF
+  eor w0, w0, w1
+  and w0, w0, #0xFFFF
+  ret
+
+_rt_unary_and_32:
+  ror w1, w0, #1
+  and w0, w0, w1
+  ret
+
+_rt_unary_or_32:
+  ror w1, w0, #1
+  orr w0, w0, w1
+  ret
+
+_rt_unary_xor_32:
+  ror w1, w0, #1
+  eor w0, w0, w1
+  ret
+
+_rt_write_roman:
+  stp x29, x30, [sp, #-16]!
+  stp x19, x20, [sp, #-16]!
+  mov w19, w0
+  cbz w19, .Lroman_done
+  adrp x20, _rtable@PAGE
+  add x20, x20, _rtable@PAGEOFF
+.Lroman_loop:
+  ldr w0, [x20]
+  cbz w0, .Lroman_done
+  cmp w19, w0
+  b.lo .Lroman_next
+  sub w19, w19, w0
+  ldr w1, [x20, #4]
+  adrp x2, _rstrings@PAGE
+  add x2, x2, _rstrings@PAGEOFF
+  add x1, x2, w1, uxtw
+  mov x3, x1
+  mov w4, #0
+.Lroman_slen:
+  ldrb w5, [x3, x4]
+  cbz w5, .Lroman_gotlen
+  add w4, w4, #1
+  b .Lroman_slen
+.Lroman_gotlen:
+  mov x0, #1
+  uxtw x2, w4
+  mov x16, #4
+  svc #0x80
+  b .Lroman_loop
+.Lroman_next:
+  add x20, x20, #8
+  b .Lroman_loop
+.Lroman_done:
+  adrp x1, _nl@PAGE
+  add x1, x1, _nl@PAGEOFF
+  mov x0, #1
+  mov x2, #1
+  mov x16, #4
+  svc #0x80
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  ret
+
+_rt_read_out_array:
+  stp x29, x30, [sp, #-16]!
+  stp x19, x20, [sp, #-16]!
+  stp x21, x22, [sp, #-16]!
+  stp x23, x24, [sp, #-16]!
+  mov x19, x0
+  mov w20, w1
+  mov w21, w2
+  adrp x22, _ttm_out_pos@PAGE
+  add x22, x22, _ttm_out_pos@PAGEOFF
+  ldr w23, [x22]
+  mov w24, #0
+.Lttm_loop:
+  cmp w24, w20
+  b.ge .Lttm_done
+  cmp w21, #2
+  b.eq .Lttm_load16
+  ldr w25, [x19, x24, lsl #2]
+  b .Lttm_loaded
+.Lttm_load16:
+  ldrh w25, [x19, x24, lsl #1]
+.Lttm_loaded:
+  sub w23, w23, w25
+  and w23, w23, #0xFF
+  mov w0, w23
+  rbit w0, w0
+  lsr w0, w0, #24
+  sub sp, sp, #16
+  strb w0, [sp]
+  mov x1, sp
+  mov x0, #1
+  mov x2, #1
+  mov x16, #4
+  svc #0x80
+  add sp, sp, #16
+  add w24, w24, #1
+  b .Lttm_loop
+.Lttm_done:
+  str w23, [x22]
+  ldp x23, x24, [sp], #16
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  ret
+
+_rt_write_in_array:
+  stp x29, x30, [sp, #-16]!
+  stp x19, x20, [sp, #-16]!
+  stp x21, x22, [sp, #-16]!
+  stp x23, x24, [sp, #-16]!
+  stp x25, x26, [sp, #-16]!
+  mov x19, x0
+  mov w20, w1
+  mov w21, w2
+  adrp x22, _ttm_in_pos@PAGE
+  add x22, x22, _ttm_in_pos@PAGEOFF
+  ldr w23, [x22]
+  mov w24, #0
+.Lttm_in_loop:
+  cmp w24, w20
+  b.ge .Lttm_in_done
+  sub sp, sp, #16
+  mov x0, #0
+  mov x1, sp
+  mov x2, #1
+  mov x16, #3
+  svc #0x80
+  cbz x0, .Lttm_in_eof
+  ldrb w25, [sp]
+  add sp, sp, #16
+  rbit w25, w25
+  lsr w25, w25, #24
+  sub w26, w25, w23
+  and w26, w26, #0xFF
+  cmp w21, #2
+  b.eq .Lttm_in_store16
+  str w26, [x19, x24, lsl #2]
+  b .Lttm_in_stored
+.Lttm_in_store16:
+  strh w26, [x19, x24, lsl #1]
+.Lttm_in_stored:
+  mov w23, w25
+  add w24, w24, #1
+  b .Lttm_in_loop
+.Lttm_in_eof:
+  add sp, sp, #16
+  b _rt_error_E562
+.Lttm_in_done:
+  str w23, [x22]
+  ldp x25, x26, [sp], #16
+  ldp x23, x24, [sp], #16
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  ret
+
+_rt_write_in_scalar:
+  stp x29, x30, [sp, #-16]!
+  stp x19, x20, [sp, #-16]!
+  stp x21, x22, [sp, #-16]!
+  sub sp, sp, #272
+  mov x19, sp
+  mov w20, #0
+.Lwi_read:
+  mov x0, #0
+  add x1, x19, w20, uxtw
+  mov x2, #1
+  mov x16, #3
+  svc #0x80
+  cbz x0, .Lwi_parse
+  ldrb w1, [x19, w20, uxtw]
+  cmp w1, #10
+  b.eq .Lwi_parse
+  add w20, w20, #1
+  cmp w20, #255
+  b.lt .Lwi_read
+.Lwi_parse:
+  cbz w20, .Lwi_eof
+  strb wzr, [x19, w20, uxtw]
+  // Uppercase
+  mov w1, #0
+.Lwi_upper:
+  ldrb w2, [x19, w1, uxtw]
+  cbz w2, .Lwi_tokenize
+  cmp w2, #97
+  b.lt .Lwi_upper_next
+  cmp w2, #122
+  b.gt .Lwi_upper_next
+  sub w2, w2, #32
+  strb w2, [x19, w1, uxtw]
+.Lwi_upper_next:
+  add w1, w1, #1
+  b .Lwi_upper
+.Lwi_tokenize:
+  mov w21, #0     // result
+  mov w22, #0     // pos in buffer
+.Lwi_tok_loop:
+  // Skip spaces
+  ldrb w0, [x19, w22, uxtw]
+  cbz w0, .Lwi_tok_done
+  cmp w0, #32
+  b.ne .Lwi_match
+  add w22, w22, #1
+  b .Lwi_tok_loop
+.Lwi_match:
+  // Try each digit name
+  adrp x10, _digit_names@PAGE
+  add x10, x10, _digit_names@PAGEOFF
+  adrp x11, _digit_values@PAGE
+  add x11, x11, _digit_values@PAGEOFF
+  mov w12, #0    // digit name index
+  mov w13, #12   // total names
+.Lwi_try_name:
+  cmp w12, w13
+  b.ge .Lwi_bad_token
+  // Compare token at x19+w22 with name at x10
+  mov w14, #0   // char index in name
+  add x15, x19, w22, uxtw
+.Lwi_cmp:
+  ldrb w16, [x10, w14, uxtw]
+  ldrb w17, [x15, w14, uxtw]
+  cbz w16, .Lwi_cmp_end   // end of name
+  cmp w16, w17
+  b.ne .Lwi_next_name
+  add w14, w14, #1
+  b .Lwi_cmp
+.Lwi_cmp_end:
+  // Name matched fully. Check token boundary (next char must be space, null, or end)
+  ldrb w17, [x15, w14, uxtw]
+  cbz w17, .Lwi_matched
+  cmp w17, #32
+  b.eq .Lwi_matched
+  // Not a boundary, try next name
+.Lwi_next_name:
+  // Advance x10 past current name (find null)
+  ldrb w16, [x10]
+  add x10, x10, #1
+  cbnz w16, .Lwi_next_name
+  add w12, w12, #1
+  b .Lwi_try_name
+.Lwi_matched:
+  // result = result * 10 + digit_value
+  mov w0, #10
+  mul w21, w21, w0
+  ldrb w0, [x11, w12, uxtw]
+  add w21, w21, w0
+  add w22, w22, w14   // advance past matched token
+  b .Lwi_tok_loop
+.Lwi_tok_done:
+  mov w0, w21
+  add sp, sp, #272
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  ret
+.Lwi_bad_token:
+  add sp, sp, #272
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  b _rt_error_E579
+.Lwi_eof:
+  add sp, sp, #272
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  b _rt_error_E562
+
+_rt_mmap:
+  mov x5, #0
+  mov x4, #-1
+  mov x3, #0x1002
+  mov x2, #3
+  mov x1, x0
+  mov x0, #0
+  mov x16, #197
+  svc #0x80
+  cmn x0, #1
+  b.eq _rt_error_E000
+  ret
+
+_rt_resume_1:
+  adrp x0, _next_sp@PAGE
+  add x0, x0, _next_sp@PAGEOFF
+  ldr w1, [x0]
+  cbz w1, _rt_error_E632
+  sub w1, w1, #1
+  str w1, [x0]
+  adrp x2, _next_stack@PAGE
+  add x2, x2, _next_stack@PAGEOFF
+  ldr x3, [x2, x1, lsl #3]
+  br x3
+
+_rt_error_E000:
+  adrp x1, _errmsg_000@PAGE
+  add x1, x1, _errmsg_000@PAGEOFF
+  mov x2, #50
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E017:
+  adrp x1, _errmsg_017@PAGE
+  add x1, x1, _errmsg_017@PAGEOFF
+  mov x2, #48
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E123:
+  adrp x1, _errmsg_123@PAGE
+  add x1, x1, _errmsg_123@PAGEOFF
+  mov x2, #54
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E129:
+  adrp x1, _errmsg_129@PAGE
+  add x1, x1, _errmsg_129@PAGEOFF
+  mov x2, #35
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E139:
+  adrp x1, _errmsg_139@PAGE
+  add x1, x1, _errmsg_139@PAGEOFF
+  mov x2, #38
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E200:
+  adrp x1, _errmsg_200@PAGE
+  add x1, x1, _errmsg_200@PAGEOFF
+  mov x2, #42
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E240:
+  adrp x1, _errmsg_240@PAGE
+  add x1, x1, _errmsg_240@PAGEOFF
+  mov x2, #41
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E241:
+  adrp x1, _errmsg_241@PAGE
+  add x1, x1, _errmsg_241@PAGEOFF
+  mov x2, #38
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E275:
+  adrp x1, _errmsg_275@PAGE
+  add x1, x1, _errmsg_275@PAGEOFF
+  mov x2, #38
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E436:
+  adrp x1, _errmsg_436@PAGE
+  add x1, x1, _errmsg_436@PAGEOFF
+  mov x2, #39
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E533:
+  adrp x1, _errmsg_533@PAGE
+  add x1, x1, _errmsg_533@PAGEOFF
+  mov x2, #39
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E562:
+  adrp x1, _errmsg_562@PAGE
+  add x1, x1, _errmsg_562@PAGEOFF
+  mov x2, #41
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E579:
+  adrp x1, _errmsg_579@PAGE
+  add x1, x1, _errmsg_579@PAGEOFF
+  mov x2, #36
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E621:
+  adrp x1, _errmsg_621@PAGE
+  add x1, x1, _errmsg_621@PAGEOFF
+  mov x2, #44
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E632:
+  adrp x1, _errmsg_632@PAGE
+  add x1, x1, _errmsg_632@PAGEOFF
+  mov x2, #52
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+_rt_error_E633:
+  adrp x1, _errmsg_633@PAGE
+  add x1, x1, _errmsg_633@PAGEOFF
+  mov x2, #46
+  mov x0, #2
+  mov x16, #4
+  svc #0x80
+  mov x0, #1
+  mov x16, #1
+  svc #0x80
+
+
+
+.section __DATA,__data
+.align 2
+
+_rtable:
+  .long 1000000, 0
+  .long 900000,  3
+  .long 500000,  7
+  .long 400000,  10
+  .long 100000,  14
+  .long 90000,   17
+  .long 50000,   21
+  .long 40000,   24
+  .long 10000,   28
+  .long 9000,    31
+  .long 5000,    35
+  .long 4000,    38
+  .long 1000,    42
+  .long 900,     44
+  .long 500,     47
+  .long 400,     49
+  .long 100,     52
+  .long 90,      54
+  .long 50,      57
+  .long 40,      59
+  .long 10,      62
+  .long 9,       64
+  .long 5,       67
+  .long 4,       69
+  .long 1,       72
+  .long 0,       0
+
+_rstrings:
+  .asciz "_M"
+  .asciz "_CM"
+  .asciz "_D"
+  .asciz "_CD"
+  .asciz "_C"
+  .asciz "_XC"
+  .asciz "_L"
+  .asciz "_XL"
+  .asciz "_X"
+  .asciz "_IX"
+  .asciz "_V"
+  .asciz "_IV"
+  .asciz "M"
+  .asciz "CM"
+  .asciz "D"
+  .asciz "CD"
+  .asciz "C"
+  .asciz "XC"
+  .asciz "L"
+  .asciz "XL"
+  .asciz "X"
+  .asciz "IX"
+  .asciz "V"
+  .asciz "IV"
+  .asciz "I"
+
+_nl: .byte 10
+
+_errmsg_000: .asciz "ICL000I STATEMENT NOT RECOGNIZED DURING EXECUTION\n"
+_errmsg_017: .asciz "ICL017I EXPRESSION CONTAINS UNRESOLVABLE SYNTAX\n"
+_errmsg_123: .asciz "ICL123I PROGRAM HAS DISAPPEARED INTO THE BLACK LAGOON\n"
+_errmsg_129: .asciz "ICL129I NEXT TARGET DOES NOT EXIST\n"
+_errmsg_139: .asciz "ICL139I ABSTAIN TARGET DOES NOT EXIST\n"
+_errmsg_200: .asciz "ICL200I VARIABLE REFERENCE NOT RECOGNIZED\n"
+_errmsg_240: .asciz "ICL240I ARRAY DIMENSION MUST NOT BE ZERO\n"
+_errmsg_241: .asciz "ICL241I ARRAY SUBSCRIPT OUT OF BOUNDS\n"
+_errmsg_275: .asciz "ICL275I VALUE EXCEEDS 16 BIT CAPACITY\n"
+_errmsg_436: .asciz "ICL436I NOTHING TO RETRIEVE FROM STASH\n"
+_errmsg_533: .asciz "ICL533I RESULT EXCEEDS 32 BIT CAPACITY\n"
+_errmsg_562: .asciz "ICL562I INPUT DATA EXHAUSTED PREMATURELY\n"
+_errmsg_579: .asciz "ICL579I INPUT FORMAT NOT RECOGNIZED\n"
+_errmsg_621: .asciz "ICL621I RESUME WITH VALUE ZERO IS FORBIDDEN\n"
+_errmsg_632: .asciz "ICL632I PROGRAM ENDED VIA RESUME INSTEAD OF GIVE UP\n"
+_errmsg_633: .asciz "ICL633I EXECUTION REACHED END WITHOUT GIVE UP\n"
+
+_digit_names:
+  .asciz "ZERO"
+  .asciz "OH"
+  .asciz "ONE"
+  .asciz "TWO"
+  .asciz "THREE"
+  .asciz "FOUR"
+  .asciz "FIVE"
+  .asciz "SIX"
+  .asciz "SEVEN"
+  .asciz "EIGHT"
+  .asciz "NINE"
+  .asciz "NINER"
+
+_digit_values:
+  .byte 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9
+
+.section __DATA,__bss
+.align 3
+_next_stack: .space 632
+_next_sp: .space 4
+
+_ttm_out_pos: .space 4
+_ttm_in_pos: .space 4
+
+_rt_argc: .space 4
+_rt_argv: .space 8
