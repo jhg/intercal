@@ -544,6 +544,322 @@ _rt_error_E633:
 
 
 
+// ========== Label 666 Syscall Handler ==========
+
+_rt_syscall_666:
+  // Read .1 (syscall number)
+  adrp x0, _spot_1@PAGE
+  add x0, x0, _spot_1@PAGEOFF
+  ldr w0, [x0]
+  cmp w0, #1
+  b.eq _rt_sys666_open
+  cmp w0, #2
+  b.eq _rt_sys666_read
+  cmp w0, #3
+  b.eq _rt_sys666_write
+  cmp w0, #4
+  b.eq _rt_sys666_close
+  cmp w0, #5
+  b.eq _rt_sys666_argc
+  cmp w0, #6
+  b.eq _rt_sys666_argv
+  cmp w0, #8
+  b.eq _rt_sys666_exit
+  cmp w0, #9
+  b.eq _rt_sys666_getrand
+  b _rt_error_E000
+
+// Syscall 1: open file
+// .2=mode (0=read,1=write), ,65535=filename (ASCII codes)
+// Output: .3=fd (0=error)
+_rt_sys666_open:
+  stp x29, x30, [sp, #-16]!
+  stp x19, x20, [sp, #-16]!
+  // Read mode from .2
+  adrp x0, _spot_2@PAGE
+  add x0, x0, _spot_2@PAGEOFF
+  ldr w19, [x0]
+  // Read filename from ,65535: get ptr and dims
+  adrp x0, _tail_65535_ptr@PAGE
+  add x0, x0, _tail_65535_ptr@PAGEOFF
+  ldr x1, [x0]
+  cbz x1, .Lopen_err
+  adrp x0, _tail_65535_dims@PAGE
+  add x0, x0, _tail_65535_dims@PAGEOFF
+  ldr w2, [x0]        // filename length
+  // Convert array elements to C-string on stack
+  // Allocate stack space (round up to 16)
+  add w3, w2, #16
+  and w3, w3, #-16
+  sub sp, sp, x3
+  mov w4, #0
+.Lopen_copy:
+  cmp w4, w2
+  b.ge .Lopen_copied
+  ldrh w5, [x1, x4, lsl #1]
+  strb w5, [sp, x4]
+  add w4, w4, #1
+  b .Lopen_copy
+.Lopen_copied:
+  strb wzr, [sp, x4]  // null terminate
+  // Save stack size for restore
+  add w20, w2, #16
+  and w20, w20, #-16
+  // Compute open flags
+  mov w1, #0           // O_RDONLY
+  cmp w19, #1
+  b.ne .Lopen_do
+  mov w1, #0x601       // O_WRONLY|O_CREAT|O_TRUNC
+  mov w2, #0x1B6       // 0666 permissions
+.Lopen_do:
+  mov x0, sp
+  mov x16, #5          // open
+  svc #0x80
+  // Restore stack
+  add sp, sp, x20
+  // Check error (carry flag set on error for macOS)
+  b.cs .Lopen_err
+  mov w20, w0          // save fd
+  b .Lopen_store
+.Lopen_err:
+  mov w20, #0
+.Lopen_store:
+  adrp x0, _spot_3@PAGE
+  add x0, x0, _spot_3@PAGEOFF
+  str w20, [x0]
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  b _rt_resume_1
+
+// Syscall 2: read
+// .2=fd, .3=max bytes
+// Output: .4=bytes read, ,65535=data (auto-dimensioned)
+_rt_sys666_read:
+  stp x29, x30, [sp, #-16]!
+  stp x19, x20, [sp, #-16]!
+  stp x21, x22, [sp, #-16]!
+  // Get fd from .2
+  adrp x0, _spot_2@PAGE
+  add x0, x0, _spot_2@PAGEOFF
+  ldr w19, [x0]
+  // Get max bytes from .3
+  adrp x0, _spot_3@PAGE
+  add x0, x0, _spot_3@PAGEOFF
+  ldr w20, [x0]
+  // Allocate buffer via mmap
+  mov x0, x20
+  add x0, x0, #4096    // extra space
+  bl _rt_mmap
+  mov x21, x0           // buffer ptr
+  // Read from fd
+  mov x0, x19            // fd
+  mov x1, x21            // buffer
+  uxtw x2, w20           // max bytes
+  mov x16, #3            // read
+  svc #0x80
+  mov w22, w0            // bytes actually read
+  // Auto-dimension ,65535
+  adrp x0, _tail_65535_ptr@PAGE
+  add x0, x0, _tail_65535_ptr@PAGEOFF
+  // Allocate array for elements (2 bytes each)
+  lsl x0, x22, #1
+  add x0, x0, #16
+  bl _rt_mmap
+  mov x1, x0
+  adrp x0, _tail_65535_ptr@PAGE
+  add x0, x0, _tail_65535_ptr@PAGEOFF
+  str x1, [x0]
+  adrp x0, _tail_65535_ndim@PAGE
+  add x0, x0, _tail_65535_ndim@PAGEOFF
+  mov w2, #1
+  str w2, [x0]
+  adrp x0, _tail_65535_dims@PAGE
+  add x0, x0, _tail_65535_dims@PAGEOFF
+  str w22, [x0]
+  // Copy bytes to array elements
+  mov w3, #0
+.Lread_copy:
+  cmp w3, w22
+  b.ge .Lread_done
+  ldrb w4, [x21, x3]
+  strh w4, [x1, x3, lsl #1]
+  add w3, w3, #1
+  b .Lread_copy
+.Lread_done:
+  // Store bytes read in .4
+  adrp x0, _spot_4@PAGE
+  add x0, x0, _spot_4@PAGEOFF
+  str w22, [x0]
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  b _rt_resume_1
+
+// Syscall 3: write
+// .2=fd, .3=count, ,65535=data
+// Output: .4=bytes written
+_rt_sys666_write:
+  stp x29, x30, [sp, #-16]!
+  stp x19, x20, [sp, #-16]!
+  // Get fd from .2
+  adrp x0, _spot_2@PAGE
+  add x0, x0, _spot_2@PAGEOFF
+  ldr w19, [x0]
+  // Get count from .3
+  adrp x0, _spot_3@PAGE
+  add x0, x0, _spot_3@PAGEOFF
+  ldr w20, [x0]
+  // Get array ptr
+  adrp x0, _tail_65535_ptr@PAGE
+  add x0, x0, _tail_65535_ptr@PAGEOFF
+  ldr x1, [x0]
+  cbz x1, .Lwrite_zero
+  // Convert array elements to bytes on stack
+  add w2, w20, #16
+  and w2, w2, #-16
+  sub sp, sp, x2
+  mov w3, #0
+.Lwrite_copy:
+  cmp w3, w20
+  b.ge .Lwrite_do
+  ldrh w4, [x1, x3, lsl #1]
+  strb w4, [sp, x3]
+  add w3, w3, #1
+  b .Lwrite_copy
+.Lwrite_do:
+  mov x0, x19           // fd
+  mov x1, sp            // buffer
+  uxtw x2, w20          // count
+  mov x16, #4           // write
+  svc #0x80
+  mov w19, w0            // bytes written
+  add w2, w20, #16
+  and w2, w2, #-16
+  add sp, sp, x2
+  b .Lwrite_store
+.Lwrite_zero:
+  mov w19, #0
+.Lwrite_store:
+  adrp x0, _spot_4@PAGE
+  add x0, x0, _spot_4@PAGEOFF
+  str w19, [x0]
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  b _rt_resume_1
+
+// Syscall 4: close
+// .2=fd
+_rt_sys666_close:
+  adrp x0, _spot_2@PAGE
+  add x0, x0, _spot_2@PAGEOFF
+  ldr w0, [x0]
+  mov x16, #6           // close
+  svc #0x80
+  b _rt_resume_1
+
+// Syscall 5: argc
+// Output: .3=count
+_rt_sys666_argc:
+  adrp x0, _rt_argc@PAGE
+  add x0, x0, _rt_argc@PAGEOFF
+  ldr w0, [x0]
+  adrp x1, _spot_3@PAGE
+  add x1, x1, _spot_3@PAGEOFF
+  str w0, [x1]
+  b _rt_resume_1
+
+// Syscall 6: argv
+// .2=index, Output: .3=length, ,65535=chars (auto-dim)
+_rt_sys666_argv:
+  stp x29, x30, [sp, #-16]!
+  stp x19, x20, [sp, #-16]!
+  stp x21, x22, [sp, #-16]!
+  // Get index from .2
+  adrp x0, _spot_2@PAGE
+  add x0, x0, _spot_2@PAGEOFF
+  ldr w19, [x0]
+  // Get argv pointer
+  adrp x0, _rt_argv@PAGE
+  add x0, x0, _rt_argv@PAGEOFF
+  ldr x0, [x0]
+  // argv[index]
+  ldr x20, [x0, x19, lsl #3]
+  // strlen
+  mov x21, x20
+  mov w22, #0
+.Largv_strlen:
+  ldrb w0, [x21, x22]
+  cbz w0, .Largv_got_len
+  add w22, w22, #1
+  b .Largv_strlen
+.Largv_got_len:
+  // Auto-dimension ,65535
+  lsl x0, x22, #1
+  add x0, x0, #16
+  bl _rt_mmap
+  mov x1, x0
+  adrp x0, _tail_65535_ptr@PAGE
+  add x0, x0, _tail_65535_ptr@PAGEOFF
+  str x1, [x0]
+  adrp x0, _tail_65535_ndim@PAGE
+  add x0, x0, _tail_65535_ndim@PAGEOFF
+  mov w2, #1
+  str w2, [x0]
+  adrp x0, _tail_65535_dims@PAGE
+  add x0, x0, _tail_65535_dims@PAGEOFF
+  str w22, [x0]
+  // Copy chars
+  mov w3, #0
+.Largv_copy:
+  cmp w3, w22
+  b.ge .Largv_done
+  ldrb w4, [x20, x3]
+  strh w4, [x1, x3, lsl #1]
+  add w3, w3, #1
+  b .Largv_copy
+.Largv_done:
+  adrp x0, _spot_3@PAGE
+  add x0, x0, _spot_3@PAGEOFF
+  str w22, [x0]
+  ldp x21, x22, [sp], #16
+  ldp x19, x20, [sp], #16
+  ldp x29, x30, [sp], #16
+  b _rt_resume_1
+
+// Syscall 8: exit
+// .2=exit code
+_rt_sys666_exit:
+  adrp x0, _spot_2@PAGE
+  add x0, x0, _spot_2@PAGEOFF
+  ldr w0, [x0]
+  mov x16, #1
+  svc #0x80
+
+// Syscall 9: getrand
+// .2=0: uniform 16-bit; .2>0: range 0-.2
+// Output: .3=random value
+_rt_sys666_getrand:
+  sub sp, sp, #16
+  mov x0, sp
+  mov x1, #2
+  mov x16, #500         // getentropy
+  svc #0x80
+  ldrh w0, [sp]
+  add sp, sp, #16
+  adrp x1, _spot_2@PAGE
+  add x1, x1, _spot_2@PAGEOFF
+  ldr w1, [x1]
+  cbz w1, .Lrand_store
+  add w2, w1, #1
+  udiv w3, w0, w2
+  msub w0, w3, w2, w0
+.Lrand_store:
+  adrp x1, _spot_3@PAGE
+  add x1, x1, _spot_3@PAGEOFF
+  str w0, [x1]
+  b _rt_resume_1
+
+
 .section __DATA,__data
 .align 2
 

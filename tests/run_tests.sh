@@ -89,6 +89,35 @@ run_test_runtime_error() {
   rm -f "$binary"
 }
 
+run_test_with_args() {
+  local name=$1 input=$2 expected=$3
+  shift 3
+  local args=("$@")
+  local binary=$(mktemp /tmp/intercal_test.XXXXXX)
+
+  if ! zsh "$COMPILER" < "$input" > "$binary" 2>/dev/null; then
+    echo "FAIL $name (compile error)"
+    FAIL=$((FAIL + 1))
+    rm -f "$binary"
+    return
+  fi
+  chmod +x "$binary"
+
+  local actual
+  actual=$("$binary" "${args[@]}" 2>/dev/null) || true
+
+  if [[ "$actual" == "$expected" ]]; then
+    echo "PASS $name"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL $name"
+    echo "  expected: [$(echo -n "$expected" | head -c 100 | cat -v)]"
+    echo "  actual:   [$(echo -n "$actual" | head -c 100 | cat -v)]"
+    FAIL=$((FAIL + 1))
+  fi
+  rm -f "$binary"
+}
+
 cd "$SCRIPT_DIR"
 
 echo "Running INTERCAL compiler tests..."
@@ -113,6 +142,9 @@ run_test "read_out_multi" test_read_out_multi.i "$(printf 'V\nXLII')"
 run_test "abstain_gerund" test_abstain_gerund.i "XLII"
 run_test "write_in" test_write_in.i "CXXIII" "ONE TWO THREE"
 run_test "overbar" test_overbar.i "_IVDLXVII"
+
+# Label 666 syscall tests
+run_test_with_args "syscall_readself" test_syscall_readself.i "$(cat test_syscall_readself.i)" "$SCRIPT_DIR/test_syscall_readself.i"
 
 # Compile-time error tests
 run_test_error "politeness_rude" test_errors_rude.i "079"

@@ -338,17 +338,21 @@ detect_syslib() {
       local target="${stmt_next_target[$i]}"
       if (( target >= 1000 && target <= 1999 )); then
         needs_syslib=1
-        # Register syslib labels
         label_to_stmt[$target]="syslib_${target}"
+      fi
+      if (( target == 666 )); then
+        label_to_stmt[666]="syscall_666"
+        # Reserve ,65535 for syscall buffer
+        used_tail[65535]=1
       fi
     fi
   done
 
-  if (( needs_syslib )); then
-    # Ensure syslib variables exist
-    used_spot[1]=1; used_spot[2]=1; used_spot[3]=1; used_spot[4]=1; used_spot[5]=1
-    used_twospot[1]=1; used_twospot[2]=1; used_twospot[3]=1; used_twospot[4]=1
-  fi
+  # Always ensure syslib/runtime interface vars exist (runtime.s references them)
+  used_spot[1]=1; used_spot[2]=1; used_spot[3]=1; used_spot[4]=1; used_spot[5]=1
+  used_twospot[1]=1; used_twospot[2]=1; used_twospot[3]=1; used_twospot[4]=1
+  # Label 666 syscall buffer (always in runtime.s)
+  used_tail[65535]=1
 }
 
 # ============================================================
@@ -754,6 +758,13 @@ codegen_program() {
   emit "_main:"
   emit "  stp x29, x30, [sp, #-16]!"
   emit "  mov x29, sp"
+  emit "  // Save argc/argv for Label 666"
+  emit "  adrp x2, _rt_argc@PAGE"
+  emit "  add x2, x2, _rt_argc@PAGEOFF"
+  emit "  str w0, [x2]"
+  emit "  adrp x2, _rt_argv@PAGE"
+  emit "  add x2, x2, _rt_argv@PAGEOFF"
+  emit "  str x1, [x2]"
   emit ""
 
   local i
@@ -1256,7 +1267,9 @@ codegen_next() {
   emit "  add w1, w1, #1"
   emit "  str w1, [x0]"
 
-  if [[ "$target_ref" == syslib_* ]]; then
+  if [[ "$target_ref" == "syscall_666" ]]; then
+    emit "  b _rt_syscall_666"
+  elif [[ "$target_ref" == syslib_* ]]; then
     local syslib_num="${target_ref#syslib_}"
     emit "  b _rt_syslib_${syslib_num}"
   else
