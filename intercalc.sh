@@ -845,36 +845,38 @@ codegen_probability() {
 parse_var_list() {
   local text="$1"
   var_list=()
-  # Simple split: items are separated by spaces at the top level
-  # But we need to handle expressions in grouping chars
+  # Split variable list into items
+  # Items are variables, constants, or array refs with SUB subscripts
+  # Array refs like ",1 SUB #2 SUB #3" must stay as one item
+  local -a words
+  words=(${=text})
   local current=""
-  local depth=0
+  local in_sub=0
   local i=1
-  local len=${#text}
-  while (( i <= len )); do
-    local ch="${text[$i]}"
-    if [[ "$ch" == "'" || "$ch" == '"' ]]; then
-      (( depth++ )) || true
-      current+="$ch"
-    elif (( depth > 0 )); then
-      current+="$ch"
-      if [[ "$ch" == "'" || "$ch" == '"' ]]; then
-        (( depth-- )) || true
+  local nw=${#words[@]}
+  while (( i <= nw )); do
+    local w="${words[$i]}"
+    if [[ "$w" == "SUB" ]]; then
+      current+=" SUB"
+      in_sub=1
+    elif (( in_sub )) && [[ "$w" =~ '^[#.:]' ]]; then
+      # SUB subscript value (constant or variable)
+      current+=" $w"
+      # Check if next word is SUB (more subscripts)
+      if (( i + 1 <= nw )) && [[ "${words[$((i+1))]}" == "SUB" ]]; then
+        in_sub=1
+      else
+        in_sub=0
       fi
-    elif [[ "$ch" == " " ]]; then
+    elif [[ "$w" =~ "^[.,:;#'\"&V?]" ]] || [[ "$w" =~ '^\(' ]]; then
+      # New item starts
       if [[ -n "$current" ]]; then
-        # Check if this is a SUB continuation
-        local rest="${text[$((i+1)),$len]}"
-        rest="${rest## }"
-        if [[ "$rest" == SUB* ]]; then
-          current+=" "
-        else
-          var_list+=("$current")
-          current=""
-        fi
+        var_list+=("$current")
       fi
+      current="$w"
+      in_sub=0
     else
-      current+="$ch"
+      current+=" $w"
     fi
     (( i++ ))
   done
@@ -2387,22 +2389,46 @@ emit_data() {
 
   # Roman numeral table
   emit "_rtable:"
-  emit "  .long 1000, 0"
-  emit "  .long 900,  2"
-  emit "  .long 500,  5"
-  emit "  .long 400,  7"
-  emit "  .long 100,  10"
-  emit "  .long 90,   12"
-  emit "  .long 50,   15"
-  emit "  .long 40,   17"
-  emit "  .long 10,   20"
-  emit "  .long 9,    22"
-  emit "  .long 5,    25"
-  emit "  .long 4,    27"
-  emit "  .long 1,    30"
-  emit "  .long 0,    0"
+  emit "  .long 1000000, 0"
+  emit "  .long 900000,  3"
+  emit "  .long 500000,  7"
+  emit "  .long 400000,  10"
+  emit "  .long 100000,  14"
+  emit "  .long 90000,   17"
+  emit "  .long 50000,   21"
+  emit "  .long 40000,   24"
+  emit "  .long 10000,   28"
+  emit "  .long 9000,    31"
+  emit "  .long 5000,    35"
+  emit "  .long 4000,    38"
+  emit "  .long 1000,    42"
+  emit "  .long 900,     44"
+  emit "  .long 500,     47"
+  emit "  .long 400,     49"
+  emit "  .long 100,     52"
+  emit "  .long 90,      54"
+  emit "  .long 50,      57"
+  emit "  .long 40,      59"
+  emit "  .long 10,      62"
+  emit "  .long 9,       64"
+  emit "  .long 5,       67"
+  emit "  .long 4,       69"
+  emit "  .long 1,       72"
+  emit "  .long 0,       0"
   emit ""
   emit "_rstrings:"
+  emit '  .asciz "_M"'
+  emit '  .asciz "_CM"'
+  emit '  .asciz "_D"'
+  emit '  .asciz "_CD"'
+  emit '  .asciz "_C"'
+  emit '  .asciz "_XC"'
+  emit '  .asciz "_L"'
+  emit '  .asciz "_XL"'
+  emit '  .asciz "_X"'
+  emit '  .asciz "_IX"'
+  emit '  .asciz "_V"'
+  emit '  .asciz "_IV"'
   emit '  .asciz "M"'
   emit '  .asciz "CM"'
   emit '  .asciz "D"'
