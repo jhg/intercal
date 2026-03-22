@@ -1,6 +1,6 @@
 # intercal
 
-A self-compiled compiler for the INTERCAL language
+A self-hosting compiler for the INTERCAL language
 
 ## Why?
 
