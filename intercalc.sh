@@ -109,7 +109,7 @@ tokenize() {
       if [[ "$prev_word" != "FROM" && "$prev_word" != "REINSTATE" ]]; then
         if (( i + 1 <= nwords )); then
           local nw="${words[$((i+1))]}"
-          if [[ "$nw" == "DO" || "$nw" == "PLEASE" || "$nw" == "PLSDO" ]]; then
+          if [[ "$nw" == "DO" || "$nw" == "DON'T" || "$nw" == "PLEASE" || "$nw" == "PLSDO" ]]; then
             label="$w"
             (( i++ ))
             w="${words[$i]}"
@@ -119,7 +119,7 @@ tokenize() {
       fi
     fi
 
-    if [[ "$w" == "DO" || "$w" == "PLEASE" || "$w" == "PLSDO" ]]; then
+    if [[ "$w" == "DO" || "$w" == "DON'T" || "$w" == "PLEASE" || "$w" == "PLSDO" ]]; then
       is_start=1
     fi
 
@@ -159,27 +159,33 @@ tokenize() {
       body="${match[2]}"
     fi
 
-    # Parse identifier (PLSDO, PLEASE, DO)
+    # Parse identifier (PLSDO, PLEASE, DON'T, DO)
     stmt_polite[$idx]=0
+    stmt_negated[$idx]=0
     if [[ "$body" =~ '^PLSDO[[:space:]]*(.*)$' ]]; then
       stmt_polite[$idx]=1
       body="${match[1]}"
     elif [[ "$body" =~ '^PLEASE[[:space:]]*(.*)$' ]]; then
       stmt_polite[$idx]=1
       body="${match[1]}"
+    elif [[ "$body" =~ "^DON'T[[:space:]]*(.*)\$" ]]; then
+      stmt_polite[$idx]=0
+      stmt_negated[$idx]=1
+      body="${match[1]}"
     elif [[ "$body" =~ '^DO[[:space:]]*(.*)$' ]]; then
       stmt_polite[$idx]=0
       body="${match[1]}"
     fi
 
-    # Parse negation
-    stmt_negated[$idx]=0
-    if [[ "$body" =~ "^NOT[[:space:]]+(.*)\$" ]]; then
-      stmt_negated[$idx]=1
-      body="${match[1]}"
-    elif [[ "$body" =~ "^N'T[[:space:]]+(.*)\$" ]]; then
-      stmt_negated[$idx]=1
-      body="${match[1]}"
+    # Parse negation (NOT or N'T after DO/PLEASE, not DON'T which is handled above)
+    if (( ! stmt_negated[$idx] )); then
+      if [[ "$body" =~ "^NOT[[:space:]]+(.*)\$" ]]; then
+        stmt_negated[$idx]=1
+        body="${match[1]}"
+      elif [[ "$body" =~ "^N'T[[:space:]]+(.*)\$" ]]; then
+        stmt_negated[$idx]=1
+        body="${match[1]}"
+      fi
     fi
 
     # Parse probability
@@ -338,7 +344,11 @@ detect_syslib() {
       local target="${stmt_next_target[$i]}"
       if (( target >= 1000 && target <= 1999 )); then
         needs_syslib=1
-        label_to_stmt[$target]="syslib_${target}"
+        # With --pure-syslib, syslib labels come from syslib.i (regular INTERCAL)
+        # Without it, they map to native assembly routines
+        if (( ! USE_PURE_SYSLIB )); then
+          label_to_stmt[$target]="syslib_${target}"
+        fi
       fi
       if (( target == 666 )); then
         label_to_stmt[666]="syscall_666"
@@ -1642,9 +1652,38 @@ emit_data() {
 # ============================================================
 
 SCRIPT_DIR="${0:A:h}"
+USE_PURE_SYSLIB=0
+
+# Parse command-line flags
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --pure-syslib) USE_PURE_SYSLIB=1; shift ;;
+    *) shift ;;
+  esac
+done
 
 main() {
+  # If --pure-syslib, prepend syslib.i to source
+  if (( USE_PURE_SYSLIB )) && (( needs_syslib )); then
+    # This is called after first read, so we re-read with syslib prepended
+    :
+  fi
+
   read_source
+
+  # Prepend syslib.i if --pure-syslib (after reading source but before tokenizing)
+  if (( USE_PURE_SYSLIB )); then
+    local syslib_source
+    syslib_source=$(cat "$SCRIPT_DIR/syslib.i" 2>/dev/null || true)
+    if [[ -n "$syslib_source" ]]; then
+      syslib_source=${syslib_source//$'\n'/ }
+      syslib_source=${syslib_source//$'\t'/ }
+      syslib_source=${syslib_source//$'\r'/ }
+      syslib_source=${(U)syslib_source}
+      SOURCE="$SOURCE $syslib_source"
+    fi
+  fi
+
   tokenize
   check_politeness
   check_labels
@@ -1655,7 +1694,7 @@ main() {
 
   # Assemble: concatenate runtime + syslib (if needed) + program assembly
   local runtime_files=("$SCRIPT_DIR/runtime.s")
-  if (( needs_syslib )); then
+  if (( needs_syslib && ! USE_PURE_SYSLIB )); then
     runtime_files+=("$SCRIPT_DIR/syslib_native.s")
   fi
   cat "${runtime_files[@]}" <(print -r -- "$asm") | cc -x assembler - -o "$TMPBIN" 2>&2
