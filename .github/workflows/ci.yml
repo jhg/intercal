@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run test suite
+        run: zsh tests/run_tests.sh
+
+      - name: Run pure syslib verification
+        run: zsh tests/test_syslib_pure.sh
+
+      - name: Bootstrap (if compiler.i exists)
+        if: hashFiles('compiler.i') != ''
+        run: zsh bootstrap.sh

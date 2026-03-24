@@ -1,0 +1,32 @@
+#!/bin/zsh
+# intercal - INTERCAL compiler wrapper
+# Usage: intercal source.i [-o output]
+# Invokes intercal_core (self-hosted compiler) with runtime assembly
+set -euo pipefail
+
+SCRIPT_DIR="${0:A:h}"
+CORE="${SCRIPT_DIR}/intercal_core"
+RUNTIME="${SCRIPT_DIR}/runtime.s"
+SYSLIB_NATIVE="${SCRIPT_DIR}/syslib_native.s"
+
+if [[ ! -f "$CORE" ]]; then
+  echo "ERROR: intercal_core not found. Run bootstrap.sh first." >&2
+  exit 1
+fi
+
+source_file="${1:-}"
+if [[ -z "$source_file" || ! -f "$source_file" ]]; then
+  echo "Usage: intercal source.i [-o output]" >&2
+  exit 1
+fi
+
+output="a.out"
+if [[ "${2:-}" == "-o" && -n "${3:-}" ]]; then
+  output="$3"
+fi
+
+TMPASM=$(mktemp /tmp/intercal_asm.XXXXXX)
+trap "rm -f $TMPASM" EXIT
+
+"$CORE" "$source_file" > "$TMPASM"
+cat "$RUNTIME" "$SYSLIB_NATIVE" "$TMPASM" | cc -x assembler - -o "$output"
