@@ -794,9 +794,15 @@ codegen_statement() {
   emit "_stmt_${i}:  // ${stmt_type[$i]}"
 
   # Abstain check
+  local flag_offset=$((i-1))
   emit "  adrp x0, _stmt_flags@PAGE"
   emit "  add x0, x0, _stmt_flags@PAGEOFF"
-  emit "  ldrb w1, [x0, #$((i-1))]"
+  if (( flag_offset > 4095 )); then
+    emit "  mov w9, #${flag_offset}"
+    emit "  ldrb w1, [x0, x9]"
+  else
+    emit "  ldrb w1, [x0, #${flag_offset}]"
+  fi
   emit "  tbnz w1, #0, _stmt_${i}_end"
 
   # Probability check
@@ -829,9 +835,15 @@ codegen_statement() {
   local lbl="${stmt_label[$i]}"
   if [[ -n "$lbl" ]] && [[ -n "${come_from_target[$lbl]:-}" ]]; then
     local cf_stmt=${come_from_target[$lbl]}
+    local cf_offset=$((cf_stmt-1))
     emit "  adrp x0, _stmt_flags@PAGE"
     emit "  add x0, x0, _stmt_flags@PAGEOFF"
-    emit "  ldrb w1, [x0, #$((cf_stmt-1))]"
+    if (( cf_offset > 4095 )); then
+      emit "  mov w9, #${cf_offset}"
+      emit "  ldrb w1, [x0, x9]"
+    else
+      emit "  ldrb w1, [x0, #${cf_offset}]"
+    fi
     emit "  tbnz w1, #0, _stmt_${i}_nocf"
     emit "  b _stmt_${cf_stmt}"
     emit "_stmt_${i}_nocf:"
@@ -1344,10 +1356,16 @@ codegen_abstain() {
       emit "  b _rt_error_E139"
       return
     fi
+    local abs_offset=$((target_stmt-1))
     emit "  adrp x0, _stmt_flags@PAGE"
     emit "  add x0, x0, _stmt_flags@PAGEOFF"
     emit "  mov w1, #1"
-    emit "  strb w1, [x0, #$((target_stmt-1))]"
+    if (( abs_offset > 4095 )); then
+      emit "  mov w9, #${abs_offset}"
+      emit "  strb w1, [x0, x9]"
+    else
+      emit "  strb w1, [x0, #${abs_offset}]"
+    fi
   else
     # Gerund list
     codegen_gerund_modify "$arg" 1
@@ -1367,10 +1385,16 @@ codegen_reinstate() {
       emit "  b _rt_error_E139"
       return
     fi
+    local rei_offset=$((target_stmt-1))
     emit "  adrp x0, _stmt_flags@PAGE"
     emit "  add x0, x0, _stmt_flags@PAGEOFF"
     emit "  mov w1, #0"
-    emit "  strb w1, [x0, #$((target_stmt-1))]"
+    if (( rei_offset > 4095 )); then
+      emit "  mov w9, #${rei_offset}"
+      emit "  strb w1, [x0, x9]"
+    else
+      emit "  strb w1, [x0, #${rei_offset}]"
+    fi
   else
     codegen_gerund_modify "$arg" 0
   fi
@@ -1416,7 +1440,13 @@ codegen_gerund_modify() {
     for (( j=1; j<=stmt_count; j++ )); do
       for t in ${=types}; do
         if [[ "${stmt_type[$j]}" == "$t" ]]; then
-          emit "  strb w1, [x0, #$((j-1))]"
+          local ger_offset=$((j-1))
+          if (( ger_offset > 4095 )); then
+            emit "  mov w9, #${ger_offset}"
+            emit "  strb w1, [x0, x9]"
+          else
+            emit "  strb w1, [x0, #${ger_offset}]"
+          fi
         fi
       done
     done

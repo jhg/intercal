@@ -130,6 +130,8 @@ run_test "variables" test_variables.i "XLII"
 run_test "hello_world" test_hello.i "$(printf 'Hello, World!\n')"
 run_test "control_flow" test_control.i "VII"
 run_test "syslib_add" test_syslib.i "VIII"
+run_test "syslib_multiply" test_multiply.i "XLII"
+run_test "syslib_divide" test_divide.i "VII"
 run_test "stash_retrieve" test_stash.i "VII"
 run_test "abstain" test_abstain.i "V"
 
