@@ -26,3 +26,10 @@ Thumbs.db
 *.tar.bz2
 *.tar.lzma
 __pycache__/
+
+# Bootstrap intermediates and compiled binaries
+intercal_core
+intercal_v1
+intercal_v2
+intercal_v3
+a.out
