@@ -22,14 +22,32 @@ Other doc to review:
 - https://earthly.dev/blog/intercal-yaml-and-other-horrible-programming-languages/
 - https://en.wikipedia.org/wiki/COMEFROM#Hardware_implementation
 
+## Current Status (2026-03-24)
+
+Phase 1 (bootstrap intercalc.sh): COMPLETE - 1656 lines, 25/25 tests
+Phase 1.5 (hardening): COMPLETE - runtime.s, syslib_native.s, Label 666, syslib.i
+Phase 2 (self-hosted compiler.i): IN PROGRESS - Stage 2 of 8 complete
+Phase 3 (CI/CD workflows): COMPLETE - ci.yml + release.yml created
+
+Key files:
+- intercalc.sh: bootstrap compiler (primordial spark, 1656 lines)
+- runtime_macos_arm64.s: ARM64 runtime + Label 666 handler (symlink: runtime.s)
+- syslib_native_macos_arm64.s: native syslib (symlink: syslib_native.s)
+- syslib.i: pure INTERCAL syslib (9065 lines, all 20 labels)
+- compiler.i: self-hosted compiler (Stage 2, I/O + copy + uppercase + length output)
+- intercal: wrapper script for self-hosted compiler
+- bootstrap.sh: 3-generation fixpoint bootstrap
+
 ## Roadmap
 
-[ ] Document in AGENTS.md useful information about how to develop using intercal to know also what the compiler must do
-[ ] Create a basic compiler with basic support to compile itself
-[ ] Download an intercal compiler for first compilation and check if compiled executable can compile itself correctly and that one can work properly compiling itself again
-[ ] Upload that first executable as a release to GitHub
-[ ] Add a GitHub workflow that can download latest release binary to use it to compile the new version, then use the new version to compile itself, and release the new version
-[ ] Improve the compiler and release it using the GitHub workflow
+[x] Create bootstrap shell compiler (intercalc.sh)
+[x] Extract runtime to platform-specific .s files
+[x] Implement Label 666 syscall extension (8 syscalls)
+[x] Write pure INTERCAL syslib (syslib.i, 20 labels)
+[x] Create GitHub workflows (CI + Release)
+[ ] Complete self-hosted compiler (compiler.i, Stages 3-8)
+[ ] Achieve 3-generation fixpoint (bootstrap.sh passes)
+[ ] First release via GitHub Actions
 
 ## Development
 
@@ -62,12 +80,14 @@ This compiler compiles INTERCAL source directly to native executable binary. It 
 
 Phase 1 (bootstrap): `intercalc.sh < program.i > binary`
 - Shell script reads INTERCAL source from stdin
-- Writes native Mach-O binary to stdout
+- Generates ARM64 assembly, concatenates runtime.s + syslib_native.s, pipes to cc
 - Shell handles file redirection: `intercalc.sh < source.i > output && chmod +x output`
 
-Phase 2+ (self-hosted): `intercal program.i -o output`
-- INTERCAL compiler (compiled by `intercalc.sh`) with normal CLI interface
-- Bootstrapped once, then self-reproducing
+Phase 2+ (self-hosted): `./intercal program.i -o output`
+- INTERCAL compiler (compiler.i compiled by intercalc.sh) reads source via Label 666
+- Outputs ARM64 assembly to stdout via TTM
+- Wrapper script concatenates runtime.s + syslib_native.s + assembly, pipes to cc
+- Bootstrapped once, then self-reproducing via 3-generation fixpoint
 
 ### Bootstrap strategy (three-phase approach)
 
@@ -141,19 +161,48 @@ In summary, the executable contains three parts:
 - Syslib: arithmetic in INTERCAL (compiled alongside user code) + random routines bridging to native.
 - Runtime: assembly providing syscalls for I/O, exit, memory, and randomness.
 
-### Syscall extension (Phase 2+)
+### Label 666 Syscall Extension (IMPLEMENTED)
 
-INTERCAL standard does not provide file I/O, process control, or OS access. Phase 2 will extend INTERCAL with a custom simplified syscall mechanism (not CLC-INTERCAL compatible).
+INTERCAL standard does not provide file I/O, process control, or OS access. Label 666 extends INTERCAL with a custom simplified syscall mechanism (not CLC-INTERCAL compatible).
 
-The Phase 1 bootstrap (`intercalc.sh`) does NOT include syscalls — it operates as a stdin/stdout filter and links compiled programs to a runtime that provides basic I/O via the Turing Text Model.
+Usage: `DO .1 <- #N` then `DO (666) NEXT`. The handler reads .1 as syscall number, dispatches, returns via RESUME #1.
 
-Phase 2+ will add a simplified syscall interface for practical programs:
-- Exact design TBD, but will use Label 666 as the entry point (stylistic nod to CLC-INTERCAL)
-- Simpler parameter convention than CLC-INTERCAL's "call by vague resemblance" (which is deliberately obscure)
-- Clear, documented syscall numbers and parameter passing
-- Will support: file I/O, process control, environment access, and other OS operations needed by practical INTERCAL programs
+Parameter convention:
+- .1 = syscall number
+- .2 = primary parameter (fd, index, mode)
+- .3 = result / count
+- .4 = secondary result
+- ,65535 = data buffer (RESERVED for Label 666, programs must not use)
 
-This design decision derives from investigation of CLC-INTERCAL (see CLC-INTERCAL-INVESTIGATION.md): while CLC-INTERCAL's syscall mechanism exists, its documentation is deliberately obscure and reverse-engineering it would add complexity without strategic benefit. Instead, we design our own simpler, fully-documented extension.
+Implemented syscalls:
+
+| .1 | Name | Input | Output | ,65535 |
+|----|------|-------|--------|--------|
+| 1 | open | .2=mode (0=read,1=write) | .3=fd | IN: filename |
+| 2 | read | .2=fd, .3=max bytes | .4=bytes read | OUT: auto-dim |
+| 3 | write | .2=fd, .3=count | .4=bytes written | IN: data |
+| 4 | close | .2=fd | - | - |
+| 5 | argc | - | .3=count | - |
+| 6 | argv | .2=index (0-based) | .3=length | OUT: auto-dim |
+| 8 | exit | .2=code | (no return) | - |
+| 9 | getrand | .2=0:uniform; .2>0:range 0-.2 | .3=random | - |
+
+The runtime saves argc/argv at program entry. Handler auto-dimensions ,65535 for output syscalls (read, argv). Caller dimensions ,65535 for input syscalls (write, open filename).
+
+### Runtime architecture
+
+The runtime is a platform-specific ARM64 assembly file (runtime_macos_arm64.s) containing:
+- I/O routines: Roman numerals, Turing Text Model, English digit names
+- Operators: mingle, select, unary AND/OR/XOR
+- Memory: mmap wrapper
+- Control: RESUME helper, NEXT stack management
+- Error handlers: 16 runtime errors (E000-E633)
+- Label 666 syscall dispatcher and handlers
+- BSS: tape positions, NEXT stack, argc/argv
+
+The syslib is in a separate file (syslib_native_macos_arm64.s) with native implementations of labels 1000-1999. Both are concatenated with program assembly before assembling.
+
+For multi-platform support: create runtime_PLATFORM.s and syslib_native_PLATFORM.s, update symlinks runtime.s and syslib_native.s.
 
 ## INTERCAL language reference
 

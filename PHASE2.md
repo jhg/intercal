@@ -8,14 +8,14 @@ compiler.i reads source via Label 666 (argv -> open -> read), generates ARM64 as
 
 ## Status
 
-Stage 1: Not started
-Stage 2: Not started
-Stage 3: Not started
-Stage 4: Not started
-Stage 5: Not started
-Stage 6: Not started
-Stage 7: Not started
-Stage 8: Not started
+Stage 1: COMPLETE - I/O round-trip (read file, echo to stdout)
+Stage 2: COMPLETE - Read source, copy to ,10, uppercase, output length as Roman
+Stage 3: Not started - Lexer (tokenize into statement arrays)
+Stage 4: Not started - Parser (classify statements, expression trees)
+Stage 5: Not started - Semantics (politeness, labels, COME FROM)
+Stage 6: Not started - Minimal codegen (GIVE UP)
+Stage 7: Not started - Incremental codegen (all statement types)
+Stage 8: Not started - Full compiler + fixpoint test
 
 ## Module Map (labels 100-849)
 
