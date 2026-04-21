@@ -43,33 +43,6 @@
 .global _rt_sys666_argv
 .global _rt_sys666_exit
 .global _rt_sys666_getrand
-.global _rtable
-.global _rstrings
-.global _nl: .byte 10
-.global _errmsg_000: .asciz "ICL000I STATEMENT NOT RECOGNIZED DURING EXECUTIONn"
-.global _errmsg_017: .asciz "ICL017I EXPRESSION CONTAINS UNRESOLVABLE SYNTAXn"
-.global _errmsg_123: .asciz "ICL123I PROGRAM HAS DISAPPEARED INTO THE BLACK LAGOONn"
-.global _errmsg_129: .asciz "ICL129I NEXT TARGET DOES NOT EXISTn"
-.global _errmsg_139: .asciz "ICL139I ABSTAIN TARGET DOES NOT EXISTn"
-.global _errmsg_200: .asciz "ICL200I VARIABLE REFERENCE NOT RECOGNIZEDn"
-.global _errmsg_240: .asciz "ICL240I ARRAY DIMENSION MUST NOT BE ZEROn"
-.global _errmsg_241: .asciz "ICL241I ARRAY SUBSCRIPT OUT OF BOUNDSn"
-.global _errmsg_275: .asciz "ICL275I VALUE EXCEEDS 16 BIT CAPACITYn"
-.global _errmsg_436: .asciz "ICL436I NOTHING TO RETRIEVE FROM STASHn"
-.global _errmsg_533: .asciz "ICL533I RESULT EXCEEDS 32 BIT CAPACITYn"
-.global _errmsg_562: .asciz "ICL562I INPUT DATA EXHAUSTED PREMATURELYn"
-.global _errmsg_579: .asciz "ICL579I INPUT FORMAT NOT RECOGNIZEDn"
-.global _errmsg_621: .asciz "ICL621I RESUME WITH VALUE ZERO IS FORBIDDENn"
-.global _errmsg_632: .asciz "ICL632I PROGRAM ENDED VIA RESUME INSTEAD OF GIVE UPn"
-.global _errmsg_633: .asciz "ICL633I EXECUTION REACHED END WITHOUT GIVE UPn"
-.global _digit_names
-.global _digit_values
-.global _next_stack: .space 632
-.global _next_sp: .space 4
-.global _ttm_out_pos: .space 4
-.global _ttm_in_pos: .space 4
-.global _rt_argc: .space 4
-.global _rt_argv: .space 8
 
 .align 2
 
