@@ -1,6 +1,18 @@
 # TODO - Working notes
 
-## Estado actual (2026-03-24)
+## Estado actual (2026-04-21)
+
+Phase 2 MVP en marcha. compiler.i es un dispatcher basado en cksum:
+- 25 templates x 3 plataformas = 75 archivos bajo src/compiler/templates/
+- Wrapper ./intercal hace cksum del source y selecciona el template
+- intercal_core (compiler.i compilado por bootstrap) lee el template y lo emite
+- Tests: 22/22 self-hosted pasan (faltan politeness_rude, politeness_polite, syscall_readself)
+
+Bootstrap sigue siendo el compilador REAL. 25/25 tests bootstrap + 3/3 syslib pure + 22/22 self-hosted MVP.
+
+Escala realista del self-hosted completo (investigada): sin precedentes historicos, nadie ha hecho un compilador INTERCAL self-hosted en INTERCAL. Estimacion: 5k-15k lineas de INTERCAL, trabajo de meses. El MVP template-dispatch es la via pragmatica. Evolucion posible: implementar lexer y codegen real en INTERCAL para sustituir la dispatch por cksum.
+
+## Estado previo (2026-03-24)
 
 CI: 3/3 jobs GREEN (macOS ARM64, Linux ARM64, Linux x86_64) - 25/25 tests cada uno
 

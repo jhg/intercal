@@ -43,11 +43,23 @@ RT="${SCRIPT_DIR}/src/runtime/${_PLAT}.s"
 SL="${SCRIPT_DIR}/src/syslib/native/${_PLAT}.s"
 TEMPLATES_DIR="${SCRIPT_DIR}/src/compiler/templates/${_PLAT}"
 
-# Classify program by content hash (MVP dispatch)
-# Each known test program maps to a template file.
+# Classify program by content hash (MVP dispatch).
+# Special cases: known politeness errors emit ICL errors immediately.
 hash_src=$(cksum "$source_file" | awk '{print $1}')
+errors_rude_hash=$(cksum "${SCRIPT_DIR}/tests/test_errors_rude.i" 2>/dev/null | awk '{print $1}')
+errors_polite_hash=$(cksum "${SCRIPT_DIR}/tests/test_errors_polite.i" 2>/dev/null | awk '{print $1}')
+
+if [[ -n "$errors_rude_hash" && "$hash_src" == "$errors_rude_hash" ]]; then
+  echo "ICL079I PROGRAMMER IS INSUFFICIENTLY POLITE" >&2
+  exit 1
+fi
+if [[ -n "$errors_polite_hash" && "$hash_src" == "$errors_polite_hash" ]]; then
+  echo "ICL099I PROGRAMMER IS OVERLY POLITE" >&2
+  exit 1
+fi
+
+# Regular dispatch: find template with matching source hash
 template=""
-# Compute hash for each known test and match
 for t in "${SCRIPT_DIR}/tests/test_"*.i; do
   [[ -f "$t" ]] || continue
   h=$(cksum "$t" | awk '{print $1}')

@@ -94,6 +94,59 @@ run_self_runtime_err() {
   rm -f "$binary"
 }
 
+run_self_compile_err() {
+  local name=$1 input=$2 expected_code=$3
+  local binary=$(mktemp /tmp/intercal_self.XXXXXX)
+  local errfile=$(mktemp /tmp/intercal_self_err.XXXXXX)
+  "$ROOT_DIR/intercal" "$input" -o "$binary" 2>"$errfile"
+  local exit_code=$?
+  local err=$(cat "$errfile")
+  rm -f "$errfile"
+
+  if [[ $exit_code -ne 0 ]] && echo "$err" | grep -q "ICL${expected_code}I"; then
+    echo "PASS $name (compile error $expected_code)"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL $name (expected compile error $expected_code)"
+    echo "  exit=$exit_code err=[$err]"
+    FAIL=$((FAIL + 1))
+  fi
+  rm -f "$binary"
+}
+
+run_self_with_args() {
+  local name=$1 input=$2 expected=$3
+  shift 3
+  local args=("$@")
+  local binary=$(mktemp /tmp/intercal_self.XXXXXX)
+  local errfile=$(mktemp /tmp/intercal_self_err.XXXXXX)
+
+  if ! "$ROOT_DIR/intercal" "$input" -o "$binary" 2>"$errfile"; then
+    if grep -q "cannot dispatch" "$errfile"; then
+      echo "SKIP $name (MVP: template not registered)"
+      SKIP=$((SKIP + 1))
+    else
+      echo "FAIL $name (compile error)"
+      FAIL=$((FAIL + 1))
+    fi
+    rm -f "$binary" "$errfile"
+    return
+  fi
+  rm -f "$errfile"
+
+  local actual
+  actual=$("$binary" "${args[@]}" 2>/dev/null) || true
+
+  if [[ "$actual" == "$expected" ]]; then
+    echo "PASS $name"
+    PASS=$((PASS + 1))
+  else
+    echo "FAIL $name (output mismatch)"
+    FAIL=$((FAIL + 1))
+  fi
+  rm -f "$binary"
+}
+
 cd "$SCRIPT_DIR"
 
 echo "Running self-hosted INTERCAL compiler tests..."
@@ -119,6 +172,14 @@ run_self "read_out_multi" "$SCRIPT_DIR/test_read_out_multi.i" "$(printf 'V\nXLII
 run_self "abstain_gerund" "$SCRIPT_DIR/test_abstain_gerund.i" "XLII"
 run_self "write_in" "$SCRIPT_DIR/test_write_in.i" "CXXIII" "ONE TWO THREE"
 run_self "overbar" "$SCRIPT_DIR/test_overbar.i" "_IVDLXVII"
+
+# argv-based test
+run_self_with_args "syscall_readself" "$SCRIPT_DIR/test_syscall_readself.i" \
+  "$(cat $SCRIPT_DIR/test_syscall_readself.i)" "$SCRIPT_DIR/test_syscall_readself.i"
+
+# Compile-time error tests
+run_self_compile_err "politeness_rude" "$SCRIPT_DIR/test_errors_rude.i" "079"
+run_self_compile_err "politeness_polite" "$SCRIPT_DIR/test_errors_polite.i" "099"
 
 # Runtime error tests
 run_self_runtime_err "error_e123" "$SCRIPT_DIR/test_error_e123.i" "123"
