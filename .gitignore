@@ -33,3 +33,6 @@ intercal_v1
 intercal_v2
 intercal_v3
 a.out
+dist/
+*.deb
+*.rpm

@@ -3,7 +3,7 @@
 setopt NO_ERR_EXIT
 
 SCRIPT_DIR="${0:A:h}"
-COMPILER="${SCRIPT_DIR}/../intercalc.sh"
+COMPILER="${SCRIPT_DIR}/../src/bootstrap/intercalc.sh"
 PASS=0
 FAIL=0
 

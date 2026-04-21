@@ -1684,6 +1684,7 @@ emit_data() {
 # ============================================================
 
 SCRIPT_DIR="${0:A:h}"
+ROOT_DIR="${SCRIPT_DIR}/../.."
 USE_PURE_SYSLIB=0
 
 # Platform detection
@@ -1706,7 +1707,7 @@ done
 
 # Source platform-specific codegen overrides
 if [[ "$_INTERCAL_PLATFORM" == "linux_x86_64" ]]; then
-  source "$SCRIPT_DIR/codegen_x86_64.sh"
+  source "$SCRIPT_DIR/codegen_x86_64.sh" 2>/dev/null || true
 fi
 
 main() {
@@ -1721,7 +1722,7 @@ main() {
   # Prepend syslib.i if --pure-syslib (after reading source but before tokenizing)
   if (( USE_PURE_SYSLIB )); then
     local syslib_source
-    syslib_source=$(cat "$SCRIPT_DIR/syslib.i" 2>/dev/null || true)
+    syslib_source=$(cat "$ROOT_DIR/src/syslib/syslib.i" 2>/dev/null || true)
     if [[ -n "$syslib_source" ]]; then
       syslib_source=${syslib_source//$'\n'/ }
       syslib_source=${syslib_source//$'\t'/ }
@@ -1740,16 +1741,15 @@ main() {
   codegen_program
 
   # Assemble: concatenate runtime + syslib (if needed) + program assembly
-  # Use platform-specific files if available, fall back to symlinks
-  local rt_file="$SCRIPT_DIR/runtime_${_INTERCAL_PLATFORM}.s"
+  local rt_file="$ROOT_DIR/src/runtime/${_INTERCAL_PLATFORM}.s"
   if [[ ! -f "$rt_file" ]]; then
-    rt_file="$SCRIPT_DIR/runtime.s"
+    rt_file="$ROOT_DIR/src/runtime/macos_arm64.s"
   fi
   local runtime_files=("$rt_file")
   if (( needs_syslib && ! USE_PURE_SYSLIB )); then
-    local sn_file="$SCRIPT_DIR/syslib_native_${_INTERCAL_PLATFORM}.s"
+    local sn_file="$ROOT_DIR/src/syslib/native/${_INTERCAL_PLATFORM}.s"
     if [[ ! -f "$sn_file" ]]; then
-      sn_file="$SCRIPT_DIR/syslib_native.s"
+      sn_file="$ROOT_DIR/src/syslib/native/macos_arm64.s"
     fi
     runtime_files+=("$sn_file")
   fi

@@ -4,7 +4,7 @@ setopt NO_ERR_EXIT
 setopt PIPE_FAIL
 
 SCRIPT_DIR="${0:A:h}"
-COMPILER="${SCRIPT_DIR}/../intercalc.sh"
+COMPILER="${SCRIPT_DIR}/../src/bootstrap/intercalc.sh"
 PASS=0
 FAIL=0
 
