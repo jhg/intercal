@@ -1,7 +1,76 @@
 // runtime_linux_arm64.s - INTERCAL runtime for Linux ARM64
-// Part of the primordial spark (chispa primigenea)
 
 .text
+.align 2
+
+// Global symbol declarations for GNU linker
+.global _rt_mingle
+.global _rt_select
+.global _rt_unary_and_16
+.global _rt_unary_or_16
+.global _rt_unary_xor_16
+.global _rt_unary_and_32
+.global _rt_unary_or_32
+.global _rt_unary_xor_32
+.global _rt_write_roman
+.global _rt_read_out_array
+.global _rt_write_in_array
+.global _rt_write_in_scalar
+.global _rt_mmap
+.global _rt_resume_1
+.global _rt_error_E000
+.global _rt_error_E017
+.global _rt_error_E123
+.global _rt_error_E129
+.global _rt_error_E139
+.global _rt_error_E200
+.global _rt_error_E240
+.global _rt_error_E241
+.global _rt_error_E275
+.global _rt_error_E436
+.global _rt_error_E533
+.global _rt_error_E562
+.global _rt_error_E579
+.global _rt_error_E621
+.global _rt_error_E632
+.global _rt_error_E633
+.global _rt_syscall_666
+.global _rt_sys666_open
+.global _rt_sys666_read
+.global _rt_sys666_write
+.global _rt_sys666_close
+.global _rt_sys666_argc
+.global _rt_sys666_argv
+.global _rt_sys666_exit
+.global _rt_sys666_getrand
+.global _rtable
+.global _rstrings
+.global _nl: .byte 10
+.global _errmsg_000: .asciz "ICL000I STATEMENT NOT RECOGNIZED DURING EXECUTIONn"
+.global _errmsg_017: .asciz "ICL017I EXPRESSION CONTAINS UNRESOLVABLE SYNTAXn"
+.global _errmsg_123: .asciz "ICL123I PROGRAM HAS DISAPPEARED INTO THE BLACK LAGOONn"
+.global _errmsg_129: .asciz "ICL129I NEXT TARGET DOES NOT EXISTn"
+.global _errmsg_139: .asciz "ICL139I ABSTAIN TARGET DOES NOT EXISTn"
+.global _errmsg_200: .asciz "ICL200I VARIABLE REFERENCE NOT RECOGNIZEDn"
+.global _errmsg_240: .asciz "ICL240I ARRAY DIMENSION MUST NOT BE ZEROn"
+.global _errmsg_241: .asciz "ICL241I ARRAY SUBSCRIPT OUT OF BOUNDSn"
+.global _errmsg_275: .asciz "ICL275I VALUE EXCEEDS 16 BIT CAPACITYn"
+.global _errmsg_436: .asciz "ICL436I NOTHING TO RETRIEVE FROM STASHn"
+.global _errmsg_533: .asciz "ICL533I RESULT EXCEEDS 32 BIT CAPACITYn"
+.global _errmsg_562: .asciz "ICL562I INPUT DATA EXHAUSTED PREMATURELYn"
+.global _errmsg_579: .asciz "ICL579I INPUT FORMAT NOT RECOGNIZEDn"
+.global _errmsg_621: .asciz "ICL621I RESUME WITH VALUE ZERO IS FORBIDDENn"
+.global _errmsg_632: .asciz "ICL632I PROGRAM ENDED VIA RESUME INSTEAD OF GIVE UPn"
+.global _errmsg_633: .asciz "ICL633I EXECUTION REACHED END WITHOUT GIVE UPn"
+.global _digit_names
+.global _digit_values
+.global _next_stack: .space 632
+.global _next_sp: .space 4
+.global _ttm_out_pos: .space 4
+.global _ttm_in_pos: .space 4
+.global _rt_argc: .space 4
+.global _rt_argv: .space 8
+
 .align 2
 
 _rt_mingle:

@@ -1,7 +1,28 @@
 // syslib_native_linux_arm64.s - Native syslib for Linux ARM64
-// Labels 1000-1999: arithmetic, random
 
 .text
+.align 2
+
+.global _rt_syslib_1000
+.global _rt_syslib_1009
+.global _rt_syslib_1010
+.global _rt_syslib_1020
+.global _rt_syslib_1030
+.global _rt_syslib_1039
+.global _rt_syslib_1040
+.global _rt_syslib_1050
+.global _rt_syslib_1500
+.global _rt_syslib_1509
+.global _rt_syslib_1510
+.global _rt_syslib_1520
+.global _rt_syslib_1530
+.global _rt_syslib_1540
+.global _rt_syslib_1549
+.global _rt_syslib_1550
+.global _rt_syslib_1900
+.global _rt_syslib_1910
+.global _rt_syslib_1999
+
 .align 2
 
 _rt_syslib_1000:
