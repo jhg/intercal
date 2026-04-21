@@ -626,6 +626,7 @@ _rt_sys666_open:
     push rbx
     push r12
     push r13
+    push r14
     # Read mode from .2
     lea rax, [rip + _spot_2]
     mov ebx, [rax]
@@ -641,7 +642,7 @@ _rt_sys666_open:
     add eax, 16
     and eax, -16
     sub rsp, rax
-    mov [rbp - 32], eax    # save alloc size
+    mov r14d, eax          # save alloc size in r14 (callee-saved)
     # Copy array elements to C string
     xor ecx, ecx
 .Lopen_copy:
@@ -665,17 +666,22 @@ _rt_sys666_open:
     mov eax, 2             # sys_open
     syscall
     test rax, rax
-    js .Lopen_err
+    js .Lopen_err_dealloc
     mov r12d, eax          # fd
+    jmp .Lopen_store
+.Lopen_err_dealloc:
+    xor r12d, r12d
     jmp .Lopen_store
 .Lopen_err:
     xor r12d, r12d
+    xor r14d, r14d         # no allocation done
 .Lopen_store:
     lea rax, [rip + _spot_3]
     mov [rax], r12d
     # Restore stack
-    mov eax, [rbp - 32]
+    mov eax, r14d
     add rsp, rax
+    pop r14
     pop r13
     pop r12
     pop rbx
@@ -750,6 +756,7 @@ _rt_sys666_write:
     push rbx
     push r12
     push r13
+    push r14
     # Get fd from .2
     lea rax, [rip + _spot_2]
     mov ebx, [rax]
@@ -766,7 +773,7 @@ _rt_sys666_write:
     add eax, 16
     and eax, -16
     sub rsp, rax
-    mov [rbp - 32], eax
+    mov r14d, eax          # save alloc size in r14 (callee-saved)
     # Convert array to bytes
     xor ecx, ecx
 .Lwrite_copy:
@@ -783,7 +790,7 @@ _rt_sys666_write:
     mov edx, r12d          # count
     syscall
     mov ebx, eax           # bytes written
-    mov eax, [rbp - 32]
+    mov eax, r14d
     add rsp, rax
     jmp .Lwrite_store
 .Lwrite_zero:
@@ -791,6 +798,7 @@ _rt_sys666_write:
 .Lwrite_store:
     lea rax, [rip + _spot_4]
     mov [rax], ebx
+    pop r14
     pop r13
     pop r12
     pop rbx
