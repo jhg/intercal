@@ -2,23 +2,40 @@
 
 ## Estado actual (2026-04-21 tarde)
 
-Phase 2 MVP 25/25 completo en las 3 plataformas. Hitos de hoy:
+Phase 2 MVP 25/25. Phase 2.5 + Phase 3.0 D.1-D.6 + Phase 5.0 R.1-R.3 + R.6 + Phase 7.0 DOC.3 completos. ~20 commits hoy.
 
-1. Cerrados los 3 gaps del MVP: politeness_rude, politeness_polite, syscall_readself ya pasan.
-2. Bug critico arreglado en runtime/linux_x86_64.s (_rt_sys666_open y _rt_sys666_write): guardaban alloc_size en [rbp-32] que colisionaba con el buffer del C string para ciertas longitudes -> SIGSEGV al restaurar rsp corrupto. Fix: usar r14 callee-saved.
-3. Template manifest con sha256 (src/compiler/templates/manifest.txt) + verify_manifest.sh corriendo en CI antes de los tests.
-4. Runners (run_tests.sh, run_self_tests.sh) con --verbose, --filter, --keep.
-5. release.yml reescrito: 9 artefactos (zip/tar.gz/deb/rpm x linux_arm64 y linux_x86_64, zip x macOS ARM64) con intercal_core pre-built incluido.
+Completado hoy:
+1. Runtime Linux x86_64 bugfix: _rt_sys666_open/write guardaban alloc_size en [rbp-32] colisionando con el buffer -> SIGSEGV. Fix con r14.
+2. Template manifest sha256 + verify_manifest en CI pre-tests.
+3. Test runners con --verbose --filter --keep flags + failure artifact preservation.
+4. release.yml: 9 artefactos (zip/tar.gz/deb/rpm x linux_arm64 + linux_x86_64 + zip macos_arm64) con intercal_core pre-built.
+5. stage3.i (evolving compiler Phase 4): Stage 3.1.a byte count + 3.1.b first byte + 3.1.c last byte, 3 tests.
+6. tests/cross_test.sh para reproducir CI Linux localmente via docker buildx.
+7. .githooks/pre-commit + pre-push + tools/install_hooks.sh.
+8. README.md rewrite completo.
+9. tools/pipeline_dump.sh (10-file snapshot para debugging).
+10. tools/lint_intercal.sh + tools/lint_assembly.sh integrados en CI.
+11. release-smoke.yml: 10 smoke tests en containers tras publicar release.
+12. man/intercal.1 + completions bash/zsh/fish empaquetados en deb/rpm.
+13. CONTRIBUTING.md + .github/ISSUE_TEMPLATE + PR template.
+14. CODE_OF_CONDUCT.md rewrite (rehabilitation over bans).
+15. README error-codes referencia aclarada.
+16. docs/intercal_patterns.md con patterns verificados empiricamente.
+17. Memoria actualizada: MEMORY.md + dev_workflow.md + release_process.md.
 
 Decisiones pendientes a consultar:
-- Hacer --pure-syslib el default: medido hoy que eleva tiempo de compile de 0.09s a 30s (330x), binario de 40KB a 1.3MB (33x). CI total pasaria de 15 min a ~60 min. Opciones: (a) cachear syslib.i compilado como .s entre runs, (b) mantener native como default y --pure-syslib opt-in como ahora, (c) diferir hasta que compilador Phase 4 sea mas rapido. Decision requerida antes de implementar.
+- Hacer --pure-syslib el default: medido hoy que eleva compile time 0.09s -> 30s (330x), binary 40KB -> 1.3MB (33x). CI total pasaria de 15 min a ~60 min. Opciones: (a) cachear syslib.i compilado como .s entre runs, (b) mantener native como default y --pure-syslib opt-in como ahora, (c) diferir hasta que compilador Phase 4 sea mas rapido. Decision requerida.
+- Primera release v0.1: cuando Phase 4 tenga minimo viable (Stage 6 codegen funcionando), lanzar release.yml via workflow_dispatch y luego tag v0.1.0.
 
-Pendientes en orden:
-- Esperar verde en CI tras push de los 4 commits: 1d8e5b7 (runtime fix), d5bd75c (manifest), 90d6375 (runners), 2bfde1c (release).
-- Phase 4.0 Stages 3-8: reemplazar el template-passthrough por compilador real en INTERCAL. Es el grueso del trabajo. No iniciado.
-- Phase 3.0 D.2-D.6: pipeline_dump, Docker wrappers, git hooks, lint scripts.
-- Phase 5.0 R.3-R.8: man pages, shell completion, Homebrew/AUR/Nix, semver tooling.
-- Phase 6-13: docs, optimizaciones, Windows, extensiones, ecosystem.
+Pendientes en orden de prioridad:
+- Phase 4.0 Stages 3-8 (compilador real). Bloqueado en pattern de loop con break -- research completado (docs/intercal_patterns.md). Cost ~30 statements por loop con break. Proxima sesion: disenar factorizacion con helpers reutilizables antes de codegen.
+- Phase 6.0 Q.x: regression adicional, property testing, fuzzing, integration con programas reales, benchmarks, memory safety (ASan/valgrind), reproducible builds, SBOM.
+- Phase 7.0 DOC.1-DOC.2 + DOC.4-DOC.6: tutorial, language reference, man pages (done DOC.3), website, migration guides.
+- Phase 8.0 optimizaciones: constant folding, DCE, peephole, inline syslib, register allocation.
+- Phase 9.0 Windows: runtime, codegen, CI, msi/chocolatey/winget.
+- Phase 10.0 extensiones: computed COME FROM, NEXT FROM, threading, MAYBE, wimpmode, TriINTERCAL.
+- Phase 11.0 Label 666 extensions: fs, process, env, time, net.
+- Phase 12.0 ecosystem: editors, LSP, formatter, package manager, playground.
 
 Escala realista del self-hosted completo: sin precedentes historicos, nadie ha hecho un compilador INTERCAL self-hosted en INTERCAL. Estimacion: 5k-15k lineas de INTERCAL, trabajo de meses. El MVP template-dispatch es la via pragmatica para v0.1. Phase 4 es la via para v1.0.
 
