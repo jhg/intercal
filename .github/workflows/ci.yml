@@ -38,6 +38,18 @@ jobs:
       - name: Check platform
         run: sh setup_platform.sh
 
+      - name: Debug - dump assembly for minimal program
+        run: |
+          # Save combined asm to file for inspection
+          cp src/bootstrap/intercalc.sh /tmp/ic_debug.sh
+          # Patch to dump assembly instead of compiling
+          sed -i 's|print -r -- "$asm_combined" | $CC|print -r -- "$asm_combined" > /tmp/debug_asm.s; echo "DUMPED"; false \&\& print -r -- "$asm_combined" | $CC|' /tmp/ic_debug.sh || true
+          echo 'DO GIVE UP' | zsh /tmp/ic_debug.sh 2>/dev/null || true
+          echo "=== Lines 44-54 of combined assembly ==="
+          sed -n '44,54p' /tmp/debug_asm.s 2>/dev/null || echo "No dump file"
+          echo "=== Attempting assembly ==="
+          cc -x assembler /tmp/debug_asm.s -o /dev/null 2>&1 | head -10 || true
+
       - name: Run test suite
         run: zsh tests/run_tests.sh
 
