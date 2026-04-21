@@ -1,5 +1,10 @@
 #!/bin/zsh
 # Test runner for intercalc.sh
+#
+# Flags:
+#   --verbose        show compile/runtime stderr on failure
+#   --filter <glob>  only run tests whose name matches the glob
+#   --keep           preserve failure artifacts in /tmp/intercal_failures/
 setopt NO_ERR_EXIT
 setopt PIPE_FAIL
 
@@ -8,14 +13,59 @@ COMPILER="${SCRIPT_DIR}/../src/bootstrap/intercalc.sh"
 PASS=0
 FAIL=0
 
+VERBOSE=0
+FILTER=""
+KEEP=0
+FAILURE_DIR="/tmp/intercal_failures"
+
+while (( $# > 0 )); do
+  case "$1" in
+    --verbose) VERBOSE=1 ;;
+    --keep) KEEP=1 ;;
+    --filter) FILTER="$2"; shift ;;
+    *) echo "unknown arg: $1" >&2; exit 1 ;;
+  esac
+  shift
+done
+
+if (( KEEP )); then
+  rm -rf "$FAILURE_DIR"
+  mkdir -p "$FAILURE_DIR"
+fi
+
+should_run() {
+  [[ -z "$FILTER" ]] && return 0
+  [[ "$1" == ${~FILTER} ]]
+}
+
+preserve_failure() {
+  local name=$1 source=$2 errfile=$3
+  (( KEEP )) || return 0
+  local dir="$FAILURE_DIR/$name"
+  mkdir -p "$dir"
+  cp "$source" "$dir/source.i" 2>/dev/null || true
+  cp "$errfile" "$dir/stderr.log" 2>/dev/null || true
+}
+
+show_err() {
+  local errfile=$1
+  (( VERBOSE )) || return 0
+  echo "--- stderr ---" >&2
+  cat "$errfile" >&2
+  echo "--- end stderr ---" >&2
+}
+
 run_test() {
   local name=$1 input=$2 expected=$3 stdin_data=${4:-}
+  should_run "$name" || return 0
   local binary=$(mktemp /tmp/intercal_test.XXXXXX)
 
   local errfile=$(mktemp /tmp/intercal_cerr.XXXXXX)
   if ! zsh "$COMPILER" < "$input" > "$binary" 2>"$errfile"; then
     echo "FAIL $name (compile error)"
     head -3 "$errfile" >&2
+    show_err "$errfile"
+    preserve_failure "$name" "$input" "$errfile"
     FAIL=$((FAIL + 1))
     rm -f "$binary" "$errfile"
     return
@@ -44,12 +94,12 @@ run_test() {
 
 run_test_error() {
   local name=$1 input=$2 expected_code=$3
+  should_run "$name" || return 0
   local binary=$(mktemp /tmp/intercal_test.XXXXXX)
   local errfile=$(mktemp /tmp/intercal_err.XXXXXX)
   zsh "$COMPILER" < "$input" > "$binary" 2>"$errfile"
   local exit_code=$?
   local err=$(cat "$errfile")
-  rm -f "$errfile"
 
   if [[ $exit_code -ne 0 ]] && echo "$err" | grep -q "ICL${expected_code}I"; then
     echo "PASS $name (expected error $expected_code)"
@@ -57,13 +107,15 @@ run_test_error() {
   else
     echo "FAIL $name (expected error $expected_code)"
     echo "  exit=$exit_code err=[$err]"
+    preserve_failure "$name" "$input" "$errfile"
     FAIL=$((FAIL + 1))
   fi
-  rm -f "$binary"
+  rm -f "$errfile" "$binary"
 }
 
 run_test_runtime_error() {
   local name=$1 input=$2 expected_code=$3
+  should_run "$name" || return 0
   local binary=$(mktemp /tmp/intercal_test.XXXXXX)
 
   if ! zsh "$COMPILER" < "$input" > "$binary" 2>/dev/null; then
@@ -94,6 +146,7 @@ run_test_runtime_error() {
 run_test_with_args() {
   local name=$1 input=$2 expected=$3
   shift 3
+  should_run "$name" || return 0
   local args=("$@")
   local binary=$(mktemp /tmp/intercal_test.XXXXXX)
 
