@@ -59,6 +59,17 @@ The syslib exposes arithmetic at labels 1000-1999 (16-bit and 32-bit add/sub/mul
 
 See [AGENTS.md](AGENTS.md) for complete architecture, INTERCAL language reference, platform-specific assembly pitfalls, and development workflow.
 
+## Documentation
+
+The `docs/` directory is the book-length walkthrough, structured so it can be read as a practical compiler-construction textbook grounded in this implementation.
+
+- New to INTERCAL? Start with [docs/what-is-intercal.md](docs/what-is-intercal.md), then [docs/getting-started.md](docs/getting-started.md).
+- Learning compiler construction? Follow [docs/overview.md](docs/overview.md) → [docs/pipeline.md](docs/pipeline.md) → per-phase chapters.
+- Working on the code? Start at [docs/map-of-the-compiler.md](docs/map-of-the-compiler.md) and [docs/your-first-contribution.md](docs/your-first-contribution.md).
+- Curious about decisions? See [docs/design-rationale.md](docs/design-rationale.md).
+
+The full chapter index lives at [docs/README.md](docs/README.md).
+
 ## Development
 
 One-time setup after cloning:
