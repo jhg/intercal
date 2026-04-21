@@ -1684,6 +1684,16 @@ emit_data() {
 SCRIPT_DIR="${0:A:h}"
 USE_PURE_SYSLIB=0
 
+# Platform detection
+_INTERCAL_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+_INTERCAL_ARCH="$(uname -m)"
+case "${_INTERCAL_OS}_${_INTERCAL_ARCH}" in
+  darwin_arm64)  _INTERCAL_PLATFORM="macos_arm64" ;;
+  linux_x86_64)  _INTERCAL_PLATFORM="linux_x86_64" ;;
+  linux_aarch64) _INTERCAL_PLATFORM="linux_arm64" ;;
+  *)             _INTERCAL_PLATFORM="macos_arm64" ;;
+esac
+
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
@@ -1723,11 +1733,47 @@ main() {
   codegen_program
 
   # Assemble: concatenate runtime + syslib (if needed) + program assembly
-  local runtime_files=("$SCRIPT_DIR/runtime.s")
-  if (( needs_syslib && ! USE_PURE_SYSLIB )); then
-    runtime_files+=("$SCRIPT_DIR/syslib_native.s")
+  # Use platform-specific files if available, fall back to symlinks
+  local rt_file="$SCRIPT_DIR/runtime_${_INTERCAL_PLATFORM}.s"
+  if [[ ! -f "$rt_file" ]]; then
+    rt_file="$SCRIPT_DIR/runtime.s"
   fi
-  cat "${runtime_files[@]}" <(print -r -- "$asm") | cc -x assembler - -o "$TMPBIN" 2>&2
+  local runtime_files=("$rt_file")
+  if (( needs_syslib && ! USE_PURE_SYSLIB )); then
+    local sn_file="$SCRIPT_DIR/syslib_native_${_INTERCAL_PLATFORM}.s"
+    if [[ ! -f "$sn_file" ]]; then
+      sn_file="$SCRIPT_DIR/syslib_native.s"
+    fi
+    runtime_files+=("$sn_file")
+  fi
+  # Determine compiler command
+  local CC="${INTERCAL_CC:-cc}"
+
+  # For Linux arm64: convert macOS assembly syntax to Linux syntax
+  local asm_combined
+  asm_combined=$(cat "${runtime_files[@]}" <(print -r -- "$asm"))
+
+  if [[ "$_INTERCAL_PLATFORM" == linux_arm64 ]]; then
+    # Convert macOS ARM64 syntax to Linux ARM64 syntax
+    asm_combined=$(print -r -- "$asm_combined" | sed \
+      -e 's/\.section __TEXT,__text/.text/' \
+      -e 's/\.section __DATA,__data/.data/' \
+      -e 's/\.section __DATA,__bss/.bss/' \
+      -e 's/@PAGE/:pg_hi21:/' \
+      -e 's/@PAGEOFF/:lo12:/' \
+      -e 's/svc #0x80/svc #0/' \
+      -e 's/mov x16, #1$/mov x8, #93/' \
+      -e 's/mov x16, #4$/mov x8, #64/' \
+      -e 's/mov x16, #3$/mov x8, #63/' \
+      -e 's/mov x16, #5$/mov x8, #56/' \
+      -e 's/mov x16, #6$/mov x8, #57/' \
+      -e 's/mov x16, #197$/mov x8, #222/' \
+      -e 's/mov x16, #500$/mov x8, #278/' \
+      -e 's/\.global _main/.global main/' \
+      -e 's/^_main:/main:/')
+  fi
+
+  print -r -- "$asm_combined" | $CC -x assembler - -o "$TMPBIN" 2>&2
   local cc_exit=$?
   if [[ $cc_exit -ne 0 ]]; then
     exit 1

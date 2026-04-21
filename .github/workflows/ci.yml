@@ -26,8 +26,8 @@ jobs:
         if: hashFiles('compiler.i') != ''
         run: zsh bootstrap.sh
 
-  test-linux:
-    runs-on: ubuntu-latest
+  test-linux-arm64:
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,7 +43,3 @@ jobs:
 
       - name: Run pure syslib verification
         run: zsh tests/test_syslib_pure.sh
-
-      - name: Bootstrap (if compiler.i exists)
-        if: hashFiles('compiler.i') != ''
-        run: zsh bootstrap.sh

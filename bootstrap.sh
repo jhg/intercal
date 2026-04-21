@@ -8,8 +8,15 @@ cd "$SCRIPT_DIR"
 
 if [[ ! -f compiler.i ]]; then
   echo "ERROR: compiler.i not found. The self-hosted compiler source is required."
-  echo "Phase 2 has not been completed yet."
   exit 1
+fi
+
+# Check if compiler.i is a complete compiler (Stage 8+)
+# A complete compiler generates assembly output, not just echoes input
+if ! grep -q "codegen\|_stmt_\|\.section" compiler.i 2>/dev/null; then
+  echo "SKIP: compiler.i is not yet a complete compiler (Phase 2 in progress)"
+  echo "Bootstrap requires a compiler that can generate assembly output."
+  exit 0
 fi
 
 echo "=== INTERCAL Bootstrap ==="

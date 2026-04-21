@@ -272,9 +272,9 @@ _rt_syslib_1550:
 // Label 1900: .1 = uniform random 0-65535
 _rt_syslib_1900:
     sub rsp, 16
-    lea rsi, [rsp]
-    mov edx, 2             // 2 bytes
-    xor edi, edi           // flags=0
+    lea rdi, [rsp]         // buf
+    mov esi, 2             // count=2 bytes
+    xor edx, edx          // flags=0
     mov eax, 318           // sys_getrandom
     syscall
     movzx eax, word ptr [rsp]
@@ -286,9 +286,9 @@ _rt_syslib_1900:
 // Label 1910: .2 = random in range 0-.1
 _rt_syslib_1910:
     sub rsp, 16
-    lea rsi, [rsp]
-    mov edx, 4             // 4 bytes
-    xor edi, edi           // flags=0
+    lea rdi, [rsp]         // buf
+    mov esi, 4             // count=4 bytes
+    xor edx, edx          // flags=0
     mov eax, 318           // sys_getrandom
     syscall
     mov eax, [rsp]

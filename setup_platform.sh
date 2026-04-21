@@ -7,7 +7,7 @@ PLATFORM="$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m)"
 case "$PLATFORM" in
     darwin_arm64)  PLATFORM="macos_arm64" ;;
     linux_x86_64)  PLATFORM="linux_x86_64" ;;
-    linux_aarch64) PLATFORM="linux_aarch64" ;;
+    linux_aarch64) PLATFORM="linux_arm64" ;;
     *)
         echo "Unsupported platform: $PLATFORM" >&2
         exit 1

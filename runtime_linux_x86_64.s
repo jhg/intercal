@@ -883,9 +883,9 @@ _rt_sys666_exit:
 // Output: .3=random value
 _rt_sys666_getrand:
     sub rsp, 16
-    lea rsi, [rsp]
-    mov edx, 2             // 2 bytes
-    xor edi, edi           // flags=0
+    lea rdi, [rsp]         // buf
+    mov esi, 2             // count=2 bytes
+    xor edx, edx          // flags=0
     mov eax, 318           // sys_getrandom
     syscall
     movzx eax, word ptr [rsp]
