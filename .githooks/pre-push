@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-push: fuller validation before sending to remote (~1-2 min).
+# Skip with: git push --no-verify (not recommended).
+set -e
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+# Bootstrap suite (25 tests)
+echo "pre-push: run_tests.sh"
+zsh tests/run_tests.sh
+
+# Pure syslib equivalence (3 tests)
+echo "pre-push: test_syslib_pure.sh"
+zsh tests/test_syslib_pure.sh
+
+# Self-hosted MVP (25 tests)
+echo "pre-push: run_self_tests.sh"
+rm -f intercal_core
+zsh tests/run_self_tests.sh
+
+# Stage 3 evolving compiler (3 tests)
+echo "pre-push: run_stage3_tests.sh"
+rm -f stage3_bin
+zsh tests/run_stage3_tests.sh
+
+echo "pre-push: OK (56 tests passed across 4 suites)"

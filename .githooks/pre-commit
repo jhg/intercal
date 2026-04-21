@@ -1,0 +1,36 @@
+#!/bin/sh
+# Pre-commit: quick sanity checks (~30s).
+# Skip with: git commit --no-verify (not recommended).
+set -e
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+# Skip when nothing meaningful is staged (docs-only, markdown).
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+NEEDS_TEST=0
+for f in $STAGED; do
+  case "$f" in
+    src/*|tests/*|tools/*|intercal|bootstrap.sh|setup_platform.sh)
+      NEEDS_TEST=1 ;;
+  esac
+done
+
+if [ "$NEEDS_TEST" -eq 0 ]; then
+  echo "pre-commit: docs/CI-only changes detected, skipping tests"
+  exit 0
+fi
+
+# Templates manifest must be consistent with committed state
+echo "pre-commit: verify_manifest"
+zsh tools/verify_manifest.sh
+
+# Bootstrap test suite - the source of truth
+echo "pre-commit: run_tests"
+zsh tests/run_tests.sh
+
+echo "pre-commit: OK"
