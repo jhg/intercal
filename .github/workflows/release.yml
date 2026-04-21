@@ -89,6 +89,8 @@ jobs:
           cp -r src stage/intercal/
           cp -r tools stage/intercal/
           cp -r tests stage/intercal/
+          cp -r man stage/intercal/
+          cp -r completions stage/intercal/
           cp README.md LICENSE AGENTS.md stage/intercal/
 
       - name: Build .zip
@@ -114,6 +116,11 @@ jobs:
           cp stage/intercal/setup_platform.sh deb/usr/lib/intercal/
           cp stage/intercal/{README.md,LICENSE,AGENTS.md} deb/usr/lib/intercal/
           ln -sf /usr/lib/intercal/intercal deb/usr/bin/intercal
+          mkdir -p deb/usr/share/man/man1 deb/usr/share/bash-completion/completions deb/usr/share/zsh/site-functions deb/usr/share/fish/vendor_completions.d
+          gzip -9 -c man/intercal.1 > deb/usr/share/man/man1/intercal.1.gz
+          cp completions/bash/intercal deb/usr/share/bash-completion/completions/intercal
+          cp completions/zsh/_intercal deb/usr/share/zsh/site-functions/_intercal
+          cp completions/fish/intercal.fish deb/usr/share/fish/vendor_completions.d/intercal.fish
           cat > deb/DEBIAN/control <<CTRL
           Package: intercal
           Version: ${VERSION}
@@ -144,6 +151,11 @@ jobs:
           cp stage/intercal/setup_platform.sh "$BR/usr/lib/intercal/"
           cp stage/intercal/{README.md,LICENSE,AGENTS.md} "$BR/usr/lib/intercal/"
           ln -sf /usr/lib/intercal/intercal "$BR/usr/bin/intercal"
+          mkdir -p "$BR/usr/share/man/man1" "$BR/usr/share/bash-completion/completions" "$BR/usr/share/zsh/site-functions" "$BR/usr/share/fish/vendor_completions.d"
+          gzip -9 -c man/intercal.1 > "$BR/usr/share/man/man1/intercal.1.gz"
+          cp completions/bash/intercal "$BR/usr/share/bash-completion/completions/intercal"
+          cp completions/zsh/_intercal "$BR/usr/share/zsh/site-functions/_intercal"
+          cp completions/fish/intercal.fish "$BR/usr/share/fish/vendor_completions.d/intercal.fish"
           cat > rpmbuild/SPECS/intercal.spec <<SPEC
           Name:           intercal
           Version:        ${VERSION}
@@ -163,6 +175,10 @@ jobs:
           %files
           /usr/bin/intercal
           /usr/lib/intercal
+          /usr/share/man/man1/intercal.1.gz
+          /usr/share/bash-completion/completions/intercal
+          /usr/share/zsh/site-functions/_intercal
+          /usr/share/fish/vendor_completions.d/intercal.fish
           SPEC
           rpmbuild --define "_topdir $PWD/rpmbuild" --define "_build_id_links none" -bb rpmbuild/SPECS/intercal.spec
           cp rpmbuild/RPMS/${{ matrix.rpm_arch }}/intercal-*.rpm intercal-${{ matrix.plat }}.rpm

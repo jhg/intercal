@@ -1,0 +1,155 @@
+.TH INTERCAL 1 "2026" "intercal" "INTERCAL Compiler Manual"
+.SH NAME
+intercal \- self-hosting compiler for the INTERCAL programming language
+.SH SYNOPSIS
+.B intercal
+.I source.i
+.RB [ \-o
+.IR output ]
+.PP
+.B intercalc.sh
+.B <
+.I source.i
+.B >
+.I output
+.SH DESCRIPTION
+.B intercal
+compiles INTERCAL source code directly to a native executable, with no C or other intermediate language. The toolchain provides two compilers:
+.PP
+.B intercal
+is the self-hosted wrapper. It invokes
+.B intercal_core
+(compiled from
+.B src/compiler/compiler.i
+by the bootstrap), which emits program assembly. The wrapper concatenates the platform runtime, system library, and program assembly and assembles the final binary with
+.BR cc .
+.PP
+.B intercalc.sh
+is the bootstrap compiler, a zsh script that parses INTERCAL directly and emits assembly. It is the source-of-truth compiler; the self-hosted compiler must match its output.
+.SH OPTIONS
+.TP
+.B \-o \fIoutput\fR
+Write the compiled binary to
+.IR output .
+Default:
+.BR a.out .
+.SH ENVIRONMENT
+.TP
+.B INTERCAL_PLATFORM
+Override platform auto-detection. One of
+.BR macos_arm64 ,
+.BR linux_arm64 ,
+.BR linux_x86_64 .
+Useful for cross-emitting assembly with
+.B INTERCAL_ASM_ONLY=1
+(bootstrap only).
+.TP
+.B INTERCAL_ASM_ONLY
+If set to
+.BR 1 ,
+the bootstrap emits only the program assembly (does not invoke
+.BR cc ).
+Used by release tooling to pre-generate templates.
+.TP
+.B INTERCAL_CC
+Override the
+.B cc
+command used for assembly. Default:
+.BR cc .
+.SH EXIT STATUS
+.TP
+.B 0
+Compilation and execution succeeded.
+.TP
+.B 1
+A fatal error occurred; an
+.B ICLnnnI
+code is written to stderr. See the
+.B ERROR CODES
+section.
+.SH ERROR CODES
+INTERCAL errors follow the convention
+.BR ICLnnnI " <description>"
+printed to stderr. Compile-time errors are emitted by the compiler; runtime errors are emitted by the compiled program's runtime.
+.PP
+Compile-time:
+.TP
+.B ICL079I
+PROGRAMMER IS INSUFFICIENTLY POLITE \- fewer than 1/5 of statements use PLEASE.
+.TP
+.B ICL099I
+PROGRAMMER IS OVERLY POLITE \- more than 1/3 of statements use PLEASE.
+.TP
+.B ICL182I
+DUPLICATE LINE LABEL DETECTED.
+.TP
+.B ICL197I
+LABEL VALUE OUTSIDE PERMITTED RANGE (1-65535).
+.PP
+Runtime:
+.TP
+.B ICL123I
+PROGRAM HAS DISAPPEARED INTO THE BLACK LAGOON \- NEXT stack overflow.
+.TP
+.B ICL275I
+32-bit value assigned to 16-bit variable.
+.TP
+.B ICL436I
+RETRIEVE without prior STASH.
+.TP
+.B ICL621I
+ERROR TYPE NOT FOUND IN ANY KNOWN LANGUAGE \- RESUME with count zero.
+.TP
+.B ICL632I
+The program terminated via RESUME instead of GIVE UP.
+.TP
+.B ICL633I
+PROGRAM FELL OFF THE EDGE \- execution reached end without GIVE UP.
+.PP
+The full list is documented in
+.BR AGENTS.md .
+.SH FILES
+.TP
+.BR /usr/lib/intercal/
+Installed package location. Contains
+.BR intercal_core ,
+.BR intercal ,
+.BR src/ ,
+.BR tools/ ,
+.BR tests/ .
+.TP
+.BR /usr/bin/intercal
+Symlink into the installed package.
+.SH EXAMPLES
+.PP
+Compile and run a program:
+.PP
+.nf
+.RS
+echo 'DO GIVE UP' > p.i
+intercal p.i -o p
+./p
+.RE
+.fi
+.PP
+Compile with the bootstrap directly:
+.PP
+.nf
+.RS
+zsh /usr/lib/intercal/src/bootstrap/intercalc.sh < p.i > p
+chmod +x p
+./p
+.RE
+.fi
+.SH SEE ALSO
+.BR cc (1),
+.BR ld (1)
+.PP
+Project repository and documentation:
+.B https://github.com/jhg/intercal
+.PP
+Original INTERCAL-72 manual by Woods and Lyon (1973). C-INTERCAL and CLC-INTERCAL are separate implementations; this compiler is a clean-room implementation.
+.SH AUTHORS
+The
+.B intercal
+compiler is developed at https://github.com/jhg/intercal and released into the public domain.

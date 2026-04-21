@@ -1,0 +1,26 @@
+# bash completion for intercal
+# Source this file or install to /etc/bash_completion.d/intercal
+_intercal() {
+    local cur prev
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    case "$prev" in
+        -o)
+            COMPREPLY=( $(compgen -f -- "$cur") )
+            return 0 ;;
+        intercal)
+            # First argument: source file (.i)
+            COMPREPLY=( $(compgen -f -X '!*.i' -- "$cur") $(compgen -d -- "$cur") )
+            return 0 ;;
+    esac
+
+    if [[ "$cur" == -* ]]; then
+        COMPREPLY=( $(compgen -W "-o" -- "$cur") )
+    else
+        COMPREPLY=( $(compgen -f -X '!*.i' -- "$cur") $(compgen -d -- "$cur") )
+    fi
+}
+
+complete -F _intercal intercal
