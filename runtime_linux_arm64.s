@@ -1,7 +1,7 @@
 // runtime_linux_arm64.s - INTERCAL runtime for Linux ARM64
+// Part of the primordial spark (chispa primigenea)
 
 .text
-.align 2
 
 // Global symbol declarations for GNU linker
 .global _rt_mingle
@@ -413,7 +413,7 @@ _rt_write_in_scalar:
 _rt_mmap:
   mov x5, #0
   mov x4, #-1
-  mov x3, #0x1002
+  mov x3, #0x22
   mov x2, #3
   mov x1, x0
   mov x0, #0
@@ -674,20 +674,22 @@ _rt_sys666_open:
   // Save stack size for restore
   add w20, w2, #16
   and w20, w20, #-16
-  // Compute open flags
-  mov w1, #0           // O_RDONLY
+  // Compute open flags for Linux openat
+  mov w2, #0           // O_RDONLY
   cmp w19, #1
   b.ne .Lopen_do
-  mov w1, #0x601       // O_WRONLY|O_CREAT|O_TRUNC
-  mov w2, #0x1B6       // 0666 permissions
+  mov w2, #0x241       // O_WRONLY|O_CREAT|O_TRUNC (Linux)
+  mov w3, #0x1B6       // 0666 permissions
 .Lopen_do:
-  mov x0, sp
-  mov x16, #5          // open
+  mov x0, #-100        // AT_FDCWD
+  mov x1, sp           // pathname
+  mov x8, #56          // openat
   svc #0
   // Restore stack
   add sp, sp, x20
-  // Check error (carry flag set on error for macOS)
-  b.cs .Lopen_err
+  // Check error (negative return on Linux)
+  cmp x0, #0
+  b.lt .Lopen_err
   mov w20, w0          // save fd
   b .Lopen_store
 .Lopen_err:
@@ -724,7 +726,7 @@ _rt_sys666_read:
   mov x0, x19            // fd
   mov x1, x21            // buffer
   uxtw x2, w20           // max bytes
-  mov x16, #3            // read
+  mov x8, #63            // read
   svc #0
   mov w22, w0            // bytes actually read
   // Auto-dimension ,65535
@@ -805,7 +807,7 @@ _rt_sys666_write:
   mov x0, x19           // fd
   mov x1, sp            // buffer
   uxtw x2, w20          // count
-  mov x16, #4           // write
+  mov x8, #64           // write
   svc #0
   mov w19, w0            // bytes written
   add w2, w20, #16
@@ -828,7 +830,7 @@ _rt_sys666_close:
   adrp x0, :pg_hi21:_spot_2
   add x0, x0, :lo12:_spot_2
   ldr w0, [x0]
-  mov x16, #6           // close
+  mov x8, #57           // close
   svc #0
   b _rt_resume_1
 
@@ -917,7 +919,7 @@ _rt_sys666_getrand:
   sub sp, sp, #16
   mov x0, sp
   mov x1, #2
-  mov x16, #500         // getentropy
+  mov x8, #278         // getentropy
   svc #0
   ldrh w0, [sp]
   add sp, sp, #16

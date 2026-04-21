@@ -1770,6 +1770,8 @@ main() {
       -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGEOFF/:lo12:\1/g' \
       -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGE/:pg_hi21:\1/g' \
       -e 's/svc #0x80/svc #0/g' \
+      -e 's/mov x3, #0x1002/mov x3, #0x22/' \
+      -e 's/mov w1, #0x601/mov w2, #0x241/' \
       -e 's/mov x16, #1$/mov x8, #93/' \
       -e 's/mov x16, #4$/mov x8, #64/' \
       -e 's/mov x16, #3$/mov x8, #63/' \
