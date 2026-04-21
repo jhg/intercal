@@ -1704,6 +1704,11 @@ while [[ "${1:-}" == --* ]]; do
   esac
 done
 
+# Source platform-specific codegen overrides
+if [[ "$_INTERCAL_PLATFORM" == "linux_x86_64" ]]; then
+  source "$SCRIPT_DIR/codegen_x86_64.sh"
+fi
+
 main() {
   # If --pure-syslib, prepend syslib.i to source
   if (( USE_PURE_SYSLIB )) && (( needs_syslib )); then
@@ -1756,14 +1761,15 @@ main() {
   asm_combined=$(cat "${runtime_files[@]}" <(print -r -- "$asm"))
 
   if [[ "$_INTERCAL_PLATFORM" == linux_arm64 ]]; then
-    # Convert macOS ARM64 syntax to Linux ARM64 syntax
+    # Convert macOS ARM64 syntax to Linux ARM64 GNU assembler syntax
+    # IMPORTANT: process @PAGEOFF before @PAGE to avoid partial match
     asm_combined=$(print -r -- "$asm_combined" | sed \
       -e 's/\.section __TEXT,__text/.text/' \
       -e 's/\.section __DATA,__data/.data/' \
       -e 's/\.section __DATA,__bss/.bss/' \
-      -e 's/@PAGE/:pg_hi21:/' \
-      -e 's/@PAGEOFF/:lo12:/' \
-      -e 's/svc #0x80/svc #0/' \
+      -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGEOFF/:lo12:\1/g' \
+      -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGE/:pg_hi21:\1/g' \
+      -e 's/svc #0x80/svc #0/g' \
       -e 's/mov x16, #1$/mov x8, #93/' \
       -e 's/mov x16, #4$/mov x8, #64/' \
       -e 's/mov x16, #3$/mov x8, #63/' \
