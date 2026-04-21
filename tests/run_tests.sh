@@ -12,13 +12,15 @@ run_test() {
   local name=$1 input=$2 expected=$3 stdin_data=${4:-}
   local binary=$(mktemp /tmp/intercal_test.XXXXXX)
 
-  if ! zsh "$COMPILER" < "$input" > "$binary" 2>/dev/null; then
+  local errfile=$(mktemp /tmp/intercal_cerr.XXXXXX)
+  if ! zsh "$COMPILER" < "$input" > "$binary" 2>"$errfile"; then
     echo "FAIL $name (compile error)"
-    zsh "$COMPILER" < "$input" > /dev/null 2>&1 | head -1 >&2
+    head -3 "$errfile" >&2
     FAIL=$((FAIL + 1))
-    rm -f "$binary"
+    rm -f "$binary" "$errfile"
     return
   fi
+  rm -f "$errfile"
   chmod +x "$binary"
 
   local actual

@@ -36,10 +36,44 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y zsh
 
       - name: Setup platform
-        run: sh setup_platform.sh
+        run: |
+          sh setup_platform.sh
+          echo "--- Symlink targets ---"
+          ls -la runtime.s syslib_native.s
+          echo "--- Platform detection ---"
+          uname -s -m
+
+      - name: Debug - test compile a minimal program
+        run: |
+          echo 'DO GIVE UP' | zsh intercalc.sh > /tmp/test_bin 2>/tmp/test_err || true
+          echo "--- Compile stderr ---"
+          cat /tmp/test_err | head -30
+          echo "--- Binary check ---"
+          file /tmp/test_bin 2>/dev/null || echo "No binary produced"
 
       - name: Run test suite
         run: zsh tests/run_tests.sh
 
       - name: Run pure syslib verification
+        if: success()
         run: zsh tests/test_syslib_pure.sh
+
+  test-linux-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+
+      - name: Setup platform
+        run: |
+          sh setup_platform.sh
+          ls -la runtime.s syslib_native.s
+
+      - name: Debug - test compile a minimal program
+        run: |
+          echo 'DO GIVE UP' | zsh intercalc.sh > /tmp/test_bin 2>/tmp/test_err || true
+          echo "--- Compile stderr ---"
+          cat /tmp/test_err | head -30
