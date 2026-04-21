@@ -61,8 +61,8 @@ Key files:
 
 - `CLAUDE.md` is a symlink to `AGENTS.md` — always edit `AGENTS.md`, never `CLAUDE.md` directly
 - `TODO.md` at root is a working notes file for Claude between iterations (not project docs)
-- `PHASE2.md` tracks the self-hosted compiler development stages
-- `SECURITY.md` documents security model and known limitations
+- `docs/PHASE2.md` tracks the self-hosted compiler development stages
+- `SECURITY.md` (root) documents security model and known limitations
 
 ### Commit discipline
 
@@ -290,7 +290,7 @@ src/
   runtime/            macos_arm64.s, linux_arm64.s, linux_x86_64.s
   syslib/             syslib.i (pure INTERCAL) + native/ (per-platform .s files)
   compiler/           compiler.i (self-hosted compiler, in progress)
-docs/                 666.md, PHASE2.md, SECURITY.md
+docs/                 666.md (CLC-INTERCAL investigation), PHASE2.md (self-hosted compiler progress)
 tests/                test programs and runners
 ```
 

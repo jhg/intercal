@@ -4,7 +4,7 @@ Working document for building compiler.i - the INTERCAL compiler written in INTE
 
 ## Architecture
 
-compiler.i reads source via Label 666 (argv -> open -> read), generates ARM64 assembly to stdout via Turing Text Model. The wrapper script (intercal) concatenates runtime.s + syslib_native.s + compiler output and pipes to cc.
+compiler.i (at src/compiler/compiler.i) reads source via Label 666 (argv -> open -> read), generates ARM64 assembly to stdout via Turing Text Model. The wrapper script (intercal) concatenates src/runtime/{platform}.s + src/syslib/native/{platform}.s + compiler output and pipes to cc.
 
 ## Status
 
