@@ -62,7 +62,7 @@ Key files:
 - `CLAUDE.md` is a symlink to `AGENTS.md` — always edit `AGENTS.md`, never `CLAUDE.md` directly
 - `TODO.md` at root is a working notes file for Claude between iterations (not project docs)
 - `SECURITY.md` (root) documents security model and known limitations
-- `docs/666.md` CLC-INTERCAL syscall investigation (historical reference)
+- `docs/666.md` Label 666 syscall design: CLC-INTERCAL investigation, design decisions, why our simplified approach
 
 ### Commit discipline
 
@@ -290,7 +290,7 @@ src/
   runtime/            macos_arm64.s, linux_arm64.s, linux_x86_64.s
   syslib/             syslib.i (pure INTERCAL) + native/ (per-platform .s files)
   compiler/           compiler.i (self-hosted compiler, in progress)
-docs/                 666.md (CLC-INTERCAL investigation, historical reference)
+docs/                 666.md (Label 666 syscall design rationale and CLC-INTERCAL analysis)
 tests/                test programs and runners
 ```
 
