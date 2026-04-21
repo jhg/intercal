@@ -1,5 +1,5 @@
-// syslib_native_linux_x86_64.s - Native INTERCAL syslib for Linux x86_64
-// Labels 1000-1999: arithmetic, random
+# syslib_native_linux_x86_64.s - Native INTERCAL syslib for Linux x86_64
+# Labels 1000-1999: arithmetic, random
 
 .intel_syntax noprefix
 
@@ -26,7 +26,7 @@
 .global _rt_syslib_1910
 .global _rt_syslib_1999
 
-// Label 1000: .3 = .1 + .2 (error on overflow)
+# Label 1000: .3 = .1 + .2 (error on overflow)
 _rt_syslib_1000:
     lea rax, [rip + _spot_1]
     mov ecx, [rax]
@@ -39,17 +39,17 @@ _rt_syslib_1000:
     mov [rax], ecx
     jmp _rt_resume_1
 
-// Label 1009: .3 = .1 + .2, .4 = overflow flag
+# Label 1009: .3 = .1 + .2, .4 = overflow flag
 _rt_syslib_1009:
     lea rax, [rip + _spot_1]
     mov ecx, [rax]
     lea rax, [rip + _spot_2]
     mov edx, [rax]
     add ecx, edx
-    mov ebx, 1            // no overflow
+    mov ebx, 1            # no overflow
     cmp ecx, 65535
     jbe .Lsys1009_ok
-    mov ebx, 2            // overflow
+    mov ebx, 2            # overflow
 .Lsys1009_ok:
     and ecx, 0xFFFF
     lea rax, [rip + _spot_3]
@@ -58,7 +58,7 @@ _rt_syslib_1009:
     mov [rax], ebx
     jmp _rt_resume_1
 
-// Label 1010: .3 = .1 - .2 (wraps)
+# Label 1010: .3 = .1 - .2 (wraps)
 _rt_syslib_1010:
     lea rax, [rip + _spot_1]
     mov ecx, [rax]
@@ -70,7 +70,7 @@ _rt_syslib_1010:
     mov [rax], ecx
     jmp _rt_resume_1
 
-// Label 1020: .1 = .1 + 1 (wraps)
+# Label 1020: .1 = .1 + 1 (wraps)
 _rt_syslib_1020:
     lea rax, [rip + _spot_1]
     mov ecx, [rax]
@@ -79,7 +79,7 @@ _rt_syslib_1020:
     mov [rax], ecx
     jmp _rt_resume_1
 
-// Label 1030: .3 = .1 * .2 (error on overflow)
+# Label 1030: .3 = .1 * .2 (error on overflow)
 _rt_syslib_1030:
     lea rax, [rip + _spot_1]
     mov ecx, [rax]
@@ -92,7 +92,7 @@ _rt_syslib_1030:
     mov [rax], ecx
     jmp _rt_resume_1
 
-// Label 1039: .3 = .1 * .2, .4 = overflow flag
+# Label 1039: .3 = .1 * .2, .4 = overflow flag
 _rt_syslib_1039:
     lea rax, [rip + _spot_1]
     mov ecx, [rax]
@@ -111,7 +111,7 @@ _rt_syslib_1039:
     mov [rax], ebx
     jmp _rt_resume_1
 
-// Label 1040: .3 = .1 / .2 (0 if .2=0)
+# Label 1040: .3 = .1 / .2 (0 if .2=0)
 _rt_syslib_1040:
     lea rax, [rip + _spot_1]
     mov eax, [rax]
@@ -129,7 +129,7 @@ _rt_syslib_1040:
     mov [rcx], eax
     jmp _rt_resume_1
 
-// Label 1050: .2 = :1 / .1 (error on overflow, 0 if .1=0)
+# Label 1050: .2 = :1 / .1 (error on overflow, 0 if .1=0)
 _rt_syslib_1050:
     lea rax, [rip + _twospot_1]
     mov eax, [rax]
@@ -149,7 +149,7 @@ _rt_syslib_1050:
     mov [rcx], eax
     jmp _rt_resume_1
 
-// Label 1500: :3 = :1 + :2 (error on overflow)
+# Label 1500: :3 = :1 + :2 (error on overflow)
 _rt_syslib_1500:
     lea rax, [rip + _twospot_1]
     mov ecx, [rax]
@@ -161,7 +161,7 @@ _rt_syslib_1500:
     mov [rax], ecx
     jmp _rt_resume_1
 
-// Label 1509: :3 = :1 + :2, :4 = overflow flag
+# Label 1509: :3 = :1 + :2, :4 = overflow flag
 _rt_syslib_1509:
     lea rax, [rip + _twospot_1]
     mov ecx, [rax]
@@ -178,7 +178,7 @@ _rt_syslib_1509:
     mov [rax], ebx
     jmp _rt_resume_1
 
-// Label 1510: :3 = :1 - :2 (wraps)
+# Label 1510: :3 = :1 - :2 (wraps)
 _rt_syslib_1510:
     lea rax, [rip + _twospot_1]
     mov ecx, [rax]
@@ -189,7 +189,7 @@ _rt_syslib_1510:
     mov [rax], ecx
     jmp _rt_resume_1
 
-// Label 1520: :1 = .1 $ .2 (mingle)
+# Label 1520: :1 = .1 $ .2 (mingle)
 _rt_syslib_1520:
     push rbx
     lea rax, [rip + _spot_1]
@@ -202,7 +202,7 @@ _rt_syslib_1520:
     pop rbx
     jmp _rt_resume_1
 
-// Label 1530: :1 = .1 * .2 (16x16->32)
+# Label 1530: :1 = .1 * .2 (16x16->32)
 _rt_syslib_1530:
     lea rax, [rip + _spot_1]
     mov ecx, [rax]
@@ -213,13 +213,13 @@ _rt_syslib_1530:
     mov [rax], ecx
     jmp _rt_resume_1
 
-// Label 1540: :3 = :1 * :2 (error on overflow)
+# Label 1540: :3 = :1 * :2 (error on overflow)
 _rt_syslib_1540:
     lea rax, [rip + _twospot_1]
     mov eax, [rax]
     lea rcx, [rip + _twospot_2]
     mov ecx, [rcx]
-    // 32x32 -> 64, check upper 32
+    # 32x32 -> 64, check upper 32
     mov edx, eax
     imul rdx, rcx
     mov rax, rdx
@@ -230,7 +230,7 @@ _rt_syslib_1540:
     mov [rcx], eax
     jmp _rt_resume_1
 
-// Label 1549: :3 = :1 * :2, :4 = overflow flag
+# Label 1549: :3 = :1 * :2, :4 = overflow flag
 _rt_syslib_1549:
     lea rax, [rip + _twospot_1]
     mov eax, [rax]
@@ -251,7 +251,7 @@ _rt_syslib_1549:
     mov [rcx], ebx
     jmp _rt_resume_1
 
-// Label 1550: :3 = :1 / :2 (0 if :2=0)
+# Label 1550: :3 = :1 / :2 (0 if :2=0)
 _rt_syslib_1550:
     lea rax, [rip + _twospot_1]
     mov eax, [rax]
@@ -269,13 +269,13 @@ _rt_syslib_1550:
     mov [rcx], eax
     jmp _rt_resume_1
 
-// Label 1900: .1 = uniform random 0-65535
+# Label 1900: .1 = uniform random 0-65535
 _rt_syslib_1900:
     sub rsp, 16
-    lea rdi, [rsp]         // buf
-    mov esi, 2             // count=2 bytes
-    xor edx, edx          // flags=0
-    mov eax, 318           // sys_getrandom
+    lea rdi, [rsp]         # buf
+    mov esi, 2             # count=2 bytes
+    xor edx, edx          # flags=0
+    mov eax, 318           # sys_getrandom
     syscall
     movzx eax, word ptr [rsp]
     add rsp, 16
@@ -283,13 +283,13 @@ _rt_syslib_1900:
     mov [rcx], eax
     jmp _rt_resume_1
 
-// Label 1910: .2 = random in range 0-.1
+# Label 1910: .2 = random in range 0-.1
 _rt_syslib_1910:
     sub rsp, 16
-    lea rdi, [rsp]         // buf
-    mov esi, 4             // count=4 bytes
-    xor edx, edx          // flags=0
-    mov eax, 318           // sys_getrandom
+    lea rdi, [rsp]         # buf
+    mov esi, 4             # count=4 bytes
+    xor edx, edx          # flags=0
+    mov eax, 318           # sys_getrandom
     syscall
     mov eax, [rsp]
     add rsp, 16
@@ -300,7 +300,7 @@ _rt_syslib_1910:
     inc ecx
     xor edx, edx
     div ecx
-    mov eax, edx          // remainder
+    mov eax, edx          # remainder
     jmp .Lsys1910_store
 .Lsys1910_zero:
     xor eax, eax
@@ -309,6 +309,6 @@ _rt_syslib_1910:
     mov [rcx], eax
     jmp _rt_resume_1
 
-// Label 1999: overflow error
+# Label 1999: overflow error
 _rt_syslib_1999:
     jmp _rt_error_E275

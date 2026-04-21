@@ -1707,7 +1707,7 @@ done
 
 # Source platform-specific codegen overrides
 if [[ "$_INTERCAL_PLATFORM" == "linux_x86_64" ]]; then
-  source "$SCRIPT_DIR/codegen_x86_64.sh" 2>/dev/null || true
+  source "$SCRIPT_DIR/codegen_x86_64.sh"
 fi
 
 main() {

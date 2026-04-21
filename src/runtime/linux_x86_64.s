@@ -1,5 +1,5 @@
-// runtime_linux_x86_64.s - INTERCAL runtime for Linux x86_64
-// Part of the primordial spark (chispa primigenea)
+# runtime_linux_x86_64.s - INTERCAL runtime for Linux x86_64
+# Part of the primordial spark (chispa primigenea)
 
 .intel_syntax noprefix
 
@@ -38,31 +38,31 @@
 .global _rt_error_E633
 .global _rt_syscall_666
 
-// _rt_mingle: interleave two 16-bit values into 32-bit
-// Input: edi=left (16-bit), esi=right (16-bit)
-// Output: eax=result (32-bit)
-// Left bits go to odd positions (1,3,5...), right bits to even (0,2,4...)
+# _rt_mingle: interleave two 16-bit values into 32-bit
+# Input: edi=left (16-bit), esi=right (16-bit)
+# Output: eax=result (32-bit)
+# Left bits go to odd positions (1,3,5...), right bits to even (0,2,4...)
 _rt_mingle:
     push rbx
     xor eax, eax
-    xor r8d, r8d           // bit counter (0..15)
+    xor r8d, r8d           # bit counter (0..15)
 .Lmingle_loop:
     cmp r8d, 16
     jge .Lmingle_done
-    // Extract bit r8d from esi (right), place at position r8d*2
+    # Extract bit r8d from esi (right), place at position r8d*2
     mov ecx, r8d
     mov edx, esi
     shr edx, cl
     and edx, 1
-    lea ecx, [r8d*2]       // ecx = r8d*2
+    lea ecx, [r8d*2]       # ecx = r8d*2
     shl edx, cl
     or eax, edx
-    // Extract bit r8d from edi (left), place at position r8d*2+1
+    # Extract bit r8d from edi (left), place at position r8d*2+1
     mov ecx, r8d
     mov edx, edi
     shr edx, cl
     and edx, 1
-    lea ecx, [r8d*2 + 1]   // ecx = r8d*2+1
+    lea ecx, [r8d*2 + 1]   # ecx = r8d*2+1
     shl edx, cl
     or eax, edx
     inc r8d
@@ -71,20 +71,20 @@ _rt_mingle:
     pop rbx
     ret
 
-// _rt_select: extract bits via mask
-// Input: edi=value, esi=mask, edx=width (16 or 32)
-// Output: eax=result
+# _rt_select: extract bits via mask
+# Input: edi=value, esi=mask, edx=width (16 or 32)
+# Output: eax=result
 _rt_select:
-    xor eax, eax           // result
-    xor r8d, r8d           // output bit position
-    xor ecx, ecx           // loop counter
+    xor eax, eax           # result
+    xor r8d, r8d           # output bit position
+    xor ecx, ecx           # loop counter
 .Lselect_loop:
     cmp ecx, edx
     jge .Lselect_done
-    // Check if mask bit ecx is set
+    # Check if mask bit ecx is set
     bt esi, ecx
     jnc .Lselect_next
-    // Extract bit ecx from value
+    # Extract bit ecx from value
     bt edi, ecx
     jnc .Lselect_zero
     bts eax, r8d
@@ -96,8 +96,8 @@ _rt_select:
 .Lselect_done:
     ret
 
-// _rt_unary_and_16: rotate right 1, AND with original, mask to 16 bits
-// Input: edi; Output: eax
+# _rt_unary_and_16: rotate right 1, AND with original, mask to 16 bits
+# Input: edi; Output: eax
 _rt_unary_and_16:
     mov eax, edi
     shr eax, 1
@@ -109,7 +109,7 @@ _rt_unary_and_16:
     and eax, 0xFFFF
     ret
 
-// _rt_unary_or_16
+# _rt_unary_or_16
 _rt_unary_or_16:
     mov eax, edi
     shr eax, 1
@@ -121,7 +121,7 @@ _rt_unary_or_16:
     and eax, 0xFFFF
     ret
 
-// _rt_unary_xor_16
+# _rt_unary_xor_16
 _rt_unary_xor_16:
     mov eax, edi
     shr eax, 1
@@ -133,36 +133,36 @@ _rt_unary_xor_16:
     and eax, 0xFFFF
     ret
 
-// _rt_unary_and_32
+# _rt_unary_and_32
 _rt_unary_and_32:
     mov eax, edi
     ror eax, 1
     and eax, edi
     ret
 
-// _rt_unary_or_32
+# _rt_unary_or_32
 _rt_unary_or_32:
     mov eax, edi
     ror eax, 1
     or eax, edi
     ret
 
-// _rt_unary_xor_32
+# _rt_unary_xor_32
 _rt_unary_xor_32:
     mov eax, edi
     ror eax, 1
     xor eax, edi
     ret
 
-// _rt_write_roman: output value in Roman numerals
-// Input: edi=value (32-bit unsigned)
+# _rt_write_roman: output value in Roman numerals
+# Input: edi=value (32-bit unsigned)
 _rt_write_roman:
     push rbp
     mov rbp, rsp
     push rbx
     push r12
     push r13
-    mov ebx, edi           // value
+    mov ebx, edi           # value
     test ebx, ebx
     jz .Lroman_done
     lea r12, [rip + _rtable]
@@ -173,10 +173,10 @@ _rt_write_roman:
     cmp ebx, eax
     jb .Lroman_next
     sub ebx, eax
-    mov eax, [r12 + 4]     // string offset
+    mov eax, [r12 + 4]     # string offset
     lea r13, [rip + _rstrings]
     add r13, rax
-    // strlen
+    # strlen
     xor ecx, ecx
 .Lroman_slen:
     cmp byte ptr [r13 + rcx], 0
@@ -184,18 +184,18 @@ _rt_write_roman:
     inc ecx
     jmp .Lroman_slen
 .Lroman_gotlen:
-    // write(1, r13, ecx)
-    mov eax, 1             // sys_write
-    mov edi, 1             // fd=stdout
-    mov rsi, r13           // buf
-    mov edx, ecx          // len
+    # write(1, r13, ecx)
+    mov eax, 1             # sys_write
+    mov edi, 1             # fd=stdout
+    mov rsi, r13           # buf
+    mov edx, ecx          # len
     syscall
     jmp .Lroman_loop
 .Lroman_next:
     add r12, 8
     jmp .Lroman_loop
 .Lroman_done:
-    // write newline
+    # write newline
     lea rsi, [rip + _nl]
     mov eax, 1
     mov edi, 1
@@ -207,8 +207,8 @@ _rt_write_roman:
     pop rbp
     ret
 
-// _rt_read_out_array: Turing Text Model output
-// Input: rdi=array_ptr, esi=count, edx=elem_size (2=16bit, 4=32bit)
+# _rt_read_out_array: Turing Text Model output
+# Input: rdi=array_ptr, esi=count, edx=elem_size (2=16bit, 4=32bit)
 _rt_read_out_array:
     push rbp
     mov rbp, rsp
@@ -217,19 +217,19 @@ _rt_read_out_array:
     push r13
     push r14
     push r15
-    mov r12, rdi           // array ptr
-    mov r13d, esi          // count
-    mov r14d, edx          // elem size
+    mov r12, rdi           # array ptr
+    mov r13d, esi          # count
+    mov r14d, edx          # elem size
     lea r15, [rip + _ttm_out_pos]
-    mov ebx, [r15]         // current TTM position
-    xor ecx, ecx          // index
-    mov [rbp - 48], ecx   // store index on stack
-    sub rsp, 16           // scratch space
+    mov ebx, [r15]         # current TTM position
+    xor ecx, ecx          # index
+    mov [rbp - 48], ecx   # store index on stack
+    sub rsp, 16           # scratch space
 .Lttm_loop:
     mov ecx, [rbp - 48]
     cmp ecx, r13d
     jge .Lttm_done
-    // Load element
+    # Load element
     cmp r14d, 2
     je .Lttm_load16
     mov eax, [r12 + rcx*4]
@@ -239,9 +239,9 @@ _rt_read_out_array:
 .Lttm_loaded:
     sub ebx, eax
     and ebx, 0xFF
-    // Reverse 8 bits of ebx to get character
+    # Reverse 8 bits of ebx to get character
     mov eax, ebx
-    // Bit reverse 8-bit value in eax
+    # Bit reverse 8-bit value in eax
     xor edx, edx
     mov ecx, 8
 .Lttm_rev:
@@ -250,13 +250,13 @@ _rt_read_out_array:
     dec ecx
     jnz .Lttm_rev
     and edx, 0xFF
-    // Write character
+    # Write character
     mov byte ptr [rsp], dl
-    mov eax, 1            // sys_write
-    mov edi, 1            // stdout
+    mov eax, 1            # sys_write
+    mov edi, 1            # stdout
     lea rsi, [rsp]
     mov edx, 1
-    // edx clobbered by bit reverse, reload
+    # edx clobbered by bit reverse, reload
     mov edx, 1
     syscall
     mov ecx, [rbp - 48]
@@ -274,8 +274,8 @@ _rt_read_out_array:
     pop rbp
     ret
 
-// _rt_write_in_array: Turing Text Model input
-// Input: rdi=array_ptr, esi=count, edx=elem_size
+# _rt_write_in_array: Turing Text Model input
+# Input: rdi=array_ptr, esi=count, edx=elem_size
 _rt_write_in_array:
     push rbp
     mov rbp, rsp
@@ -285,26 +285,26 @@ _rt_write_in_array:
     push r14
     push r15
     sub rsp, 24
-    mov r12, rdi           // array ptr
-    mov r13d, esi          // count
-    mov r14d, edx          // elem size
+    mov r12, rdi           # array ptr
+    mov r13d, esi          # count
+    mov r14d, edx          # elem size
     lea r15, [rip + _ttm_in_pos]
-    mov ebx, [r15]         // current TTM position
+    mov ebx, [r15]         # current TTM position
     xor ecx, ecx
-    mov [rbp - 48], ecx   // index
+    mov [rbp - 48], ecx   # index
 .Lttm_in_loop:
     mov ecx, [rbp - 48]
     cmp ecx, r13d
     jge .Lttm_in_done
-    // Read 1 byte from stdin
-    xor eax, eax          // sys_read
-    xor edi, edi          // fd=stdin
+    # Read 1 byte from stdin
+    xor eax, eax          # sys_read
+    xor edi, edi          # fd=stdin
     lea rsi, [rsp]
     mov edx, 1
     syscall
     test eax, eax
     jz .Lttm_in_eof
-    // Reverse bits of input byte
+    # Reverse bits of input byte
     movzx eax, byte ptr [rsp]
     xor edx, edx
     mov ecx, 8
@@ -314,11 +314,11 @@ _rt_write_in_array:
     dec ecx
     jnz .Lttm_in_rev
     and edx, 0xFF
-    // Compute array value: (reversed - prev_pos) mod 256
+    # Compute array value: (reversed - prev_pos) mod 256
     mov eax, edx
     sub eax, ebx
     and eax, 0xFF
-    // Store
+    # Store
     mov ecx, [rbp - 48]
     cmp r14d, 2
     je .Lttm_in_store16
@@ -327,7 +327,7 @@ _rt_write_in_array:
 .Lttm_in_store16:
     mov [r12 + rcx*2], ax
 .Lttm_in_stored:
-    mov ebx, edx          // update position
+    mov ebx, edx          # update position
     mov ecx, [rbp - 48]
     inc ecx
     mov [rbp - 48], ecx
@@ -345,8 +345,8 @@ _rt_write_in_array:
     pop rbp
     ret
 
-// _rt_write_in_scalar: parse English digit names from stdin
-// Output: eax=parsed number
+# _rt_write_in_scalar: parse English digit names from stdin
+# Output: eax=parsed number
 _rt_write_in_scalar:
     push rbp
     mov rbp, rsp
@@ -355,21 +355,21 @@ _rt_write_in_scalar:
     push r13
     push r14
     push r15
-    sub rsp, 280           // buffer space
-    lea r12, [rbp - 328]  // buffer start (adjusted for pushes)
-    // Actually let's use rsp as buffer base
+    sub rsp, 280           # buffer space
+    lea r12, [rbp - 328]  # buffer start (adjusted for pushes)
+    # Actually let's use rsp as buffer base
     mov r12, rsp
-    xor r13d, r13d        // bytes read
+    xor r13d, r13d        # bytes read
 .Lwi_read:
-    xor eax, eax          // sys_read
-    xor edi, edi          // stdin
+    xor eax, eax          # sys_read
+    xor edi, edi          # stdin
     lea rsi, [r12 + r13]
     mov edx, 1
     syscall
     test eax, eax
     jz .Lwi_parse
     movzx eax, byte ptr [r12 + r13]
-    cmp eax, 10           // newline
+    cmp eax, 10           # newline
     je .Lwi_parse
     inc r13d
     cmp r13d, 255
@@ -377,16 +377,16 @@ _rt_write_in_scalar:
 .Lwi_parse:
     test r13d, r13d
     jz .Lwi_eof
-    mov byte ptr [r12 + r13], 0    // null terminate
-    // Uppercase the buffer
+    mov byte ptr [r12 + r13], 0    # null terminate
+    # Uppercase the buffer
     xor ecx, ecx
 .Lwi_upper:
     movzx eax, byte ptr [r12 + rcx]
     test eax, eax
     jz .Lwi_tokenize
-    cmp eax, 97           // 'a'
+    cmp eax, 97           # 'a'
     jl .Lwi_upper_next
-    cmp eax, 122          // 'z'
+    cmp eax, 122          # 'z'
     jg .Lwi_upper_next
     sub eax, 32
     mov byte ptr [r12 + rcx], al
@@ -394,25 +394,25 @@ _rt_write_in_scalar:
     inc ecx
     jmp .Lwi_upper
 .Lwi_tokenize:
-    xor ebx, ebx          // result
-    xor r14d, r14d        // pos in buffer
+    xor ebx, ebx          # result
+    xor r14d, r14d        # pos in buffer
 .Lwi_tok_loop:
     movzx eax, byte ptr [r12 + r14]
     test eax, eax
     jz .Lwi_tok_done
-    cmp eax, 32           // space
+    cmp eax, 32           # space
     jne .Lwi_match
     inc r14d
     jmp .Lwi_tok_loop
 .Lwi_match:
-    // Try each digit name
+    # Try each digit name
     lea r8, [rip + _digit_names]
     lea r9, [rip + _digit_values]
-    xor r10d, r10d        // name index
+    xor r10d, r10d        # name index
 .Lwi_try_name:
     cmp r10d, 12
     jge .Lwi_bad_token
-    // Compare token at r12+r14 with name at r8
+    # Compare token at r12+r14 with name at r8
     xor ecx, ecx
 .Lwi_cmp:
     movzx eax, byte ptr [r8 + rcx]
@@ -424,15 +424,15 @@ _rt_write_in_scalar:
     inc ecx
     jmp .Lwi_cmp
 .Lwi_cmp_end:
-    // Name matched. Check boundary.
+    # Name matched. Check boundary.
     movzx edx, byte ptr [r12 + r14 + rcx]
     test edx, edx
     jz .Lwi_matched
     cmp edx, 32
     je .Lwi_matched
-    // Not a boundary, fall through to next name
+    # Not a boundary, fall through to next name
 .Lwi_next_name:
-    // Advance r8 past current name (find null)
+    # Advance r8 past current name (find null)
     movzx eax, byte ptr [r8]
     inc r8
     test eax, eax
@@ -440,11 +440,11 @@ _rt_write_in_scalar:
     inc r10d
     jmp .Lwi_try_name
 .Lwi_matched:
-    // result = result * 10 + digit_value
+    # result = result * 10 + digit_value
     imul ebx, ebx, 10
     movzx eax, byte ptr [r9 + r10]
     add ebx, eax
-    add r14d, ecx         // advance past token
+    add r14d, ecx         # advance past token
     jmp .Lwi_tok_loop
 .Lwi_tok_done:
     mov eax, ebx
@@ -475,22 +475,22 @@ _rt_write_in_scalar:
     pop rbp
     jmp _rt_error_E562
 
-// _rt_mmap: allocate memory via mmap
-// Input: rdi=size; Output: rax=pointer
+# _rt_mmap: allocate memory via mmap
+# Input: rdi=size; Output: rax=pointer
 _rt_mmap:
-    mov rsi, rdi           // length
-    xor edi, edi           // addr=NULL
-    mov edx, 3             // PROT_READ|PROT_WRITE
-    mov r10d, 0x22         // MAP_PRIVATE|MAP_ANONYMOUS
-    mov r8, -1             // fd=-1
-    xor r9d, r9d          // offset=0
-    mov eax, 9             // sys_mmap
+    mov rsi, rdi           # length
+    xor edi, edi           # addr=NULL
+    mov edx, 3             # PROT_READ|PROT_WRITE
+    mov r10d, 0x22         # MAP_PRIVATE|MAP_ANONYMOUS
+    mov r8, -1             # fd=-1
+    xor r9d, r9d          # offset=0
+    mov eax, 9             # sys_mmap
     syscall
     cmp rax, -1
     je _rt_error_E000
     ret
 
-// _rt_resume_1: pop NEXT stack and jump
+# _rt_resume_1: pop NEXT stack and jump
 _rt_resume_1:
     lea rax, [rip + _next_sp]
     mov ecx, [rax]
@@ -502,7 +502,7 @@ _rt_resume_1:
     mov rax, [rdx + rcx*8]
     jmp rax
 
-// Error handlers - write to stderr and exit with code 1
+# Error handlers - write to stderr and exit with code 1
 _rt_error_E000:
     lea rsi, [rip + _errmsg_000]
     mov edx, 50
@@ -584,18 +584,18 @@ _rt_error_E633:
     jmp .Lerror_exit
 
 .Lerror_exit:
-    mov eax, 1             // sys_write
-    mov edi, 2             // stderr
+    mov eax, 1             # sys_write
+    mov edi, 2             # stderr
     syscall
-    mov eax, 60            // sys_exit
+    mov eax, 60            # sys_exit
     mov edi, 1
     syscall
 
 
-// ========== Label 666 Syscall Handler ==========
+# ========== Label 666 Syscall Handler ==========
 
 _rt_syscall_666:
-    // Read .1 (syscall number)
+    # Read .1 (syscall number)
     lea rax, [rip + _spot_1]
     mov eax, [rax]
     cmp eax, 1
@@ -616,32 +616,32 @@ _rt_syscall_666:
     je _rt_sys666_getrand
     jmp _rt_error_E000
 
-// Syscall 1: open file
-// .2=mode (0=read,1=write), ,65535=filename (ASCII codes)
-// Output: .3=fd (0=error)
+# Syscall 1: open file
+# .2=mode (0=read,1=write), ,65535=filename (ASCII codes)
+# Output: .3=fd (0=error)
 _rt_sys666_open:
     push rbp
     mov rbp, rsp
     push rbx
     push r12
     push r13
-    // Read mode from .2
+    # Read mode from .2
     lea rax, [rip + _spot_2]
     mov ebx, [rax]
-    // Read filename from ,65535
+    # Read filename from ,65535
     lea rax, [rip + _tail_65535_ptr]
     mov r12, [rax]
     test r12, r12
     jz .Lopen_err
     lea rax, [rip + _tail_65535_dims]
-    mov r13d, [rax]        // filename length
-    // Allocate stack space for C string (aligned)
+    mov r13d, [rax]        # filename length
+    # Allocate stack space for C string (aligned)
     mov eax, r13d
     add eax, 16
     and eax, -16
     sub rsp, rax
-    mov [rbp - 32], eax    // save alloc size
-    // Copy array elements to C string
+    mov [rbp - 32], eax    # save alloc size
+    # Copy array elements to C string
     xor ecx, ecx
 .Lopen_copy:
     cmp ecx, r13d
@@ -651,28 +651,28 @@ _rt_sys666_open:
     inc ecx
     jmp .Lopen_copy
 .Lopen_copied:
-    mov byte ptr [rsp + rcx], 0    // null terminate
-    // Compute flags
-    xor esi, esi           // O_RDONLY=0
+    mov byte ptr [rsp + rcx], 0    # null terminate
+    # Compute flags
+    xor esi, esi           # O_RDONLY=0
     xor edx, edx
     cmp ebx, 1
     jne .Lopen_do
-    mov esi, 0x241         // O_WRONLY|O_CREAT|O_TRUNC (Linux)
-    mov edx, 0x1B6         // 0666
+    mov esi, 0x241         # O_WRONLY|O_CREAT|O_TRUNC (Linux)
+    mov edx, 0x1B6         # 0666
 .Lopen_do:
-    mov rdi, rsp           // pathname
-    mov eax, 2             // sys_open
+    mov rdi, rsp           # pathname
+    mov eax, 2             # sys_open
     syscall
     test rax, rax
     js .Lopen_err
-    mov r12d, eax          // fd
+    mov r12d, eax          # fd
     jmp .Lopen_store
 .Lopen_err:
     xor r12d, r12d
 .Lopen_store:
     lea rax, [rip + _spot_3]
     mov [rax], r12d
-    // Restore stack
+    # Restore stack
     mov eax, [rbp - 32]
     add rsp, rax
     pop r13
@@ -681,9 +681,9 @@ _rt_sys666_open:
     pop rbp
     jmp _rt_resume_1
 
-// Syscall 2: read
-// .2=fd, .3=max bytes
-// Output: .4=bytes read, ,65535=data
+# Syscall 2: read
+# .2=fd, .3=max bytes
+# Output: .4=bytes read, ,65535=data
 _rt_sys666_read:
     push rbp
     mov rbp, rsp
@@ -691,25 +691,25 @@ _rt_sys666_read:
     push r12
     push r13
     push r14
-    // Get fd from .2
+    # Get fd from .2
     lea rax, [rip + _spot_2]
     mov ebx, [rax]
-    // Get max bytes from .3
+    # Get max bytes from .3
     lea rax, [rip + _spot_3]
     mov r12d, [rax]
-    // Allocate buffer via mmap
+    # Allocate buffer via mmap
     mov edi, r12d
     add edi, 4096
     call _rt_mmap
-    mov r13, rax           // buffer ptr
-    // Read from fd
-    mov edi, ebx           // fd
-    mov rsi, r13           // buffer
-    mov edx, r12d          // max
-    xor eax, eax          // sys_read
+    mov r13, rax           # buffer ptr
+    # Read from fd
+    mov edi, ebx           # fd
+    mov rsi, r13           # buffer
+    mov edx, r12d          # max
+    xor eax, eax          # sys_read
     syscall
-    mov r14d, eax          // bytes read
-    // Auto-dimension ,65535
+    mov r14d, eax          # bytes read
+    # Auto-dimension ,65535
     mov edi, r14d
     shl edi, 1
     add edi, 16
@@ -721,7 +721,7 @@ _rt_sys666_read:
     mov dword ptr [rax], 1
     lea rax, [rip + _tail_65535_dims]
     mov [rax], r14d
-    // Copy bytes to array
+    # Copy bytes to array
     xor ecx, ecx
 .Lread_copy:
     cmp ecx, r14d
@@ -740,33 +740,33 @@ _rt_sys666_read:
     pop rbp
     jmp _rt_resume_1
 
-// Syscall 3: write
-// .2=fd, .3=count, ,65535=data
-// Output: .4=bytes written
+# Syscall 3: write
+# .2=fd, .3=count, ,65535=data
+# Output: .4=bytes written
 _rt_sys666_write:
     push rbp
     mov rbp, rsp
     push rbx
     push r12
     push r13
-    // Get fd from .2
+    # Get fd from .2
     lea rax, [rip + _spot_2]
     mov ebx, [rax]
-    // Get count from .3
+    # Get count from .3
     lea rax, [rip + _spot_3]
     mov r12d, [rax]
-    // Get array ptr
+    # Get array ptr
     lea rax, [rip + _tail_65535_ptr]
     mov r13, [rax]
     test r13, r13
     jz .Lwrite_zero
-    // Allocate stack for byte buffer
+    # Allocate stack for byte buffer
     mov eax, r12d
     add eax, 16
     and eax, -16
     sub rsp, rax
     mov [rbp - 32], eax
-    // Convert array to bytes
+    # Convert array to bytes
     xor ecx, ecx
 .Lwrite_copy:
     cmp ecx, r12d
@@ -776,12 +776,12 @@ _rt_sys666_write:
     inc ecx
     jmp .Lwrite_copy
 .Lwrite_do:
-    mov eax, 1             // sys_write
-    mov edi, ebx           // fd
-    mov rsi, rsp           // buf
-    mov edx, r12d          // count
+    mov eax, 1             # sys_write
+    mov edi, ebx           # fd
+    mov rsi, rsp           # buf
+    mov edx, r12d          # count
     syscall
-    mov ebx, eax           // bytes written
+    mov ebx, eax           # bytes written
     mov eax, [rbp - 32]
     add rsp, rax
     jmp .Lwrite_store
@@ -796,17 +796,17 @@ _rt_sys666_write:
     pop rbp
     jmp _rt_resume_1
 
-// Syscall 4: close
-// .2=fd
+# Syscall 4: close
+# .2=fd
 _rt_sys666_close:
     lea rax, [rip + _spot_2]
     mov edi, [rax]
-    mov eax, 3             // sys_close
+    mov eax, 3             # sys_close
     syscall
     jmp _rt_resume_1
 
-// Syscall 5: argc
-// Output: .3=count
+# Syscall 5: argc
+# Output: .3=count
 _rt_sys666_argc:
     lea rax, [rip + _rt_argc]
     mov eax, [rax]
@@ -814,8 +814,8 @@ _rt_sys666_argc:
     mov [rcx], eax
     jmp _rt_resume_1
 
-// Syscall 6: argv
-// .2=index, Output: .3=length, ,65535=chars
+# Syscall 6: argv
+# .2=index, Output: .3=length, ,65535=chars
 _rt_sys666_argv:
     push rbp
     mov rbp, rsp
@@ -823,15 +823,15 @@ _rt_sys666_argv:
     push r12
     push r13
     push r14
-    // Get index from .2
+    # Get index from .2
     lea rax, [rip + _spot_2]
     mov ebx, [rax]
-    // Get argv pointer
+    # Get argv pointer
     lea rax, [rip + _rt_argv]
     mov rax, [rax]
-    // argv[index]
+    # argv[index]
     mov r12, [rax + rbx*8]
-    // strlen
+    # strlen
     xor r13d, r13d
 .Largv_strlen:
     cmp byte ptr [r12 + r13], 0
@@ -839,7 +839,7 @@ _rt_sys666_argv:
     inc r13d
     jmp .Largv_strlen
 .Largv_got_len:
-    // Allocate array
+    # Allocate array
     mov edi, r13d
     shl edi, 1
     add edi, 16
@@ -851,7 +851,7 @@ _rt_sys666_argv:
     mov dword ptr [rax], 1
     lea rax, [rip + _tail_65535_dims]
     mov [rax], r13d
-    // Copy chars
+    # Copy chars
     xor ecx, ecx
 .Largv_copy:
     cmp ecx, r13d
@@ -870,23 +870,23 @@ _rt_sys666_argv:
     pop rbp
     jmp _rt_resume_1
 
-// Syscall 8: exit
-// .2=exit code
+# Syscall 8: exit
+# .2=exit code
 _rt_sys666_exit:
     lea rax, [rip + _spot_2]
     mov edi, [rax]
-    mov eax, 60            // sys_exit
+    mov eax, 60            # sys_exit
     syscall
 
-// Syscall 9: getrand
-// .2=0: uniform 16-bit; .2>0: range 0-.2
-// Output: .3=random value
+# Syscall 9: getrand
+# .2=0: uniform 16-bit; .2>0: range 0-.2
+# Output: .3=random value
 _rt_sys666_getrand:
     sub rsp, 16
-    lea rdi, [rsp]         // buf
-    mov esi, 2             // count=2 bytes
-    xor edx, edx          // flags=0
-    mov eax, 318           // sys_getrandom
+    lea rdi, [rsp]         # buf
+    mov esi, 2             # count=2 bytes
+    xor edx, edx          # flags=0
+    mov eax, 318           # sys_getrandom
     syscall
     movzx eax, word ptr [rsp]
     add rsp, 16
@@ -897,14 +897,14 @@ _rt_sys666_getrand:
     inc ecx
     xor edx, edx
     div ecx
-    mov eax, edx          // remainder
+    mov eax, edx          # remainder
 .Lrand_store:
     lea rcx, [rip + _spot_3]
     mov [rcx], eax
     jmp _rt_resume_1
 
 
-// ========== Data Section ==========
+# ========== Data Section ==========
 
 .section .data
 .align 8
@@ -1000,7 +1000,7 @@ _digit_names:
 _digit_values:
     .byte 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9
 
-// ========== BSS Section ==========
+# ========== BSS Section ==========
 
 .section .bss
 .align 8

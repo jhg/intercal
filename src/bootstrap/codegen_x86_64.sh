@@ -161,7 +161,7 @@ codegen_program() {
   emit "main:"
   emit "  push rbp"
   emit "  mov rbp, rsp"
-  emit "  // Save argc/argv for Label 666"
+  emit "  # Save argc/argv for Label 666"
   emit "  lea rcx, [rip + _rt_argc]"
   emit "  mov [rcx], edi"
   emit "  lea rcx, [rip + _rt_argv]"
@@ -182,7 +182,7 @@ codegen_program() {
 codegen_statement() {
   local i=$1
   emit ""
-  emit "_stmt_${i}:  // ${stmt_type[$i]}"
+  emit "_stmt_${i}:  # ${stmt_type[$i]}"
 
   # Abstain check
   local flag_offset=$((i-1))
@@ -895,7 +895,7 @@ codegen_retrieve_var() {
 
 emit_data() {
   emit ""
-  emit "// ========== Program Data =========="
+  emit "# ========== Program Data =========="
   # Statement flags (in .data because negated stmts start at 1)
   emit ".section .data"
   emit "_stmt_flags:"
