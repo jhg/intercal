@@ -43,6 +43,9 @@ jobs:
       - name: Self-hosted test suite
         run: zsh tests/run_self_tests.sh
 
+      - name: Stage 3 (evolving compiler) test suite
+        run: zsh tests/run_stage3_tests.sh
+
       - name: Three-generation fixpoint (if compiler complete)
         if: hashFiles('src/compiler/compiler.i') != ''
         run: zsh bootstrap.sh
@@ -85,6 +88,10 @@ jobs:
         if: success()
         run: zsh tests/run_self_tests.sh
 
+      - name: Stage 3 (evolving compiler) test suite
+        if: success()
+        run: zsh tests/run_stage3_tests.sh
+
   test-linux-x86_64:
     runs-on: ubuntu-latest
     steps:
@@ -116,3 +123,7 @@ jobs:
       - name: Self-hosted test suite
         if: success()
         run: zsh tests/run_self_tests.sh
+
+      - name: Stage 3 (evolving compiler) test suite
+        if: success()
+        run: zsh tests/run_stage3_tests.sh

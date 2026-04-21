@@ -32,6 +32,7 @@ intercal_core
 intercal_v1
 intercal_v2
 intercal_v3
+stage3_bin
 a.out
 dist/
 *.deb
