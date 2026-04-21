@@ -200,18 +200,73 @@ The runtime saves argc/argv at program entry. Handler auto-dimensions ,65535 for
 
 ### Runtime architecture
 
-The runtime is a platform-specific ARM64 assembly file (runtime_macos_arm64.s) containing:
+The runtime is the native layer that bridges INTERCAL programs to the operating system. It is platform-specific assembly, one file per platform, containing all routines that INTERCAL code cannot implement itself (I/O, memory, syscalls).
+
+Files per platform:
+- `runtime_{platform}.s` - runtime routines + data tables + BSS
+- `syslib_native_{platform}.s` - native syslib (labels 1000-1999)
+- Symlinks: `runtime.s` and `syslib_native.s` point to current platform
+
+Supported platforms:
+- `macos_arm64` - macOS on Apple Silicon (primary development platform)
+- `linux_arm64` - Linux on ARM64/aarch64 (CI tested)
+- `linux_x86_64` - Linux on x86-64 (CI tested, uses separate codegen_x86_64.sh)
+
+Runtime contents:
 - I/O routines: Roman numerals, Turing Text Model, English digit names
-- Operators: mingle, select, unary AND/OR/XOR
-- Memory: mmap wrapper
+- Operators: mingle, select, unary AND/OR/XOR (16-bit and 32-bit)
+- Memory: mmap wrapper (platform-specific flags)
 - Control: RESUME helper, NEXT stack management
 - Error handlers: 16 runtime errors (E000-E633)
-- Label 666 syscall dispatcher and handlers
-- BSS: tape positions, NEXT stack, argc/argv
+- Label 666 syscall dispatcher and 8 handlers
+- Data: Roman numeral table, error messages, digit names
+- BSS: TTM tape positions, NEXT stack, argc/argv
 
-The syslib is in a separate file (syslib_native_macos_arm64.s) with native implementations of labels 1000-1999. Both are concatenated with program assembly before assembling.
+Assembly pipeline: `cat runtime.s syslib_native.s program.s | cc -x assembler - -o binary`
 
-For multi-platform support: create runtime_PLATFORM.s and syslib_native_PLATFORM.s, update symlinks runtime.s and syslib_native.s.
+### Multi-platform porting guide
+
+When adding a new platform, create these files:
+
+1. `runtime_{platform}.s` - translate all runtime routines to target architecture
+2. `syslib_native_{platform}.s` - translate all syslib labels
+
+Key differences between platforms:
+
+| Aspect | macOS ARM64 | Linux ARM64 | Linux x86_64 |
+|--------|-------------|-------------|--------------|
+| Syscall instruction | `svc #0x80` | `svc #0` | `syscall` |
+| Syscall number register | x16 | x8 | rax |
+| exit syscall | 1 | 93 | 60 |
+| read syscall | 3 | 63 | 0 |
+| write syscall | 4 | 64 | 1 |
+| open/openat | 5 (open) | 56 (openat, needs AT_FDCWD=-100) | 2 (open) |
+| close syscall | 6 | 57 | 3 |
+| mmap syscall | 197 | 222 | 9 |
+| getrandom/getentropy | 500 (getentropy) | 278 (getrandom) | 318 (getrandom) |
+| MAP_ANON\|MAP_PRIVATE | 0x1002 | 0x22 | 0x22 |
+| O_WRONLY\|O_CREAT\|O_TRUNC | 0x601 | 0x241 | 0x241 |
+| Entry point | `_main` | `main` | `main` |
+| Address relocation | `sym@PAGE` / `sym@PAGEOFF` | bare `sym` / `:lo12:sym` | RIP-relative `sym(%rip)` |
+| Section names | `__TEXT,__text` | `.text` | `.text` |
+| Error detection | carry flag (b.cs) | negative return (cmp x0,#0; b.lt) | negative return |
+| Symbol prefix | underscore (`_main`) | no prefix (`main`) | no prefix (`main`) |
+| .global needed | no (Apple ld lenient) | yes (GNU ld strict) | yes |
+
+For Linux ARM64, intercalc.sh applies sed-based conversion of the generated assembly:
+- Section names, relocation syntax, syscall numbers, entry point, svc instruction
+- The runtime .s files are pre-converted and committed (not generated at build time)
+
+For Linux x86_64, a separate codegen backend (codegen_x86_64.sh) generates native x86_64 assembly using Intel syntax, System V AMD64 ABI, and RIP-relative addressing.
+
+Common pitfall: when generating .global declarations for GNU ld, only export labels at column 0 (function entry points), never indented instructions or data definitions. Labels in assembly are lines starting at column 0 ending with `:`.
+
+### setup_platform.sh
+
+Run `sh setup_platform.sh` to create symlinks for the current platform. Detects via `uname -s` and `uname -m`, normalizes to our platform naming:
+- darwin_arm64 -> macos_arm64
+- linux_aarch64 -> linux_arm64
+- linux_x86_64 -> linux_x86_64
 
 ## INTERCAL language reference
 
