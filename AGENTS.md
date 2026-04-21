@@ -61,6 +61,15 @@ Key files:
 
 - `CLAUDE.md` is a symlink to `AGENTS.md` — always edit `AGENTS.md`, never `CLAUDE.md` directly
 - `TODO.md` at root is a working notes file for Claude between iterations (not project docs)
+- `PHASE2.md` tracks the self-hosted compiler development stages
+- `SECURITY.md` documents security model and known limitations
+
+### Commit discipline
+
+- Review commit messages TWICE before committing to ensure accuracy
+- Verify that the commit message reflects what actually changed (not what was intended)
+- Never commit broken code - run `zsh tests/run_tests.sh` before every commit
+- If a commit breaks tests, fix immediately or revert
 
 ### Examples that could be a test of this compiler, compiling and executing it
 

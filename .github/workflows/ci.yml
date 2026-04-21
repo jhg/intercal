@@ -7,11 +7,36 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-macos:
     runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup platform
+        run: sh setup_platform.sh
+
+      - name: Run test suite
+        run: zsh tests/run_tests.sh
+
+      - name: Run pure syslib verification
+        run: zsh tests/test_syslib_pure.sh
+
+      - name: Bootstrap (if compiler.i exists)
+        if: hashFiles('compiler.i') != ''
+        run: zsh bootstrap.sh
+
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+
+      - name: Setup platform
+        run: sh setup_platform.sh
 
       - name: Run test suite
         run: zsh tests/run_tests.sh
