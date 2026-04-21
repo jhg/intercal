@@ -117,6 +117,7 @@ You want to know *why* something is the way it is.
 
 | File | Purpose |
 |------|---------|
+| [statement-cheatsheet.md](statement-cheatsheet.md) | One-line reference for every statement, operator, syslib label, and syscall |
 | [appendix-grammar.md](appendix-grammar.md) | Formal EBNF grammar |
 | [glossary.md](glossary.md) | INTERCAL symbols and compiler jargon |
 | [design-rationale.md](design-rationale.md) | FAQ covering major design decisions |
