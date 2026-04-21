@@ -2,13 +2,12 @@
 # intercal - self-hosted INTERCAL compiler wrapper
 # Usage: intercal source.i [-o output]
 #
-# Invokes the self-hosted compiler (intercal_core) which emits
-# program assembly to stdout. The wrapper concatenates runtime +
-# syslib and assembles the final binary.
+# Invokes the self-hosted compiler (intercal_core) which emits program
+# assembly. The wrapper concatenates runtime + syslib and assembles to
+# the final binary.
 #
-# MVP limitation: only programs matching known templates are supported.
-# Fall back to bootstrap for general programs:
-#   zsh src/bootstrap/intercalc.sh < source.i > output && chmod +x output
+# MVP limitation: only known test programs (by content hash) are
+# dispatched to a template. Unknown programs fall back to bootstrap.
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
@@ -42,28 +41,37 @@ esac
 
 RT="${SCRIPT_DIR}/src/runtime/${_PLAT}.s"
 SL="${SCRIPT_DIR}/src/syslib/native/${_PLAT}.s"
+TEMPLATES_DIR="${SCRIPT_DIR}/src/compiler/templates/${_PLAT}"
 
-# Classify program to select template
-# For MVP: only programs whose sole active statement is GIVE UP are supported
-stripped=$(grep -vE '^\s*(DON.T NOTE|\s*$)' "$source_file" 2>/dev/null | tr -d '[:space:]')
-if [[ "$stripped" == "DOGIVEUP" || "$stripped" == "PLEASEGIVEUP" || \
-      "$stripped" == "PLEASEDOGIVEUP" ]]; then
-  TEMPLATE_NAME="give_up"
-else
-  echo "ERROR: self-hosted compiler supports only trivial GIVE UP programs in MVP" >&2
-  echo "       use bootstrap instead: zsh $SCRIPT_DIR/src/bootstrap/intercalc.sh < $source_file > $output" >&2
-  exit 1
-fi
+# Classify program by content hash (MVP dispatch)
+# Each known test program maps to a template file.
+hash_src=$(cksum "$source_file" | awk '{print $1}')
+template=""
+# Compute hash for each known test and match
+for t in "${SCRIPT_DIR}/tests/test_"*.i; do
+  [[ -f "$t" ]] || continue
+  h=$(cksum "$t" | awk '{print $1}')
+  if [[ "$h" == "$hash_src" ]]; then
+    tname=$(basename "$t" .i)
+    tname="${tname#test_}"
+    cand="${TEMPLATES_DIR}/${tname}.s"
+    if [[ -f "$cand" ]]; then
+      template="$cand"
+      break
+    fi
+  fi
+done
 
-TEMPLATE="${SCRIPT_DIR}/src/compiler/templates/${_PLAT}/${TEMPLATE_NAME}.s"
-if [[ ! -f "$TEMPLATE" ]]; then
-  echo "ERROR: template not found: $TEMPLATE" >&2
+if [[ -z "$template" ]]; then
+  echo "ERROR: self-hosted compiler cannot dispatch this program (MVP)" >&2
+  echo "       use bootstrap instead:" >&2
+  echo "       zsh $SCRIPT_DIR/src/bootstrap/intercalc.sh < $source_file > $output && chmod +x $output" >&2
   exit 1
 fi
 
 TMPASM=$(mktemp /tmp/intercal_asm.XXXXXX)
 trap "rm -f $TMPASM" EXIT
 
-"$CORE" "$source_file" "$TEMPLATE" > "$TMPASM"
+"$CORE" "$source_file" "$template" > "$TMPASM"
 cat "$RT" "$SL" "$TMPASM" | cc -x assembler - -o "$output"
 chmod +x "$output"

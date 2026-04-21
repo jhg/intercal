@@ -57,6 +57,38 @@ Key files:
 - Does NOT use code from documentation or examples to avoid license conflicts
 - Does NOT use text from documentation or examples to avoid license conflicts
 
+### TDD workflow
+
+- Before modifying the compiler, syslib or runtime, add or extend a test in `tests/` that captures the expected behaviour. The test should fail before the change and pass after.
+- For a new INTERCAL language feature or codegen path: add a `tests/test_<name>.i` plus its expected output, and register it in `tests/run_tests.sh`.
+- For a bug fix: write the smallest reproducer that fails in the current state. Do not fix without a reproducing test.
+- For self-hosted compiler work (`compiler.i`): use `tests/run_self_tests.sh`. Each new Stage 3-8 feature gets at least one dedicated test that exercises it end-to-end (source -> assembly -> binary -> expected output).
+- Run `zsh tests/run_tests.sh` locally before every commit. For self-hosted changes also run `zsh tests/run_self_tests.sh`. Pre-push CI runs both on all 3 platforms.
+- Exceptions (do NOT require a new test): docs-only changes, CI/workflow edits, renames without behavior change, formatting. State explicitly in the commit message when TDD is skipped and why.
+
+### Task planning with todo lists
+
+- Use `TaskCreate` to break down any task that takes more than 2 logical steps or touches more than 1 subsystem. Keep each item a single concrete action ("emit _stmt_flags BSS", not "do codegen").
+- Mark each task `in_progress` when starting and `completed` immediately when done. Never batch multiple completions.
+- One task `in_progress` at a time. If blocked, mark blocked in the content and start a different one.
+- Stage 3-8 of `compiler.i` MUST be tracked with a todo list: each stage has multiple steps (lexer scan, boundary recording, parser classifier, expression tree, etc.).
+- Skip todo lists for: single-file edits, trivial fixes, direct questions, exploration-only sessions.
+- A todo list is a working tool for the current conversation, not documentation. Do not persist its state to `TODO.md`; `TODO.md` is for cross-session context only.
+
+### Agent team (sub-agent usage)
+
+- Use sub-agents via the `Agent` tool for tasks that match an agent's purpose and benefit from isolation.
+- Appropriate uses:
+  - `Explore` / `general-purpose` for broad codebase searches spanning 3+ queries (e.g. "find all places where ,65535 is written").
+  - `Plan` for designing Stage 3-8 implementation before writing code.
+  - Parallel independent research (e.g. platform A pitfalls vs platform B pitfalls) launched in a single message.
+- Inappropriate uses:
+  - Editing `compiler.i`, `intercalc.sh`, or runtime `.s` files. These require full context of the INTERCAL semantics and assembly pitfalls documented here; delegating loses that context.
+  - Running tests or committing. Do these directly so the user can see output.
+  - One-off reads of a known file path (use `Read` directly).
+- Brief sub-agents with full context: cite file paths with line numbers, state constraints (e.g. "must match intercalc.sh codegen byte-for-byte"), set response length limits. A sub-agent knows nothing about the conversation history.
+- Never delegate understanding. Do not prompt with "based on your findings, fix X". Synthesize results yourself and decide the change.
+
 ### Files and conventions
 
 - `CLAUDE.md` is a symlink to `AGENTS.md` — always edit `AGENTS.md`, never `CLAUDE.md` directly
