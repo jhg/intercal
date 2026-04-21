@@ -7,120 +7,233 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-macos:
+  build-macos-arm64:
     runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run tests
+      - name: Bootstrap test suite
         run: zsh tests/run_tests.sh
 
-      - name: Build bootstrap compiler test binary
-        run: |
-          echo "DO GIVE UP" | zsh src/bootstrap/intercalc.sh > /tmp/test_bin
-          file /tmp/test_bin
+      - name: Pure syslib verification
+        run: zsh tests/test_syslib_pure.sh
 
-      - name: Package macOS
+      - name: Build intercal_core binary
         run: |
+          zsh src/bootstrap/intercalc.sh < src/compiler/compiler.i > intercal_core
+          chmod +x intercal_core
+
+      - name: Self-hosted test suite
+        run: zsh tests/run_self_tests.sh
+
+      - name: Package macOS ARM64
+        run: |
+          VERSION="${GITHUB_REF_NAME:-0.0.0-dev}"
+          VERSION="${VERSION#v}"
           mkdir -p dist/intercal
-          cp src/bootstrap/intercalc.sh dist/intercal/
-          cp src/bootstrap/codegen_x86_64.sh dist/intercal/ 2>/dev/null || true
-          cp -r src/runtime dist/intercal/
-          cp -r src/syslib dist/intercal/
-          cp src/compiler/compiler.i dist/intercal/ 2>/dev/null || true
+          cp intercal_core dist/intercal/
           cp intercal bootstrap.sh setup_platform.sh dist/intercal/
-          cp README.md LICENSE dist/intercal/
+          cp -r src dist/intercal/
+          cp -r tools dist/intercal/
+          cp -r tests dist/intercal/
+          cp README.md LICENSE AGENTS.md dist/intercal/
           cd dist && zip -r ../intercal-macos-arm64.zip intercal/
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: intercal-macos-arm64
+          name: release-macos-arm64
           path: intercal-macos-arm64.zip
 
   build-linux:
-    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04-arm
+            plat: linux_arm64
+            deb_arch: arm64
+            rpm_arch: aarch64
+          - os: ubuntu-latest
+            plat: linux_x86_64
+            deb_arch: amd64
+            rpm_arch: x86_64
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y zsh
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y zsh rpm
 
-      - name: Run tests
+      - name: Bootstrap test suite
         run: zsh tests/run_tests.sh
 
-      - name: Package Linux ARM64
-        run: |
-          mkdir -p dist/intercal
-          cp src/bootstrap/intercalc.sh dist/intercal/
-          cp src/bootstrap/codegen_x86_64.sh dist/intercal/ 2>/dev/null || true
-          cp -r src/runtime dist/intercal/
-          cp -r src/syslib dist/intercal/
-          cp src/compiler/compiler.i dist/intercal/ 2>/dev/null || true
-          cp intercal bootstrap.sh setup_platform.sh dist/intercal/
-          cp README.md LICENSE dist/intercal/
-          cd dist && tar czf ../intercal-linux-arm64.tar.gz intercal/
+      - name: Pure syslib verification
+        run: zsh tests/test_syslib_pure.sh
 
-      - name: Build .deb package
+      - name: Build intercal_core binary
         run: |
-          mkdir -p deb/DEBIAN deb/usr/lib/intercal deb/usr/bin
-          cat > deb/DEBIAN/control << 'CTRL'
+          zsh src/bootstrap/intercalc.sh < src/compiler/compiler.i > intercal_core
+          chmod +x intercal_core
+
+      - name: Self-hosted test suite
+        run: zsh tests/run_self_tests.sh
+
+      - name: Prepare staging tree
+        run: |
+          mkdir -p stage/intercal
+          cp intercal_core stage/intercal/
+          cp intercal bootstrap.sh setup_platform.sh stage/intercal/
+          cp -r src stage/intercal/
+          cp -r tools stage/intercal/
+          cp -r tests stage/intercal/
+          cp README.md LICENSE AGENTS.md stage/intercal/
+
+      - name: Build .zip
+        run: |
+          cd stage && zip -r ../intercal-${{ matrix.plat }}.zip intercal/
+
+      - name: Build .tar.gz
+        run: |
+          cd stage && tar czf ../intercal-${{ matrix.plat }}.tar.gz intercal/
+
+      - name: Build .deb
+        run: |
+          VERSION="${GITHUB_REF_NAME:-0.0.0-dev}"
+          VERSION="${VERSION#v}"
+          rm -rf deb
+          mkdir -p deb/DEBIAN deb/usr/bin deb/usr/lib/intercal
+          cp stage/intercal/intercal_core deb/usr/lib/intercal/
+          cp stage/intercal/intercal deb/usr/lib/intercal/intercal
+          cp -r stage/intercal/src deb/usr/lib/intercal/
+          cp -r stage/intercal/tools deb/usr/lib/intercal/
+          cp -r stage/intercal/tests deb/usr/lib/intercal/
+          cp stage/intercal/bootstrap.sh deb/usr/lib/intercal/
+          cp stage/intercal/setup_platform.sh deb/usr/lib/intercal/
+          cp stage/intercal/{README.md,LICENSE,AGENTS.md} deb/usr/lib/intercal/
+          ln -sf /usr/lib/intercal/intercal deb/usr/bin/intercal
+          cat > deb/DEBIAN/control <<CTRL
           Package: intercal
-          Version: ${GITHUB_REF_NAME#v}
-          Architecture: arm64
+          Version: ${VERSION}
+          Architecture: ${{ matrix.deb_arch }}
           Maintainer: INTERCAL Project
+          Depends: zsh, gcc
           Description: Self-compiling INTERCAL compiler
            A compiler for the INTERCAL programming language that targets
-           native ARM64 binaries. Includes bootstrap compiler, runtime,
-           and system library.
+           native binaries. Ships bootstrap compiler, runtime, syslib,
+           and a pre-built self-hosted intercal_core.
           CTRL
-          sed -i 's/^          //' deb/DEBIAN/control
-          cp -r src/* deb/usr/lib/intercal/
-          cp intercal deb/usr/bin/intercal
-          cp bootstrap.sh setup_platform.sh deb/usr/lib/intercal/
-          dpkg-deb --build deb intercal-arm64.deb 2>/dev/null || echo "deb build skipped"
+          dpkg-deb --build deb intercal-${{ matrix.plat }}.deb
 
-      - name: Upload Linux artifact
+      - name: Build .rpm
+        run: |
+          VERSION="${GITHUB_REF_NAME:-0.0.0-dev}"
+          VERSION="${VERSION#v}"
+          rm -rf rpmbuild
+          mkdir -p rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          BR="rpmbuild/BUILDROOT/intercal-${VERSION}-1.${{ matrix.rpm_arch }}"
+          mkdir -p "$BR/usr/bin" "$BR/usr/lib/intercal"
+          cp stage/intercal/intercal_core "$BR/usr/lib/intercal/"
+          cp stage/intercal/intercal "$BR/usr/lib/intercal/intercal"
+          cp -r stage/intercal/src "$BR/usr/lib/intercal/"
+          cp -r stage/intercal/tools "$BR/usr/lib/intercal/"
+          cp -r stage/intercal/tests "$BR/usr/lib/intercal/"
+          cp stage/intercal/bootstrap.sh "$BR/usr/lib/intercal/"
+          cp stage/intercal/setup_platform.sh "$BR/usr/lib/intercal/"
+          cp stage/intercal/{README.md,LICENSE,AGENTS.md} "$BR/usr/lib/intercal/"
+          ln -sf /usr/lib/intercal/intercal "$BR/usr/bin/intercal"
+          cat > rpmbuild/SPECS/intercal.spec <<SPEC
+          Name:           intercal
+          Version:        ${VERSION}
+          Release:        1
+          Summary:        Self-compiling INTERCAL compiler
+          License:        Unlicense
+          URL:            https://github.com/jhg/intercal
+          BuildArch:      ${{ matrix.rpm_arch }}
+          Requires:       zsh, gcc
+          AutoReqProv:    no
+
+          %description
+          A compiler for the INTERCAL programming language that targets
+          native binaries. Ships bootstrap compiler, runtime, syslib,
+          and a pre-built self-hosted intercal_core.
+
+          %files
+          /usr/bin/intercal
+          /usr/lib/intercal
+          SPEC
+          rpmbuild --define "_topdir $PWD/rpmbuild" --define "_build_id_links none" -bb rpmbuild/SPECS/intercal.spec
+          cp rpmbuild/RPMS/${{ matrix.rpm_arch }}/intercal-*.rpm intercal-${{ matrix.plat }}.rpm
+
+      - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: intercal-linux-arm64
+          name: release-${{ matrix.plat }}
           path: |
-            intercal-linux-arm64.tar.gz
-            intercal-arm64.deb
+            intercal-${{ matrix.plat }}.zip
+            intercal-${{ matrix.plat }}.tar.gz
+            intercal-${{ matrix.plat }}.deb
+            intercal-${{ matrix.plat }}.rpm
 
   release:
-    needs: [build-macos, build-linux]
+    needs: [build-macos-arm64, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p upload
+          find release-* -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.deb' -o -name '*.rpm' \) -exec cp {} upload/ \;
+          cd upload && sha256sum * > SHA256SUMS
+          ls -la
 
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
+          TAG="${GITHUB_REF#refs/tags/}"
+          BODY=$(cat <<EOM
+          INTERCAL Compiler $TAG
 
+          Self-compiling INTERCAL compiler for multiple platforms.
+
+          Artifacts:
+          - \`intercal-macos-arm64.zip\` - macOS Apple Silicon
+          - \`intercal-linux-arm64.{zip,tar.gz,deb,rpm}\` - Linux ARM64
+          - \`intercal-linux-x86_64.{zip,tar.gz,deb,rpm}\` - Linux x86-64
+
+          Each archive / package includes a pre-built \`intercal_core\` binary
+          plus the bootstrap compiler, runtime, and system library so the
+          toolchain is self-contained. The \`intercal\` wrapper is installed
+          to \`/usr/bin\` (packages) or extracted to \`./intercal\` (archives).
+
+          SHA256 checksums are in \`SHA256SUMS\`.
+          EOM
+          )
           RELEASE_JSON=$(curl -s -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"$TAG\",\"name\":\"INTERCAL Compiler $TAG\",\"body\":\"Release $TAG\\n\\nIncludes bootstrap compiler for macOS ARM64 and Linux ARM64.\"}" \
+            -d "$(jq -n --arg t "$TAG" --arg n "INTERCAL Compiler $TAG" --arg b "$BODY" '{tag_name:$t, name:$n, body:$b}')" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/releases")
-
           UPLOAD_URL=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['upload_url'].replace('{?name,label}',''))")
-
-          for f in intercal-macos-arm64/*.zip intercal-linux-arm64/*.tar.gz intercal-linux-arm64/*.deb; do
-            [ -f "$f" ] || continue
+          for f in upload/*; do
             NAME=$(basename "$f")
             MIME="application/octet-stream"
             [[ "$NAME" == *.zip ]] && MIME="application/zip"
             [[ "$NAME" == *.tar.gz ]] && MIME="application/gzip"
             [[ "$NAME" == *.deb ]] && MIME="application/vnd.debian.binary-package"
+            [[ "$NAME" == *.rpm ]] && MIME="application/x-rpm"
+            [[ "$NAME" == SHA256SUMS ]] && MIME="text/plain"
             curl -s -X POST \
               -H "Authorization: token $GITHUB_TOKEN" \
               -H "Content-Type: $MIME" \
