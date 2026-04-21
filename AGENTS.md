@@ -257,13 +257,48 @@ For Linux ARM64, intercalc.sh applies sed-based conversion of the generated asse
 - Section names, relocation syntax, syscall numbers, entry point, svc instruction
 - The runtime .s files are pre-converted and committed (not generated at build time)
 
-For Linux x86_64, a separate codegen backend (codegen_x86_64.sh) generates native x86_64 assembly using Intel syntax, System V AMD64 ABI, and RIP-relative addressing.
+For Linux x86_64, a separate codegen backend (src/bootstrap/codegen_x86_64.sh) generates native x86_64 assembly using Intel syntax, System V AMD64 ABI, and RIP-relative addressing.
 
-Common pitfall: when generating .global declarations for GNU ld, only export labels at column 0 (function entry points), never indented instructions or data definitions. Labels in assembly are lines starting at column 0 ending with `:`.
+### Assembly pitfalls by platform (lessons learned)
+
+These are real bugs encountered during CI and their fixes. Document here to avoid repeating them.
+
+ARM64 (both macOS and Linux):
+- Relocations: macOS uses `sym@PAGE` / `sym@PAGEOFF`. Linux GNU as infers page relocation for `adrp` (bare `sym` works), but requires `:lo12:sym` explicitly on `add`. Never use `:pg_hi21:` on Linux -- it causes "junk at end of line".
+- The sed conversion in intercalc.sh MUST process `@PAGEOFF` BEFORE `@PAGE` to avoid partial matching (`@PAGE` inside `@PAGEOFF` would leave `OFF` residual).
+
+Linux ARM64 specifics:
+- `svc #0` not `svc #0x80` (macOS uses #0x80).
+- `open` syscall does not exist on Linux ARM64. Use `openat` (syscall 56) with `AT_FDCWD` (-100) as the first argument, shifting all other args by one register.
+- mmap flags: `MAP_ANONYMOUS|MAP_PRIVATE` = 0x22 on Linux, 0x1002 on macOS.
+- `O_WRONLY|O_CREAT|O_TRUNC` = 0x241 on Linux, 0x601 on macOS.
+- Error detection: Linux returns negative values on error. macOS sets the carry flag. Use `cmp x0, #0; b.lt` on Linux, `b.cs` on macOS.
+- `.global` declarations required for GNU ld (Apple ld is lenient). Only declare labels at column 0 (function entry points). Never declare data labels or instruction lines that happen to contain `:` (like `:lo12:sym`).
+
+Linux x86_64 specifics:
+- Comments: use `#` not `//`. x86_64 GNU as does NOT accept `//` as comments (ARM64 gas does). This causes cryptic "bad expression" errors.
+- Addressing: x86_64 allows at most `[base + index*scale + displacement]`. Three registers like `[r12+r14+rcx]` are invalid. Use `lea` to pre-compute a base address: `lea r15, [r12+r14]` then `[r15+rcx]`.
+- Intel syntax: use `.intel_syntax noprefix` at the top of .s files. This must match between runtime and codegen output.
+- RIP-relative addressing: use `lea reg, [rip + symbol]` for position-independent code.
+- Syscall convention: `syscall` instruction with rax=number, rdi/rsi/rdx/r10/r8/r9 for args.
+
+### File organization
+
+```
+src/
+  bootstrap/          intercalc.sh (primary compiler), codegen_x86_64.sh (x86_64 backend)
+  runtime/            macos_arm64.s, linux_arm64.s, linux_x86_64.s
+  syslib/             syslib.i (pure INTERCAL) + native/ (per-platform .s files)
+  compiler/           compiler.i (self-hosted compiler, in progress)
+docs/                 666.md, PHASE2.md, SECURITY.md
+tests/                test programs and runners
+```
+
+intercalc.sh resolves paths via `ROOT_DIR` (two levels up from SCRIPT_DIR). No symlinks needed -- platform is detected at runtime and the correct files are loaded directly from `src/runtime/{platform}.s` and `src/syslib/native/{platform}.s`.
 
 ### setup_platform.sh
 
-Run `sh setup_platform.sh` to create symlinks for the current platform. Detects via `uname -s` and `uname -m`, normalizes to our platform naming:
+Run `sh setup_platform.sh` to verify platform detection. Detects via `uname -s` and `uname -m`, normalizes:
 - darwin_arm64 -> macos_arm64
 - linux_aarch64 -> linux_arm64
 - linux_x86_64 -> linux_x86_64
