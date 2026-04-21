@@ -413,10 +413,11 @@ _rt_write_in_scalar:
     cmp r10d, 12
     jge .Lwi_bad_token
     # Compare token at r12+r14 with name at r8
+    lea r15, [r12 + r14]
     xor ecx, ecx
 .Lwi_cmp:
     movzx eax, byte ptr [r8 + rcx]
-    movzx edx, byte ptr [r12 + r14 + rcx]
+    movzx edx, byte ptr [r15 + rcx]
     test eax, eax
     jz .Lwi_cmp_end
     cmp eax, edx
@@ -425,7 +426,7 @@ _rt_write_in_scalar:
     jmp .Lwi_cmp
 .Lwi_cmp_end:
     # Name matched. Check boundary.
-    movzx edx, byte ptr [r12 + r14 + rcx]
+    movzx edx, byte ptr [r15 + rcx]
     test edx, edx
     jz .Lwi_matched
     cmp edx, 32
