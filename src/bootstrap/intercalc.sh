@@ -1687,15 +1687,19 @@ SCRIPT_DIR="${0:A:h}"
 ROOT_DIR="${SCRIPT_DIR}/../.."
 USE_PURE_SYSLIB=0
 
-# Platform detection
-_INTERCAL_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-_INTERCAL_ARCH="$(uname -m)"
-case "${_INTERCAL_OS}_${_INTERCAL_ARCH}" in
-  darwin_arm64)  _INTERCAL_PLATFORM="macos_arm64" ;;
-  linux_x86_64)  _INTERCAL_PLATFORM="linux_x86_64" ;;
-  linux_aarch64) _INTERCAL_PLATFORM="linux_arm64" ;;
-  *)             _INTERCAL_PLATFORM="macos_arm64" ;;
-esac
+# Platform detection (override via INTERCAL_PLATFORM env var)
+if [[ -n "${INTERCAL_PLATFORM:-}" ]]; then
+  _INTERCAL_PLATFORM="$INTERCAL_PLATFORM"
+else
+  _INTERCAL_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  _INTERCAL_ARCH="$(uname -m)"
+  case "${_INTERCAL_OS}_${_INTERCAL_ARCH}" in
+    darwin_arm64)  _INTERCAL_PLATFORM="macos_arm64" ;;
+    linux_x86_64)  _INTERCAL_PLATFORM="linux_x86_64" ;;
+    linux_aarch64) _INTERCAL_PLATFORM="linux_arm64" ;;
+    *)             _INTERCAL_PLATFORM="macos_arm64" ;;
+  esac
+fi
 
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
@@ -1781,6 +1785,33 @@ main() {
       -e 's/mov x16, #500$/mov x8, #278/' \
       -e 's/\.global _main/.global main/' \
       -e 's/^_main:/main:/')
+  fi
+
+  # If INTERCAL_ASM_ONLY is set, emit (platform-converted) program assembly only
+  if [[ -n "${INTERCAL_ASM_ONLY:-}" ]]; then
+    local asm_program="$asm"
+    if [[ "$_INTERCAL_PLATFORM" == linux_arm64 ]]; then
+      asm_program=$(print -r -- "$asm_program" | sed \
+        -e 's/\.section __TEXT,__text/.text/' \
+        -e 's/\.section __DATA,__data/.data/' \
+        -e 's/\.section __DATA,__bss/.bss/' \
+        -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGEOFF/:lo12:\1/g' \
+        -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGE/\1/g' \
+        -e 's/svc #0x80/svc #0/g' \
+        -e 's/mov x3, #0x1002/mov x3, #0x22/' \
+        -e 's/mov w1, #0x601/mov w2, #0x241/' \
+        -e 's/mov x16, #1$/mov x8, #93/' \
+        -e 's/mov x16, #4$/mov x8, #64/' \
+        -e 's/mov x16, #3$/mov x8, #63/' \
+        -e 's/mov x16, #5$/mov x8, #56/' \
+        -e 's/mov x16, #6$/mov x8, #57/' \
+        -e 's/mov x16, #197$/mov x8, #222/' \
+        -e 's/mov x16, #500$/mov x8, #278/' \
+        -e 's/\.global _main/.global main/' \
+        -e 's/^_main:/main:/')
+    fi
+    print -r -- "$asm_program"
+    return 0
   fi
 
   print -r -- "$asm_combined" | $CC -x assembler - -o "$TMPBIN" 2>&2

@@ -1,37 +1,37 @@
-.section __TEXT,__text
-.global _main
+.text
+.global main
 .align 2
 
-_main:
+main:
   stp x29, x30, [sp, #-16]!
   mov x29, sp
   // Save argc/argv for Label 666
-  adrp x2, _rt_argc@PAGE
-  add x2, x2, _rt_argc@PAGEOFF
+  adrp x2, _rt_argc
+  add x2, x2, :lo12:_rt_argc
   str w0, [x2]
-  adrp x2, _rt_argv@PAGE
-  add x2, x2, _rt_argv@PAGEOFF
+  adrp x2, _rt_argv
+  add x2, x2, :lo12:_rt_argv
   str x1, [x2]
 
 
 _stmt_1:  // GIVE_UP
-  adrp x0, _stmt_flags@PAGE
-  add x0, x0, _stmt_flags@PAGEOFF
+  adrp x0, _stmt_flags
+  add x0, x0, :lo12:_stmt_flags
   ldrb w1, [x0, #0]
   tbnz w1, #0, _stmt_1_end
   mov x0, #0
-  mov x16, #1
-  svc #0x80
+  mov x8, #93
+  svc #0
 _stmt_1_end:
   b _rt_error_E633
 
 
 // ========== Program Data ==========
-.section __DATA,__data
+.data
 _stmt_flags:
   .byte 0
 
-.section __DATA,__bss
+.bss
 
 .align 2
 _spot_3: .space 4
@@ -95,4 +95,3 @@ _tail_65535_ign: .space 1
 .align 3
 _tail_65535_stash_ptr: .space 8
 _tail_65535_stash_sp: .space 4
-
