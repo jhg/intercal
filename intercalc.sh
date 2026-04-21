@@ -1562,10 +1562,12 @@ codegen_stash_var() {
   emit "  str x0, [x2]"
   emit "  mov x1, x0"
   emit ".Lstash_ok_${uid}:"
-  # Push value
+  # Push value (with bounds check - max 1024 entries per stash)
   emit "  adrp x2, _${prefix}_${num}_stash_sp@PAGE"
   emit "  add x2, x2, _${prefix}_${num}_stash_sp@PAGEOFF"
   emit "  ldr w3, [x2]"
+  emit "  cmp w3, #1023"
+  emit "  b.gt _rt_error_E000"
   emit "  adrp x4, _${prefix}_${num}@PAGE"
   emit "  add x4, x4, _${prefix}_${num}@PAGEOFF"
   emit "  ldr w5, [x4]"

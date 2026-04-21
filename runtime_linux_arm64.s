@@ -709,11 +709,17 @@ _rt_sys666_write:
   adrp x0, _spot_3:pg_hi21:
   add x0, x0, _spot_3:pg_hi21:OFF
   ldr w20, [x0]
-  // Get array ptr
+  // Get array ptr and validate bounds
   adrp x0, _tail_65535_ptr:pg_hi21:
   add x0, x0, _tail_65535_ptr:pg_hi21:OFF
   ldr x1, [x0]
   cbz x1, .Lwrite_zero
+  // Clamp count to array dimension
+  adrp x0, _tail_65535_dims:pg_hi21:
+  add x0, x0, _tail_65535_dims:pg_hi21:OFF
+  ldr w2, [x0]
+  cmp w20, w2
+  csel w20, w2, w20, hi    // clamp to dim if count > dim
   // Convert array elements to bytes on stack
   add w2, w20, #16
   and w2, w2, #-16
