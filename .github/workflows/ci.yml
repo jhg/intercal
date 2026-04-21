@@ -17,11 +17,39 @@ on:
       - '.gitignore'
 
 jobs:
-  test-macos:
-    runs-on: macos-14
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos_arm64
+            runs: macos-14
+            install: ""
+            fixpoint: true
+          - name: linux_arm64
+            runs: ubuntu-24.04-arm
+            install: "sudo apt-get update -qq && sudo apt-get install -y -qq zsh"
+            fixpoint: false
+          - name: linux_x86_64
+            runs: ubuntu-latest
+            install: "sudo apt-get update -qq && sudo apt-get install -y -qq zsh"
+            fixpoint: false
+    name: test-${{ matrix.name }}
+    runs-on: ${{ matrix.runs }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache apt
+        if: startsWith(matrix.runs, 'ubuntu')
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ matrix.runs }}-apt-zsh-v1
+
+      - name: Install dependencies
+        if: matrix.install != ''
+        run: ${{ matrix.install }}
 
       - name: Check platform
         run: sh setup_platform.sh
@@ -57,103 +85,5 @@ jobs:
         run: zsh tests/run_stage3_tests.sh
 
       - name: Three-generation fixpoint (if compiler complete)
-        if: hashFiles('src/compiler/compiler.i') != ''
+        if: matrix.fixpoint && hashFiles('src/compiler/compiler.i') != ''
         run: zsh bootstrap.sh
-
-  test-linux-arm64:
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install zsh
-        run: sudo apt-get update && sudo apt-get install -y zsh
-
-      - name: Check platform
-        run: sh setup_platform.sh
-
-      - name: Debug dump for minimal program
-        run: |
-          INTERCAL_ASM_ONLY=1 zsh src/bootstrap/intercalc.sh <<< 'DO GIVE UP' > /tmp/debug_asm.s 2>/dev/null || true
-          echo "=== first 30 lines of emitted program assembly ==="
-          head -30 /tmp/debug_asm.s 2>/dev/null || echo "no dump"
-
-      - name: Verify template manifest
-        run: zsh tools/verify_manifest.sh
-
-      - name: Lint INTERCAL sources
-        run: |
-          find tests -name '*.i' -print0 | xargs -0 zsh tools/lint_intercal.sh
-          zsh tools/lint_intercal.sh src/compiler/*.i src/syslib/*.i
-
-      - name: Lint runtime and template assembly
-        run: |
-          zsh tools/lint_assembly.sh src/runtime/*.s
-          find src/compiler/templates -name '*.s' -print0 | xargs -0 zsh tools/lint_assembly.sh
-
-      - name: Bootstrap test suite
-        run: zsh tests/run_tests.sh
-
-      - name: Pure syslib verification
-        if: success()
-        run: zsh tests/test_syslib_pure.sh
-
-      - name: Build self-hosted compiler
-        if: success()
-        run: |
-          zsh src/bootstrap/intercalc.sh < src/compiler/compiler.i > intercal_core
-          chmod +x intercal_core
-
-      - name: Self-hosted test suite
-        if: success()
-        run: zsh tests/run_self_tests.sh
-
-      - name: Stage 3 (evolving compiler) test suite
-        if: success()
-        run: zsh tests/run_stage3_tests.sh
-
-  test-linux-x86_64:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install zsh
-        run: sudo apt-get update && sudo apt-get install -y zsh
-
-      - name: Check platform
-        run: sh setup_platform.sh
-
-      - name: Verify template manifest
-        run: zsh tools/verify_manifest.sh
-
-      - name: Lint INTERCAL sources
-        run: |
-          find tests -name '*.i' -print0 | xargs -0 zsh tools/lint_intercal.sh
-          zsh tools/lint_intercal.sh src/compiler/*.i src/syslib/*.i
-
-      - name: Lint runtime and template assembly
-        run: |
-          zsh tools/lint_assembly.sh src/runtime/*.s
-          find src/compiler/templates -name '*.s' -print0 | xargs -0 zsh tools/lint_assembly.sh
-
-      - name: Bootstrap test suite
-        run: zsh tests/run_tests.sh
-
-      - name: Pure syslib verification
-        if: success()
-        run: zsh tests/test_syslib_pure.sh
-
-      - name: Build self-hosted compiler
-        if: success()
-        run: |
-          zsh src/bootstrap/intercalc.sh < src/compiler/compiler.i > intercal_core
-          chmod +x intercal_core
-
-      - name: Self-hosted test suite
-        if: success()
-        run: zsh tests/run_self_tests.sh
-
-      - name: Stage 3 (evolving compiler) test suite
-        if: success()
-        run: zsh tests/run_stage3_tests.sh
