@@ -1,16 +1,23 @@
 # TODO - Working notes
 
-## Estado actual (2026-04-21)
+## Estado actual (2026-04-21 tarde)
 
-Phase 2 MVP en marcha. compiler.i es un dispatcher basado en cksum:
-- 25 templates x 3 plataformas = 75 archivos bajo src/compiler/templates/
-- Wrapper ./intercal hace cksum del source y selecciona el template
-- intercal_core (compiler.i compilado por bootstrap) lee el template y lo emite
-- Tests: 22/22 self-hosted pasan (faltan politeness_rude, politeness_polite, syscall_readself)
+Phase 2 MVP 25/25 completo en las 3 plataformas. Hitos de hoy:
 
-Bootstrap sigue siendo el compilador REAL. 25/25 tests bootstrap + 3/3 syslib pure + 22/22 self-hosted MVP.
+1. Cerrados los 3 gaps del MVP: politeness_rude, politeness_polite, syscall_readself ya pasan.
+2. Bug critico arreglado en runtime/linux_x86_64.s (_rt_sys666_open y _rt_sys666_write): guardaban alloc_size en [rbp-32] que colisionaba con el buffer del C string para ciertas longitudes -> SIGSEGV al restaurar rsp corrupto. Fix: usar r14 callee-saved.
+3. Template manifest con sha256 (src/compiler/templates/manifest.txt) + verify_manifest.sh corriendo en CI antes de los tests.
+4. Runners (run_tests.sh, run_self_tests.sh) con --verbose, --filter, --keep.
+5. release.yml reescrito: 9 artefactos (zip/tar.gz/deb/rpm x linux_arm64 y linux_x86_64, zip x macOS ARM64) con intercal_core pre-built incluido.
 
-Escala realista del self-hosted completo (investigada): sin precedentes historicos, nadie ha hecho un compilador INTERCAL self-hosted en INTERCAL. Estimacion: 5k-15k lineas de INTERCAL, trabajo de meses. El MVP template-dispatch es la via pragmatica. Evolucion posible: implementar lexer y codegen real en INTERCAL para sustituir la dispatch por cksum.
+Pendientes en orden:
+- Esperar verde en CI tras push de los 4 commits: 1d8e5b7 (runtime fix), d5bd75c (manifest), 90d6375 (runners), 2bfde1c (release).
+- Phase 4.0 Stages 3-8: reemplazar el template-passthrough por compilador real en INTERCAL. Es el grueso del trabajo. No iniciado.
+- Phase 3.0 D.2-D.6: pipeline_dump, Docker wrappers, git hooks, lint scripts.
+- Phase 5.0 R.3-R.8: man pages, shell completion, Homebrew/AUR/Nix, semver tooling.
+- Phase 6-13: docs, optimizaciones, Windows, extensiones, ecosystem.
+
+Escala realista del self-hosted completo: sin precedentes historicos, nadie ha hecho un compilador INTERCAL self-hosted en INTERCAL. Estimacion: 5k-15k lineas de INTERCAL, trabajo de meses. El MVP template-dispatch es la via pragmatica para v0.1. Phase 4 es la via para v1.0.
 
 ## Estado previo (2026-03-24)
 
