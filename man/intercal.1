@@ -35,6 +35,14 @@ Default:
 .BR a.out .
 .SH ENVIRONMENT
 .TP
+.B INTERCAL_HOME
+Override the install root used by the wrapper to find
+.BR intercal_core ,
+the runtime, syslib, tests, and templates. Defaults to the directory
+containing the
+.B intercal
+wrapper (after resolving any symlinks).
+.TP
 .B INTERCAL_PLATFORM
 Override platform auto-detection. One of
 .BR macos_arm64 ,

@@ -1,0 +1,21 @@
+# Default owner for everything in the repo.
+# Any other pattern below overrides this for specific paths.
+*                                               @jhg
+
+# Runtime assembly per platform - anything touching these needs extra care
+# because an error breaks only one platform and can be invisible on the others.
+/src/runtime/                                   @jhg
+/src/syslib/native/                             @jhg
+/src/bootstrap/                                 @jhg
+
+# CI / release pipelines
+/.github/workflows/                             @jhg
+/.githooks/                                     @jhg
+/tools/                                         @jhg
+
+# Templates and their manifest must move together
+/src/compiler/templates/                        @jhg
+
+# Documentation and tutorial chapters
+/docs/                                          @jhg
+/*.md                                           @jhg

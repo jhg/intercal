@@ -11,6 +11,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
+# INTERCAL_HOME overrides the install root so a user can relocate the
+# toolchain or point to a non-package layout. Default: the directory the
+# wrapper lives in (after symlink resolution).
+if [[ -n "${INTERCAL_HOME:-}" ]]; then
+  SCRIPT_DIR="$INTERCAL_HOME"
+fi
 CORE="${SCRIPT_DIR}/intercal_core"
 
 if [[ ! -f "$CORE" ]]; then

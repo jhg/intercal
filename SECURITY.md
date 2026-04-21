@@ -1,7 +1,34 @@
 # Security Audit - INTERCAL Compiler
 
-Audit date: 2026-04-21
-Scope: intercalc.sh, runtime_macos_arm64.s, syslib_native_macos_arm64.s
+Audit date (original pass): 2026-04-21
+Initial scope: intercalc.sh, runtime_macos_arm64.s, syslib_native_macos_arm64.s
+
+## Status / updates
+
+- 2026-04-21 (same day, later): fixed a real SIGSEGV in
+  `src/runtime/linux_x86_64.s`: `_rt_sys666_open` and `_rt_sys666_write`
+  saved `alloc_size` at `[rbp - 32]` which for certain buffer lengths
+  overlapped the C-string copy region. A filename of ~47 characters
+  overwrote the saved size; the subsequent `add rsp, alloc_size` then
+  restored rsp to a corrupted value and the function crashed on return.
+  Fix: move `alloc_size` to the callee-saved `r14` register. Commit
+  1d8e5b7. Verified fixed under `qemu linux/amd64` emulation and on
+  the Linux x86-64 CI runner.
+- The Linux ARM64 and Linux x86-64 runtimes (`src/runtime/linux_arm64.s`,
+  `src/runtime/linux_x86_64.s`) and their native syslibs have NOT yet
+  been given a line-by-line equivalent of the macOS audit below. They
+  are known to pass all 53 functional tests on every platform. A full
+  per-platform audit is on the roadmap.
+- `tools/lint_assembly.sh` (added 2026-04-21) flags platform-specific
+  mistakes (svc number, relocation syntax, comment syntax, three-register
+  addressing). Runs in CI before tests, serves as a regression guard.
+
+## Reporting
+
+For suspected vulnerabilities or questions, open a GitHub issue with
+the "security" label, or contact the maintainer through the address
+listed in the repository metadata. Please include a minimal reproducing
+`.i` program if one applies.
 
 ## Security Model
 
