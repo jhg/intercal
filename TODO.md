@@ -10,6 +10,9 @@ Phase 2 MVP 25/25 completo en las 3 plataformas. Hitos de hoy:
 4. Runners (run_tests.sh, run_self_tests.sh) con --verbose, --filter, --keep.
 5. release.yml reescrito: 9 artefactos (zip/tar.gz/deb/rpm x linux_arm64 y linux_x86_64, zip x macOS ARM64) con intercal_core pre-built incluido.
 
+Decisiones pendientes a consultar:
+- Hacer --pure-syslib el default: medido hoy que eleva tiempo de compile de 0.09s a 30s (330x), binario de 40KB a 1.3MB (33x). CI total pasaria de 15 min a ~60 min. Opciones: (a) cachear syslib.i compilado como .s entre runs, (b) mantener native como default y --pure-syslib opt-in como ahora, (c) diferir hasta que compilador Phase 4 sea mas rapido. Decision requerida antes de implementar.
+
 Pendientes en orden:
 - Esperar verde en CI tras push de los 4 commits: 1d8e5b7 (runtime fix), d5bd75c (manifest), 90d6375 (runners), 2bfde1c (release).
 - Phase 4.0 Stages 3-8: reemplazar el template-passthrough por compilador real en INTERCAL. Es el grueso del trabajo. No iniciado.

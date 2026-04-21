@@ -1,0 +1,162 @@
+name: Release smoke tests
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to smoke-test (e.g. v0.1.0)"
+        required: true
+
+jobs:
+  deb-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            rpm_arch: x86_64
+            asset: intercal-linux-x86_64.deb
+            image: debian:12-slim
+            runs: ubuntu-latest
+          - arch: amd64
+            rpm_arch: x86_64
+            asset: intercal-linux-x86_64.deb
+            image: ubuntu:24.04
+            runs: ubuntu-latest
+          - arch: arm64
+            rpm_arch: aarch64
+            asset: intercal-linux-arm64.deb
+            image: debian:12-slim
+            runs: ubuntu-24.04-arm
+          - arch: arm64
+            rpm_arch: aarch64
+            asset: intercal-linux-arm64.deb
+            image: ubuntu:24.04
+            runs: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs }}
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Download asset
+        run: |
+          curl -fL -o "${{ matrix.asset }}" \
+            "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ matrix.asset }}"
+
+      - name: Install and test in container
+        run: |
+          docker run --rm --platform linux/${{ matrix.arch }} \
+            -v "$PWD/${{ matrix.asset }}:/tmp/pkg.deb" \
+            ${{ matrix.image }} bash -c '
+              apt-get update -qq >/dev/null
+              apt-get install -y --no-install-recommends -qq /tmp/pkg.deb gcc zsh >/dev/null
+              which intercal
+              echo "DO GIVE UP" > /tmp/gu.i
+              (cd /tmp && intercal gu.i -o gu && ./gu && echo OK)
+            '
+
+  rpm-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            rpm_arch: x86_64
+            asset: intercal-linux-x86_64.rpm
+            image: fedora:40
+            runs: ubuntu-latest
+          - arch: amd64
+            rpm_arch: x86_64
+            asset: intercal-linux-x86_64.rpm
+            image: rockylinux:9
+            runs: ubuntu-latest
+          - arch: arm64
+            rpm_arch: aarch64
+            asset: intercal-linux-arm64.rpm
+            image: fedora:40
+            runs: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs }}
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Download asset
+        run: |
+          curl -fL -o "${{ matrix.asset }}" \
+            "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ matrix.asset }}"
+
+      - name: Install and test in container
+        run: |
+          docker run --rm --platform linux/${{ matrix.arch }} \
+            -v "$PWD/${{ matrix.asset }}:/tmp/pkg.rpm" \
+            ${{ matrix.image }} bash -c '
+              if command -v dnf >/dev/null; then
+                dnf install -y /tmp/pkg.rpm gcc zsh >/dev/null
+              else
+                yum install -y /tmp/pkg.rpm gcc zsh >/dev/null
+              fi
+              which intercal
+              echo "DO GIVE UP" > /tmp/gu.i
+              (cd /tmp && intercal gu.i -o gu && ./gu && echo OK)
+            '
+
+  tarball-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            asset: intercal-linux-x86_64.tar.gz
+            image: alpine:3.19
+            runs: ubuntu-latest
+          - arch: arm64
+            asset: intercal-linux-arm64.tar.gz
+            image: alpine:3.19
+            runs: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs }}
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Download asset
+        run: |
+          curl -fL -o "${{ matrix.asset }}" \
+            "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ matrix.asset }}"
+
+      - name: Extract and test
+        run: |
+          docker run --rm --platform linux/${{ matrix.arch }} \
+            -v "$PWD/${{ matrix.asset }}:/tmp/pkg.tar.gz" \
+            ${{ matrix.image }} sh -c '
+              apk add --no-cache gcc musl-dev zsh >/dev/null
+              cd /tmp && tar xzf pkg.tar.gz
+              cd intercal
+              echo "DO GIVE UP" > /tmp/gu.i
+              ./intercal /tmp/gu.i -o /tmp/gu
+              /tmp/gu && echo OK
+            '
+
+  macos-smoke:
+    runs-on: macos-14
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Download asset
+        run: |
+          curl -fL -o intercal-macos-arm64.zip \
+            "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/intercal-macos-arm64.zip"
+
+      - name: Extract and test
+        run: |
+          unzip -q intercal-macos-arm64.zip
+          cd intercal
+          echo "DO GIVE UP" > /tmp/gu.i
+          ./intercal /tmp/gu.i -o /tmp/gu
+          /tmp/gu && echo OK

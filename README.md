@@ -120,8 +120,21 @@ This project is released into the public domain. See LICENSE.
 
 ## References
 
-- The INTERCAL-72 reference manual (Woods/Lyon, 1973)
+- The INTERCAL-72 reference manual (Woods and Lyon, 1973)
 - C-INTERCAL documentation at http://catb.org/~esr/intercal/
 - CLC-INTERCAL at https://uilebheist.srht.site/
 
-This compiler is a clean-room implementation: no code or text is copied from those distributions. Behavior matches the standard language; error codes follow ICLnnnI convention.
+This compiler is a clean-room implementation: no code or text is copied from the above distributions.
+
+### Error code convention
+
+All fatal conditions emit a numeric code in the format `ICLnnnI` to stderr (where `nnn` is a 3-digit decimal number) followed by a short uppercase message, then exit with status 1. This mirrors the convention established by the INTERCAL-72 manual and carried forward by C-INTERCAL and CLC-INTERCAL. A few examples:
+
+- `ICL079I PROGRAMMER IS INSUFFICIENTLY POLITE` — fewer than 1 in 5 statements use PLEASE.
+- `ICL099I PROGRAMMER IS OVERLY POLITE` — more than 1 in 3 statements use PLEASE.
+- `ICL123I PROGRAM HAS DISAPPEARED INTO THE BLACK LAGOON` — NEXT stack overflow (80th push).
+- `ICL275I ...DOESN'T MATCH...` — 32-bit value assigned to a 16-bit variable.
+- `ICL621I ERROR TYPE NOT FOUND IN ANY KNOWN LANGUAGE` — RESUME with count zero.
+- `ICL633I PROGRAM FELL OFF THE EDGE` — execution reached end without GIVE UP.
+
+See `AGENTS.md` section "Error codes" for the full list of supported codes and when each fires.
