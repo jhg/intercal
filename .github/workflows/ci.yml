@@ -26,6 +26,9 @@ jobs:
       - name: Check platform
         run: sh setup_platform.sh
 
+      - name: Verify template manifest
+        run: zsh tools/verify_manifest.sh
+
       - name: Bootstrap test suite
         run: zsh tests/run_tests.sh
 
@@ -62,6 +65,9 @@ jobs:
           echo "=== first 30 lines of emitted program assembly ==="
           head -30 /tmp/debug_asm.s 2>/dev/null || echo "no dump"
 
+      - name: Verify template manifest
+        run: zsh tools/verify_manifest.sh
+
       - name: Bootstrap test suite
         run: zsh tests/run_tests.sh
 
@@ -90,6 +96,9 @@ jobs:
 
       - name: Check platform
         run: sh setup_platform.sh
+
+      - name: Verify template manifest
+        run: zsh tools/verify_manifest.sh
 
       - name: Bootstrap test suite
         run: zsh tests/run_tests.sh
