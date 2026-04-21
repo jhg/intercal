@@ -41,7 +41,7 @@ jobs:
           cd dist && zip -r ../intercal-macos-arm64.zip intercal/
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-macos-arm64
           path: intercal-macos-arm64.zip
@@ -184,7 +184,7 @@ jobs:
           cp rpmbuild/RPMS/${{ matrix.rpm_arch }}/intercal-*.rpm intercal-${{ matrix.plat }}.rpm
 
       - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.plat }}
           path: |
