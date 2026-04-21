@@ -163,7 +163,7 @@ _rt_write_roman:
   stp x19, x20, [sp, #-16]!
   mov w19, w0
   cbz w19, .Lroman_done
-  adrp x20, :pg_hi21:_rtable
+  adrp x20, _rtable
   add x20, x20, :lo12:_rtable
 .Lroman_loop:
   ldr w0, [x20]
@@ -172,7 +172,7 @@ _rt_write_roman:
   b.lo .Lroman_next
   sub w19, w19, w0
   ldr w1, [x20, #4]
-  adrp x2, :pg_hi21:_rstrings
+  adrp x2, _rstrings
   add x2, x2, :lo12:_rstrings
   add x1, x2, w1, uxtw
   mov x3, x1
@@ -192,7 +192,7 @@ _rt_write_roman:
   add x20, x20, #8
   b .Lroman_loop
 .Lroman_done:
-  adrp x1, :pg_hi21:_nl
+  adrp x1, _nl
   add x1, x1, :lo12:_nl
   mov x0, #1
   mov x2, #1
@@ -210,7 +210,7 @@ _rt_read_out_array:
   mov x19, x0
   mov w20, w1
   mov w21, w2
-  adrp x22, :pg_hi21:_ttm_out_pos
+  adrp x22, _ttm_out_pos
   add x22, x22, :lo12:_ttm_out_pos
   ldr w23, [x22]
   mov w24, #0
@@ -256,7 +256,7 @@ _rt_write_in_array:
   mov x19, x0
   mov w20, w1
   mov w21, w2
-  adrp x22, :pg_hi21:_ttm_in_pos
+  adrp x22, _ttm_in_pos
   add x22, x22, :lo12:_ttm_in_pos
   ldr w23, [x22]
   mov w24, #0
@@ -348,9 +348,9 @@ _rt_write_in_scalar:
   b .Lwi_tok_loop
 .Lwi_match:
   // Try each digit name
-  adrp x10, :pg_hi21:_digit_names
+  adrp x10, _digit_names
   add x10, x10, :lo12:_digit_names
-  adrp x11, :pg_hi21:_digit_values
+  adrp x11, _digit_values
   add x11, x11, :lo12:_digit_values
   mov w12, #0    // digit name index
   mov w13, #12   // total names
@@ -424,19 +424,19 @@ _rt_mmap:
   ret
 
 _rt_resume_1:
-  adrp x0, :pg_hi21:_next_sp
+  adrp x0, _next_sp
   add x0, x0, :lo12:_next_sp
   ldr w1, [x0]
   cbz w1, _rt_error_E632
   sub w1, w1, #1
   str w1, [x0]
-  adrp x2, :pg_hi21:_next_stack
+  adrp x2, _next_stack
   add x2, x2, :lo12:_next_stack
   ldr x3, [x2, x1, lsl #3]
   br x3
 
 _rt_error_E000:
-  adrp x1, :pg_hi21:_errmsg_000
+  adrp x1, _errmsg_000
   add x1, x1, :lo12:_errmsg_000
   mov x2, #50
   mov x0, #2
@@ -447,7 +447,7 @@ _rt_error_E000:
   svc #0
 
 _rt_error_E017:
-  adrp x1, :pg_hi21:_errmsg_017
+  adrp x1, _errmsg_017
   add x1, x1, :lo12:_errmsg_017
   mov x2, #48
   mov x0, #2
@@ -458,7 +458,7 @@ _rt_error_E017:
   svc #0
 
 _rt_error_E123:
-  adrp x1, :pg_hi21:_errmsg_123
+  adrp x1, _errmsg_123
   add x1, x1, :lo12:_errmsg_123
   mov x2, #54
   mov x0, #2
@@ -469,7 +469,7 @@ _rt_error_E123:
   svc #0
 
 _rt_error_E129:
-  adrp x1, :pg_hi21:_errmsg_129
+  adrp x1, _errmsg_129
   add x1, x1, :lo12:_errmsg_129
   mov x2, #35
   mov x0, #2
@@ -480,7 +480,7 @@ _rt_error_E129:
   svc #0
 
 _rt_error_E139:
-  adrp x1, :pg_hi21:_errmsg_139
+  adrp x1, _errmsg_139
   add x1, x1, :lo12:_errmsg_139
   mov x2, #38
   mov x0, #2
@@ -491,7 +491,7 @@ _rt_error_E139:
   svc #0
 
 _rt_error_E200:
-  adrp x1, :pg_hi21:_errmsg_200
+  adrp x1, _errmsg_200
   add x1, x1, :lo12:_errmsg_200
   mov x2, #42
   mov x0, #2
@@ -502,7 +502,7 @@ _rt_error_E200:
   svc #0
 
 _rt_error_E240:
-  adrp x1, :pg_hi21:_errmsg_240
+  adrp x1, _errmsg_240
   add x1, x1, :lo12:_errmsg_240
   mov x2, #41
   mov x0, #2
@@ -513,7 +513,7 @@ _rt_error_E240:
   svc #0
 
 _rt_error_E241:
-  adrp x1, :pg_hi21:_errmsg_241
+  adrp x1, _errmsg_241
   add x1, x1, :lo12:_errmsg_241
   mov x2, #38
   mov x0, #2
@@ -524,7 +524,7 @@ _rt_error_E241:
   svc #0
 
 _rt_error_E275:
-  adrp x1, :pg_hi21:_errmsg_275
+  adrp x1, _errmsg_275
   add x1, x1, :lo12:_errmsg_275
   mov x2, #38
   mov x0, #2
@@ -535,7 +535,7 @@ _rt_error_E275:
   svc #0
 
 _rt_error_E436:
-  adrp x1, :pg_hi21:_errmsg_436
+  adrp x1, _errmsg_436
   add x1, x1, :lo12:_errmsg_436
   mov x2, #39
   mov x0, #2
@@ -546,7 +546,7 @@ _rt_error_E436:
   svc #0
 
 _rt_error_E533:
-  adrp x1, :pg_hi21:_errmsg_533
+  adrp x1, _errmsg_533
   add x1, x1, :lo12:_errmsg_533
   mov x2, #39
   mov x0, #2
@@ -557,7 +557,7 @@ _rt_error_E533:
   svc #0
 
 _rt_error_E562:
-  adrp x1, :pg_hi21:_errmsg_562
+  adrp x1, _errmsg_562
   add x1, x1, :lo12:_errmsg_562
   mov x2, #41
   mov x0, #2
@@ -568,7 +568,7 @@ _rt_error_E562:
   svc #0
 
 _rt_error_E579:
-  adrp x1, :pg_hi21:_errmsg_579
+  adrp x1, _errmsg_579
   add x1, x1, :lo12:_errmsg_579
   mov x2, #36
   mov x0, #2
@@ -579,7 +579,7 @@ _rt_error_E579:
   svc #0
 
 _rt_error_E621:
-  adrp x1, :pg_hi21:_errmsg_621
+  adrp x1, _errmsg_621
   add x1, x1, :lo12:_errmsg_621
   mov x2, #44
   mov x0, #2
@@ -590,7 +590,7 @@ _rt_error_E621:
   svc #0
 
 _rt_error_E632:
-  adrp x1, :pg_hi21:_errmsg_632
+  adrp x1, _errmsg_632
   add x1, x1, :lo12:_errmsg_632
   mov x2, #52
   mov x0, #2
@@ -601,7 +601,7 @@ _rt_error_E632:
   svc #0
 
 _rt_error_E633:
-  adrp x1, :pg_hi21:_errmsg_633
+  adrp x1, _errmsg_633
   add x1, x1, :lo12:_errmsg_633
   mov x2, #46
   mov x0, #2
@@ -617,7 +617,7 @@ _rt_error_E633:
 
 _rt_syscall_666:
   // Read .1 (syscall number)
-  adrp x0, :pg_hi21:_spot_1
+  adrp x0, _spot_1
   add x0, x0, :lo12:_spot_1
   ldr w0, [x0]
   cmp w0, #1
@@ -645,15 +645,15 @@ _rt_sys666_open:
   stp x29, x30, [sp, #-16]!
   stp x19, x20, [sp, #-16]!
   // Read mode from .2
-  adrp x0, :pg_hi21:_spot_2
+  adrp x0, _spot_2
   add x0, x0, :lo12:_spot_2
   ldr w19, [x0]
   // Read filename from ,65535: get ptr and dims
-  adrp x0, :pg_hi21:_tail_65535_ptr
+  adrp x0, _tail_65535_ptr
   add x0, x0, :lo12:_tail_65535_ptr
   ldr x1, [x0]
   cbz x1, .Lopen_err
-  adrp x0, :pg_hi21:_tail_65535_dims
+  adrp x0, _tail_65535_dims
   add x0, x0, :lo12:_tail_65535_dims
   ldr w2, [x0]        // filename length
   // Convert array elements to C-string on stack
@@ -695,7 +695,7 @@ _rt_sys666_open:
 .Lopen_err:
   mov w20, #0
 .Lopen_store:
-  adrp x0, :pg_hi21:_spot_3
+  adrp x0, _spot_3
   add x0, x0, :lo12:_spot_3
   str w20, [x0]
   ldp x19, x20, [sp], #16
@@ -710,11 +710,11 @@ _rt_sys666_read:
   stp x19, x20, [sp, #-16]!
   stp x21, x22, [sp, #-16]!
   // Get fd from .2
-  adrp x0, :pg_hi21:_spot_2
+  adrp x0, _spot_2
   add x0, x0, :lo12:_spot_2
   ldr w19, [x0]
   // Get max bytes from .3
-  adrp x0, :pg_hi21:_spot_3
+  adrp x0, _spot_3
   add x0, x0, :lo12:_spot_3
   ldr w20, [x0]
   // Allocate buffer via mmap
@@ -730,21 +730,21 @@ _rt_sys666_read:
   svc #0
   mov w22, w0            // bytes actually read
   // Auto-dimension ,65535
-  adrp x0, :pg_hi21:_tail_65535_ptr
+  adrp x0, _tail_65535_ptr
   add x0, x0, :lo12:_tail_65535_ptr
   // Allocate array for elements (2 bytes each)
   lsl x0, x22, #1
   add x0, x0, #16
   bl _rt_mmap
   mov x1, x0
-  adrp x0, :pg_hi21:_tail_65535_ptr
+  adrp x0, _tail_65535_ptr
   add x0, x0, :lo12:_tail_65535_ptr
   str x1, [x0]
-  adrp x0, :pg_hi21:_tail_65535_ndim
+  adrp x0, _tail_65535_ndim
   add x0, x0, :lo12:_tail_65535_ndim
   mov w2, #1
   str w2, [x0]
-  adrp x0, :pg_hi21:_tail_65535_dims
+  adrp x0, _tail_65535_dims
   add x0, x0, :lo12:_tail_65535_dims
   str w22, [x0]
   // Copy bytes to array elements
@@ -758,7 +758,7 @@ _rt_sys666_read:
   b .Lread_copy
 .Lread_done:
   // Store bytes read in .4
-  adrp x0, :pg_hi21:_spot_4
+  adrp x0, _spot_4
   add x0, x0, :lo12:_spot_4
   str w22, [x0]
   ldp x21, x22, [sp], #16
@@ -773,20 +773,20 @@ _rt_sys666_write:
   stp x29, x30, [sp, #-16]!
   stp x19, x20, [sp, #-16]!
   // Get fd from .2
-  adrp x0, :pg_hi21:_spot_2
+  adrp x0, _spot_2
   add x0, x0, :lo12:_spot_2
   ldr w19, [x0]
   // Get count from .3
-  adrp x0, :pg_hi21:_spot_3
+  adrp x0, _spot_3
   add x0, x0, :lo12:_spot_3
   ldr w20, [x0]
   // Get array ptr and validate bounds
-  adrp x0, :pg_hi21:_tail_65535_ptr
+  adrp x0, _tail_65535_ptr
   add x0, x0, :lo12:_tail_65535_ptr
   ldr x1, [x0]
   cbz x1, .Lwrite_zero
   // Clamp count to array dimension
-  adrp x0, :pg_hi21:_tail_65535_dims
+  adrp x0, _tail_65535_dims
   add x0, x0, :lo12:_tail_65535_dims
   ldr w2, [x0]
   cmp w20, w2
@@ -817,7 +817,7 @@ _rt_sys666_write:
 .Lwrite_zero:
   mov w19, #0
 .Lwrite_store:
-  adrp x0, :pg_hi21:_spot_4
+  adrp x0, _spot_4
   add x0, x0, :lo12:_spot_4
   str w19, [x0]
   ldp x19, x20, [sp], #16
@@ -827,7 +827,7 @@ _rt_sys666_write:
 // Syscall 4: close
 // .2=fd
 _rt_sys666_close:
-  adrp x0, :pg_hi21:_spot_2
+  adrp x0, _spot_2
   add x0, x0, :lo12:_spot_2
   ldr w0, [x0]
   mov x8, #57           // close
@@ -837,10 +837,10 @@ _rt_sys666_close:
 // Syscall 5: argc
 // Output: .3=count
 _rt_sys666_argc:
-  adrp x0, :pg_hi21:_rt_argc
+  adrp x0, _rt_argc
   add x0, x0, :lo12:_rt_argc
   ldr w0, [x0]
-  adrp x1, :pg_hi21:_spot_3
+  adrp x1, _spot_3
   add x1, x1, :lo12:_spot_3
   str w0, [x1]
   b _rt_resume_1
@@ -852,11 +852,11 @@ _rt_sys666_argv:
   stp x19, x20, [sp, #-16]!
   stp x21, x22, [sp, #-16]!
   // Get index from .2
-  adrp x0, :pg_hi21:_spot_2
+  adrp x0, _spot_2
   add x0, x0, :lo12:_spot_2
   ldr w19, [x0]
   // Get argv pointer
-  adrp x0, :pg_hi21:_rt_argv
+  adrp x0, _rt_argv
   add x0, x0, :lo12:_rt_argv
   ldr x0, [x0]
   // argv[index]
@@ -875,14 +875,14 @@ _rt_sys666_argv:
   add x0, x0, #16
   bl _rt_mmap
   mov x1, x0
-  adrp x0, :pg_hi21:_tail_65535_ptr
+  adrp x0, _tail_65535_ptr
   add x0, x0, :lo12:_tail_65535_ptr
   str x1, [x0]
-  adrp x0, :pg_hi21:_tail_65535_ndim
+  adrp x0, _tail_65535_ndim
   add x0, x0, :lo12:_tail_65535_ndim
   mov w2, #1
   str w2, [x0]
-  adrp x0, :pg_hi21:_tail_65535_dims
+  adrp x0, _tail_65535_dims
   add x0, x0, :lo12:_tail_65535_dims
   str w22, [x0]
   // Copy chars
@@ -895,7 +895,7 @@ _rt_sys666_argv:
   add w3, w3, #1
   b .Largv_copy
 .Largv_done:
-  adrp x0, :pg_hi21:_spot_3
+  adrp x0, _spot_3
   add x0, x0, :lo12:_spot_3
   str w22, [x0]
   ldp x21, x22, [sp], #16
@@ -906,7 +906,7 @@ _rt_sys666_argv:
 // Syscall 8: exit
 // .2=exit code
 _rt_sys666_exit:
-  adrp x0, :pg_hi21:_spot_2
+  adrp x0, _spot_2
   add x0, x0, :lo12:_spot_2
   ldr w0, [x0]
   mov x8, #93
@@ -923,7 +923,7 @@ _rt_sys666_getrand:
   svc #0
   ldrh w0, [sp]
   add sp, sp, #16
-  adrp x1, :pg_hi21:_spot_2
+  adrp x1, _spot_2
   add x1, x1, :lo12:_spot_2
   ldr w1, [x1]
   cbz w1, .Lrand_store
@@ -931,7 +931,7 @@ _rt_sys666_getrand:
   udiv w3, w0, w2
   msub w0, w3, w2, w0
 .Lrand_store:
-  adrp x1, :pg_hi21:_spot_3
+  adrp x1, _spot_3
   add x1, x1, :lo12:_spot_3
   str w0, [x1]
   b _rt_resume_1

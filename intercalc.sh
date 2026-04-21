@@ -1768,7 +1768,7 @@ main() {
       -e 's/\.section __DATA,__data/.data/' \
       -e 's/\.section __DATA,__bss/.bss/' \
       -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGEOFF/:lo12:\1/g' \
-      -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGE/:pg_hi21:\1/g' \
+      -e 's/\([_a-zA-Z][_a-zA-Z0-9]*\)@PAGE/\1/g' \
       -e 's/svc #0x80/svc #0/g' \
       -e 's/mov x3, #0x1002/mov x3, #0x22/' \
       -e 's/mov w1, #0x601/mov w2, #0x241/' \
