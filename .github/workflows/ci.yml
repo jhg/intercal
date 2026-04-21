@@ -29,6 +29,16 @@ jobs:
       - name: Verify template manifest
         run: zsh tools/verify_manifest.sh
 
+      - name: Lint INTERCAL sources
+        run: |
+          find tests -name '*.i' -print0 | xargs -0 zsh tools/lint_intercal.sh
+          zsh tools/lint_intercal.sh src/compiler/*.i src/syslib/*.i
+
+      - name: Lint runtime and template assembly
+        run: |
+          zsh tools/lint_assembly.sh src/runtime/*.s
+          find src/compiler/templates -name '*.s' -print0 | xargs -0 zsh tools/lint_assembly.sh
+
       - name: Bootstrap test suite
         run: zsh tests/run_tests.sh
 
@@ -71,6 +81,16 @@ jobs:
       - name: Verify template manifest
         run: zsh tools/verify_manifest.sh
 
+      - name: Lint INTERCAL sources
+        run: |
+          find tests -name '*.i' -print0 | xargs -0 zsh tools/lint_intercal.sh
+          zsh tools/lint_intercal.sh src/compiler/*.i src/syslib/*.i
+
+      - name: Lint runtime and template assembly
+        run: |
+          zsh tools/lint_assembly.sh src/runtime/*.s
+          find src/compiler/templates -name '*.s' -print0 | xargs -0 zsh tools/lint_assembly.sh
+
       - name: Bootstrap test suite
         run: zsh tests/run_tests.sh
 
@@ -106,6 +126,16 @@ jobs:
 
       - name: Verify template manifest
         run: zsh tools/verify_manifest.sh
+
+      - name: Lint INTERCAL sources
+        run: |
+          find tests -name '*.i' -print0 | xargs -0 zsh tools/lint_intercal.sh
+          zsh tools/lint_intercal.sh src/compiler/*.i src/syslib/*.i
+
+      - name: Lint runtime and template assembly
+        run: |
+          zsh tools/lint_assembly.sh src/runtime/*.s
+          find src/compiler/templates -name '*.s' -print0 | xargs -0 zsh tools/lint_assembly.sh
 
       - name: Bootstrap test suite
         run: zsh tests/run_tests.sh
