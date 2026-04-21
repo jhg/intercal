@@ -1,4 +1,4 @@
-        DON'T NOTE stage3.i Phase 4 Stage 3.1 scaffolding source byte count
+        DON'T NOTE stage3.i Phase 4 Stage 3.1.b source byte count plus first byte value
 
         PLEASE DO ,65535 <- #65535
 
@@ -21,6 +21,8 @@
         DO .2 <- .10
         DO (666) NEXT
 
+        PLEASE DO .21 <- ,65535 SUB #1
         PLEASE DO READ OUT .20
+        DO READ OUT .21
 
         PLEASE DO GIVE UP
