@@ -30,11 +30,11 @@ Phase 2 (self-hosted compiler.i): IN PROGRESS - Stage 2 of 8 complete
 Phase 3 (CI/CD workflows): COMPLETE - ci.yml + release.yml created
 
 Key files:
-- intercalc.sh: bootstrap compiler (primordial spark, 1656 lines)
-- runtime_macos_arm64.s: ARM64 runtime + Label 666 handler (symlink: runtime.s)
-- syslib_native_macos_arm64.s: native syslib (symlink: syslib_native.s)
-- syslib.i: pure INTERCAL syslib (9065 lines, all 20 labels)
-- compiler.i: self-hosted compiler (Stage 2, I/O + copy + uppercase + length output)
+- src/bootstrap/intercalc.sh: bootstrap compiler (primordial spark)
+- src/runtime/{platform}.s: platform-specific ARM64/x86_64 runtime + Label 666
+- src/syslib/native/{platform}.s: native syslib per platform
+- src/syslib/syslib.i: pure INTERCAL syslib (9065 lines, all 20 labels)
+- src/compiler/compiler.i: self-hosted compiler (in progress)
 - intercal: wrapper script for self-hosted compiler
 - bootstrap.sh: 3-generation fixpoint bootstrap
 
@@ -61,8 +61,8 @@ Key files:
 
 - `CLAUDE.md` is a symlink to `AGENTS.md` — always edit `AGENTS.md`, never `CLAUDE.md` directly
 - `TODO.md` at root is a working notes file for Claude between iterations (not project docs)
-- `docs/PHASE2.md` tracks the self-hosted compiler development stages
 - `SECURITY.md` (root) documents security model and known limitations
+- `docs/666.md` CLC-INTERCAL syscall investigation (historical reference)
 
 ### Commit discipline
 
@@ -290,7 +290,7 @@ src/
   runtime/            macos_arm64.s, linux_arm64.s, linux_x86_64.s
   syslib/             syslib.i (pure INTERCAL) + native/ (per-platform .s files)
   compiler/           compiler.i (self-hosted compiler, in progress)
-docs/                 666.md (CLC-INTERCAL investigation), PHASE2.md (self-hosted compiler progress)
+docs/                 666.md (CLC-INTERCAL investigation, historical reference)
 tests/                test programs and runners
 ```
 
@@ -651,6 +651,110 @@ Phase 2 (INTERCAL self-compiler):
 Phase 3+ (improvement and iteration):
 - Use the self-compiler to improve itself
 - GitHub workflow handles continuous compilation and release
+
+## INTERCAL programming patterns
+
+Patterns discovered during development. Essential for writing correct INTERCAL code (syslib.i, compiler.i).
+
+### Comments
+
+Use `DON'T NOTE ...` (= `DO NOT NOTE ...`). Creates a negated UNKNOWN statement, skipped at runtime. Never use `PLEASE NOTE` -- it executes as UNKNOWN and triggers E000.
+
+### COME FROM loop
+
+```intercal
+(200) DO COME FROM (219)
+      ... loop body ...
+(219) DO .99 <- #0
+```
+
+Statement (219) executes, COME FROM redirects to (200). Break: `DO ABSTAIN FROM (200)`.
+
+### Two-way conditional branch
+
+Convert 0/1 to 1/2 for computed RESUME:
+
+```intercal
+DO :20 <- '.22 $ #1'
+DO .23 <- '?:20 ~ #3'
+DO (LABEL_A) NEXT
+DO (LABEL_B) NEXT
+DO RESUME .23
+```
+
+### Syslib calling convention
+
+Always STASH before, RETRIEVE after:
+```intercal
+DO STASH .1 .2 .3 .4
+DO .1 <- value1
+DO .2 <- value2
+DO (1000) NEXT
+DO .99 <- .3
+DO RETRIEVE .1 .2 .3 .4
+```
+
+### Expression grouping
+
+Sparks and rabbit-ears must alternate nesting. Break complex expressions into steps:
+```intercal
+DO :14 <- '?:13'
+DO .17 <- ':14 ~ #1'
+```
+Never: `.17 <- '"?:13" ~ #1'` (nested quotes cause issues when source is concatenated).
+
+### Zero test
+
+```intercal
+DO .22 <- "'.X ~ .X' ~ #1"
+```
+Result: 0 if .X is zero, 1 if nonzero.
+
+## Self-hosted compiler architecture (src/compiler/compiler.i)
+
+### Module map (labels 100-849)
+
+| Labels | Module | Purpose |
+|--------|--------|---------|
+| 100-149 | Main | Read source file, orchestrate phases, flush output |
+| 150-199 | Input | Copy ,65535 to ,10, uppercase conversion |
+| 200-299 | Lexer | Scan for DO/PLEASE keywords, count/record statements |
+| 300-399 | Parser | Classify statements, parse expressions into tree |
+| 400-449 | Semantics | Politeness check, label validation, COME FROM resolution |
+| 450-499 | Codegen control | Main codegen loop dispatching by statement type |
+| 500-549 | Codegen expressions | Walk expression tree, emit assembly per node |
+| 550-599 | Codegen statements | Emit assembly for each statement type |
+| 600-649 | Codegen data | Emit BSS variables, _stmt_flags, _main entry |
+| 700-749 | TTM output | Emit chars to stdout: bit reversal, tape tracking, buffer, flush |
+| 750-799 | Utilities | Character compare, itoa, keyword matching |
+| 800-849 | Errors | Emit compile-time errors to stderr |
+
+### Data structures
+
+| Variable | Purpose |
+|----------|---------|
+| ,10 (60000) | Source characters (uppercased) |
+| .50 | Source length |
+| ,11-,18 (1000 each) | Statement parallel arrays |
+| .51 | Statement count |
+| ,20-,23 (5000 each) | Expression tree nodes |
+| ;20 (5000) | Expression values (32-bit) |
+| ,30 (60000) | TTM output buffer |
+| .60 | Output buffer position |
+| .71 | TTM tape head position |
+
+### Development stages
+
+1. I/O round-trip (COMPLETE)
+2. Copy + uppercase + length output (COMPLETE)
+3. Lexer: scan for keywords, count statements
+4. Parser: classify statements, expression trees
+5. Semantics: politeness, labels, COME FROM
+6. Minimal codegen: GIVE UP only
+7. Incremental codegen: all statement types
+8. Fixpoint: 3-generation self-compilation test
+
+The compiler must emit the SAME assembly patterns as intercalc.sh. Reference: codegen_* functions in src/bootstrap/intercalc.sh.
 
 ## Other info
 
