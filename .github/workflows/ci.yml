@@ -38,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.runs }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cache apt
         if: startsWith(matrix.runs, 'ubuntu')
