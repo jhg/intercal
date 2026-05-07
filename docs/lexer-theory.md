@@ -36,15 +36,25 @@ Both quirks are handled with trivial special-case code in our lexer. Neither req
 
 Three ways to recognise a regular language:
 
-- **NFA.** Non-deterministic finite automaton. Allows ε-transitions and multiple transitions on the same character. Easy to construct from a regular expression; slower to run because of the backtracking.
-- **DFA.** Deterministic finite automaton. Every state has exactly one transition per character. Fast to run (constant-time per character) but potentially exponential in size compared to the equivalent NFA.
+- **NFA.** Non-deterministic finite automaton. Allows ε-transitions and multiple transitions on the same character. Easy to construct from a regular expression; slower to run because of the implicit backtracking through every reachable state.
+- **DFA.** Deterministic finite automaton. Every state has exactly one transition per input character. Fast to run (constant-time per character) but potentially exponential in size compared to the equivalent NFA.
 - **Ad-hoc code.** A hand-written recogniser, typically using a `while` loop and a switch-like construct, that implicitly encodes a DFA.
 
-Flex and similar lexer generators take regular expressions, build NFAs, convert to DFAs, minimise the DFAs, and emit C code that runs them. The resulting lexer is fast and correct by construction. The cost is that the generated code is opaque: understanding it requires understanding the generator.
+The textbook construction is: regular expression → NFA (Thompson's construction) → DFA (subset construction) → minimised DFA (Hopcroft's algorithm). Flex follows this pipeline mechanically, emitting C code that runs the resulting state machine as a table-driven loop. The newer re2c generator follows the same pipeline but emits inline conditionals instead of a state table, producing tighter code at the cost of less flexibility.
 
 Our lexer is ad-hoc code. We chose this for the same reason *Crafting Interpreters* does: the token language is small enough to fit comfortably in a few hundred lines of hand-written code, and the result is far easier to read and modify than a generator-produced output would be.
 
 The tradeoff is loose: a bug in hand-written code is fixed by editing the code; a bug in the grammar of a generator-based lexer requires understanding both the grammar and the generator's conventions.
+
+## Longest match (maximal munch)
+
+When a lexer can match multiple token classes at the same position, the standard disambiguation rule is *longest match* (also called *maximal munch*): pick the token that consumes the longest prefix. A C lexer reading `++` should produce one `++` token, not two `+` tokens, because the longer match wins.
+
+This rule is so universal that most lexer literature assumes it implicitly. It is what lets `DON'T` win over `DO` in our lexer: when the scanner sees `D O N ' T`, two interpretations are possible — emit `DO` and stop, or emit `DON'T` and stop. Maximal munch picks `DON'T`. Our hand-written code implements the rule by structuring the keyword check as a longest-prefix peek: try `DON'T` first, then `DO`.
+
+Implementing maximal munch in a generator-built DFA is more elaborate. The DFA must continue past every accepting state and remember the most recent one, then on a transition failure backtrack to that remembered state. This is the standard approach in Flex and re2c.
+
+There are corner cases. C++'s `>>` is sometimes a right-shift and sometimes a closing pair of template brackets; the maximal-munch rule alone cannot disambiguate. C++ resolves it by parsing context, breaking the lexer–parser separation. INTERCAL has no such corner — its tokens are unambiguously distinguished at the lexer level.
 
 ## Why we get away without a full DFA
 

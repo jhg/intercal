@@ -136,6 +136,7 @@ You want to know *why* something is the way it is.
 | [glossary.md](glossary.md) | INTERCAL symbols and compiler jargon |
 | [design-rationale.md](design-rationale.md) | FAQ covering major design decisions |
 | [history-and-context.md](history-and-context.md) | INTERCAL history and comparative notes |
+| [esolangs-context.md](esolangs-context.md) | INTERCAL among Brainfuck, Befunge, Malbolge, Shakespeare, Whitespace |
 | [further-reading.md](further-reading.md) | Annotated bibliography of external resources |
 
 ## What is not in `docs/`

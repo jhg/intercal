@@ -33,6 +33,8 @@ When both operands of `$` (mingle) or `~` (select), or the child of a unary oper
 
 The benefit is small in absolute terms — most INTERCAL programs have few wholly-constant expressions — but the savings on TTM-encoded text output (where every character is a constant manipulated by mingle / select before being stored) are visible.
 
+In compiler-theory terms, our `eval_const` is an instance of the broader *constant propagation* family. The full version of the technique computes, for each program point, the set of variables whose values are statically known, then replaces uses of those variables with the literal values. Constant folding is the leaf-level case — when an expression is built only from literals, evaluate it. The next step up is *sparse conditional constant propagation* (SCCP), which combines folding with reachability analysis to eliminate dead branches whose conditions evaluate to compile-time constants. We do not run SCCP because we do not have control-flow constructs of the right shape; the `%N` probability check is technically reachable from any value of N, and the abstain-flag check is conditional on runtime state.
+
 ### Dead-flag elimination (implemented)
 
 Every compiled statement used to begin with a three-instruction sequence that loaded the abstain flag, tested it, and jumped over the body if set. The compiler now analyses the statement list at compile time and computes, for each statement, whether its abstain bit is ever touched by an `ABSTAIN FROM (N)`, an `ABSTAIN FROM gerund-list`, or an initial `NOT` / `N'T` / `DON'T`. Statements that survive this analysis as immutable skip the check entirely. The analysis lives in `compute_flag_checks` and traces through both label-based and gerund-based modifiers.

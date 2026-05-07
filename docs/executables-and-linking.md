@@ -96,6 +96,27 @@ But the programs are not fully static: they depend on the host's C runtime (`lib
 
 A truly static build (no C runtime dependency) would require writing our own `_start` routine and convincing the linker not to pull in `libc`. We have not needed this. The C runtime dependency is small enough that it does not affect portability meaningfully.
 
+## The dynamic linker
+
+When a program with dynamic dependencies starts, a small loader (`dyld` on macOS, `ld-linux.so` on Linux) runs first. The kernel reads the path of this loader from a dedicated section in the executable (`LC_LOAD_DYLINKER` in Mach-O, `.interp` in ELF) and hands control to it before the program's own `main`. The loader's job is to find every dynamic library the executable references, map them into the process address space, and resolve every external symbol.
+
+Two structures handle the symbol resolution at runtime: the **Global Offset Table (GOT)** and the **Procedure Linkage Table (PLT)**.
+
+- The GOT is a table of pointers, one per imported function or data symbol. The dynamic linker fills these in.
+- The PLT is a table of small stubs, one per imported function, that load the corresponding GOT entry and jump through it. Calls to imported functions in the user's code go through the PLT — they branch to the stub, which redirects through the GOT.
+
+ELF supports **lazy binding**: the GOT entries start as pointers back into the linker, so that the first call to each imported function triggers a resolution rather than paying the cost up front. After the first call, the GOT is updated with the real address and subsequent calls go directly. The environment variable `LD_BIND_NOW=1` forces eager resolution at startup, which is the secure default for security-sensitive programs.
+
+Mach-O uses an analogous scheme via `__TEXT,__stubs` and `__la_symbol_ptr` sections. The mechanism is similar: a small stub redirects through a pointer that the linker updates at first call.
+
+For our compiled INTERCAL programs, the PLT is small. We import only `_start` (the C runtime entry into `main`) and the stub for whatever the system uses to actually issue syscalls. Most of the code stays inside our binary, calling our runtime via direct branches with no PLT involvement.
+
+## Position-Independent Executables (PIE)
+
+Modern toolchains produce position-independent executables by default. PIE means the executable's `.text` is loaded at a randomised base address (ASLR), making certain classes of memory-corruption exploits harder. Our compiled binaries are PIE by default — `file ./binary` reports `pie executable` on Linux.
+
+The cost of PIE is one extra level of indirection on global accesses (every reference must go through the GOT or use RIP-relative addressing). For x86-64 the cost is negligible thanks to RIP-relative addressing being the default. For ARM64 the `adrp`/`add` pair handles position independence efficiently.
+
 ## How a compiled binary starts up
 
 The execution path from `./program` on the command line to the first INTERCAL statement running:
