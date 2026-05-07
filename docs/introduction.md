@@ -1,47 +1,43 @@
 # Introduction
 
-This is a practical book about compilers, written around a small but complete one.
+A book about compilers, built around one small enough to read end to end.
 
-The compiler in question targets INTERCAL, a 1972 programming language designed to be unlike every other language of its time. The choice is deliberate: most compilers textbooks build a mini-C or a mini-Lisp, languages familiar enough that the reader can skim past the parts they already understand. INTERCAL never lets you skim. Its grammar has no operator precedence. Its arithmetic is bitwise only. Its compile-time check rejects programs that show the wrong amount of deference. Its `READ OUT` statement prints Roman numerals, and its array I/O goes through a 256-position tape with bit-reversed addressing. Working through a compiler for INTERCAL forces you to engage with every classical phase, because the language gives you nothing for free.
+The compiler targets INTERCAL, a programming language Donald Woods and James Lyon invented in 1972 specifically to resemble nothing else. Most compiler textbooks pick a mini-C or a mini-Lisp because the syntax stays out of the way. INTERCAL goes the other direction. Its grammar has no operator precedence. Its arithmetic is bitwise only. It rejects programs that are too rude or too polite at compile time. `READ OUT` prints Roman numerals; array I/O goes through a 256-position tape with bit-reversed addressing. Writing a compiler for it forces you to think about every classical phase, because the language never lets you reuse a familiar shortcut.
 
-The companion source is a real, self-hosting compiler. The bootstrap is roughly two thousand lines of zsh. The runtime is hand-written assembly for three platforms (macOS ARM64, Linux ARM64, Linux x86-64). The system library exists in two parallel implementations, pure INTERCAL and native assembly, that verify each other through a differential test. None of these pieces is hypothetical. Every example in the book points at code you can read, modify, and run.
+The compiler in this repository is real and self-hosting. About two thousand lines of zsh do the bootstrap; a few hundred per platform of hand-written assembly do the runtime; ten thousand lines of pure INTERCAL form a system library that the compiler verifies against a fast native rewrite. Every example in the book points at code you can clone, edit, and run.
 
 ## How the book is organised
 
-The book is in six parts plus a reference apparatus.
+Six parts plus a reference appendix.
 
-Part I is a first-contact tour. If you have never seen INTERCAL, start there. You install the toolchain, compile a hello-world, learn the language vocabulary, and meet the syscall extension that makes self-hosting possible. By the end of Part I you have a working compiler and enough INTERCAL to read the test programs.
+Part I is the first-contact tour. Install the toolchain, compile hello-world, learn the language vocabulary, meet the syscall extension that makes self-hosting possible. By the end you have a working compiler and enough INTERCAL to read the test programs.
 
-Parts II through V follow the compiler from front to back, then out to platforms and process. Part II maps the source layout onto classical compiler phases and walks the entire pipeline once. Part III drills into scanning, parsing, and semantic analysis. Part IV covers code generation, the runtime, the system library, calling conventions, and executable formats. Part IV.5 spends a chapter each on INTERCAL's four most distinctive features: the politeness rule, `COME FROM`, the Turing Text Model, and Roman-numeral I/O. Part V looks at platform porting, self-hosting, testing, debugging, and the design of error messages.
+Parts II through V follow the compiler front to back. Part II is the layout map and a one-pass walk of the whole pipeline. Part III is the front end: scanning, parsing, semantic analysis. Part IV is the back end: code generation, runtime, system library, calling conventions, executable formats. Part IV.5 is one chapter each for the four most distinctive INTERCAL features (the politeness rule, `COME FROM`, the Turing Text Model, and Roman-numeral I/O). Part V covers platforms, self-hosting, testing, debugging, and how the compiler reports errors.
 
-Part VI steps back. It compares INTERCAL's design choices to those of conventional languages, places INTERCAL among the broader family of esoteric languages, and weighs the language against Hoare's and Wirth's canonical advice on language design. It also documents how to land a first contribution and how to work on this codebase with an AI agent.
+Part VI steps back from the implementation. It compares INTERCAL to conventional languages, places it within the broader genre of esoteric languages, and weighs it against the canonical language-design advice of Hoare and Wirth. It also documents how to land a first contribution and how to work on the codebase alongside an AI agent.
 
-The reference apparatus at the end is for lookup rather than reading: a one-line cheatsheet for every statement, the formal EBNF grammar, a glossary of INTERCAL symbols and compiler-theory terms, hints for the chapter exercises, and an annotated bibliography of free external resources.
+The reference appendix is for lookup, not reading: a statement cheatsheet, the EBNF grammar, a glossary, exercise hints, and an annotated bibliography.
 
-## Who the book is for
+## Who should read what
 
-Three readers in particular will find a path here:
+New to compilers and want a complete worked example? Read Parts I through V in order. You finish with a working understanding of every phase of a real compiler.
 
-A reader new to compilers, looking for a complete worked example small enough to hold in mind, can read Parts I through V in order and finish with a working understanding of every phase of a real compiler.
+Already comfortable with compilers, here for INTERCAL specifically? Skim Part I and dwell in Parts III and IV. The exercises at the end of each chapter are calibrated for somebody testing an explanation, not for a beginner.
 
-A reader already comfortable with compilers, curious about INTERCAL specifically or about the design tradeoffs of an unusual language, can skim the introduction layer and dwell in Parts III and IV. The exercise at the end of each chapter is sized for a reader who wants to test the explanation, not a beginner.
+Here to modify the compiler? Your home is Part V (platforms, testing, debugging) plus the reference appendix. The map in Part II is where you find any specific routine.
 
-A contributor or AI agent who needs to modify the compiler will spend most of their time in Part V (platforms, testing, debugging) and the reference apparatus. The map of the compiler in Part II is the entry point for finding any specific routine.
+## A note on the project
 
-## A note on the project itself
-
-This compiler is also a small experiment in AI-assisted development. Most of the code was written by a large language model paired with one human collaborator: the human chose the goals, made the first commits, supplied references, and reviewed; the day-to-day implementation was the model's. INTERCAL fits the experiment because off-the-shelf code patterns rarely apply to it and any divergence from the spec is detectable.
-
-Whether the experiment succeeds is best judged by reading on.
+The compiler is also a small experiment in AI-assisted development. Most of the code came from a large language model working with one human collaborator: the human picked the goals, made the first commits, supplied references, and reviewed the result; the day-to-day implementation was the model's. INTERCAL fits the experiment because off-the-shelf code patterns rarely apply to it, and any divergence from the spec is detectable.
 
 ## Where to go next
 
-If you have not yet built the compiler, start with [getting-started.md](getting-started.md). It is the shortest path from cloning the repository to running hello-world.
+The shortest path from clone to running hello-world is [getting-started.md](getting-started.md).
 
-If you have already built it and want the language tour, read [intercal-primer.md](intercal-primer.md).
+For the language tour, [intercal-primer.md](intercal-primer.md).
 
-If you want to know the shape of the compiler before reading any phase in detail, [overview.md](overview.md) and then [pipeline.md](pipeline.md) give it to you in two short chapters.
+For the shape of the compiler in two short chapters, [overview.md](overview.md) followed by [pipeline.md](pipeline.md).
 
-If you are looking for a specific topic, the chapter index on the right-hand sidebar (or in [README.md](README.md) if you are reading on GitHub) lists every chapter with a one-line description.
+The full chapter list is in the right-hand sidebar (or in [README.md](README.md) if you are reading on GitHub).
 
-The source for this book and for the compiler it describes lives at <https://github.com/jhg/intercal>. Issues, pull requests, and discussion happen there.
+The source lives at <https://github.com/jhg/intercal>. Issues, pull requests, and discussion happen there.
