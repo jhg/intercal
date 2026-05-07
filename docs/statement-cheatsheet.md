@@ -91,25 +91,25 @@ Grouping: `'...'` (sparks) and `"..."` (rabbit-ears). Must alternate. No operato
 
 | Label | Operation | Inputs | Outputs |
 |-------|-----------|--------|---------|
-| 1000 | add | `.1`, `.2` | `.3`, fires ICL533I on overflow |
+| 1000 | add | `.1`, `.2` | `.3` (silent wrap on overflow; `*9` suffix variant has flag) |
 | 1009 | add, with flag | `.1`, `.2` | `.3`, `.4` = 1 if ok / 2 if overflow |
 | 1010 | subtract (wraps) | `.1`, `.2` | `.3` |
 | 1020 | increment in place | `.1` | `.1` |
-| 1030 | multiply | `.1`, `.2` | `.3`, fires ICL533I |
+| 1030 | multiply | `.1`, `.2` | `.3` (silent wrap on overflow; use 1039 for flag) |
 | 1039 | multiply, with flag | `.1`, `.2` | `.3`, `.4` |
 | 1040 | divide | `.1`, `.2` | `.3` (0 if divisor 0) |
-| 1050 | 32/16 divide | `:1`, `.1` | `.2`, fires ICL533I if quotient > 65535 |
+| 1050 | 32/16 divide | `:1`, `.1` | `.2` (silent wrap if quotient > 65535) |
 
 32-bit:
 
 | Label | Operation | Inputs | Outputs |
 |-------|-----------|--------|---------|
-| 1500 | add | `:1`, `:2` | `:3`, fires ICL533I |
+| 1500 | add | `:1`, `:2` | `:3` (silent wrap on overflow; use 1509 for flag) |
 | 1509 | add, with flag | `:1`, `:2` | `:3`, `:4` |
 | 1510 | subtract (wraps) | `:1`, `:2` | `:3` |
 | 1520 | mingle explicit | `.1`, `.2` | `:1` |
 | 1530 | 16×16 → 32 multiply | `.1`, `.2` | `:1` |
-| 1540 | 32×32 multiply | `:1`, `:2` | `:3`, fires ICL533I |
+| 1540 | 32×32 multiply | `:1`, `:2` | `:3` (silent wrap on overflow; use 1549 for flag) |
 | 1549 | 32×32, with flag | `:1`, `:2` | `:3`, `:4` |
 | 1550 | 32-bit divide | `:1`, `:2` | `:3` (0 if divisor 0) |
 

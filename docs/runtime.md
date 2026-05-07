@@ -177,7 +177,7 @@ The full table is:
 | E241 | BAD SUBSCRIPT | runtime; per-access bounds check |
 | E275 | 32-BIT VALUE TO 16-BIT SLOT | runtime; scalar assign guards range |
 | E436 | RETRIEVE WITHOUT STASH | runtime; RETRIEVE codegen guards stash-stack depth |
-| E533 | ARITHMETIC OVERFLOW | runtime; raised by syslib labels 1000, 1030, 1040, 1050, 1500, 1540, 1550 |
+| E533 | ARITHMETIC OVERFLOW | reserved; the syslib labels documented as raising it (1000, 1030, 1050, 1500, 1540) actually wrap silently — see syslib.md for the structural reason. The error path exists in the runtime but no syslib path currently reaches it. |
 | E555 | MULTIPLE COME FROM TARGETING SAME LABEL | compile-time; `resolve_come_from` |
 | E562 | END OF INPUT | runtime; numeric input |
 | E579 | BAD INPUT | runtime; numeric input |

@@ -37,15 +37,20 @@ The template-dispatch shape matters for one additional reason: it lets us run th
 
 ## Phase 4 — The evolving compiler
 
-`src/compiler/stage3.i` is where the template dispatcher is being replaced, incrementally, by a real compiler. As of 2026-04-21 the file is 41 lines long and can:
+`src/compiler/stage3.i` is where the template dispatcher is being replaced, incrementally, by a real compiler. As of substage 3.2.a, the file has grown to ~110 lines and can:
 
 - Read argv[1] into `,65535`.
 - Record the source's byte count in `.20`.
 - Read the first byte (`,65535 SUB #1`) into `.21`.
-- Read the last byte (`,65535 SUB .20`) into `.22`.
-- Print all three as Roman numerals.
+- Read the second byte into `.27`.
+- Read the last byte at index `.20` into `.22`.
+- Compute four branchless byte-equality probes against ASCII `D`, `O`, `P`, `A` (`.23`, `.24`, `.25`, `.26`).
+- Combine the first two probes into a 2-character keyword detector for `"DO"` (`.29`).
+- Print all of these (count, first byte, last byte, four probes, is_DO) as Roman numerals.
 
-That is the substage 3.1.c milestone. The roadmap from here, matching the stages in `AGENTS.md`, is:
+The branchless-equality pattern is documented in `docs/intercal_patterns.md` as "conditional ADD without a branch": subtract via 1010, pack any set bit to LSB via select-from-self, flip via mingle+XOR+select. About fifteen statements per equality test, but no abstain dance, no unwind, no branch. The approach was chosen after three attempts to use loops with conditional break ran into a structural blocker — see the next paragraph.
+
+The roadmap from here, matching the stages in `AGENTS.md`, is:
 
 1. **Lexer**: scan `,65535` for `DO`, `PLEASE`, `DON'T`, counting statements and recording boundaries in parallel arrays `,11–,18`.
 2. **Parser**: classify each statement, parse expressions into a tree using arrays `,20–,23` and `;20`.

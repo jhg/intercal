@@ -15,28 +15,36 @@ The convention is uniform across all 20 routines:
 
 The full table:
 
-| Label | Operation | Overflow? |
-|-------|-----------|-----------|
-| 1000 | `.3 = .1 + .2` (16-bit) | Error ICL533I on overflow |
-| 1009 | `.3 = .1 + .2`, `.4 = #1` no overflow or `#2` overflow | Flag in `.4` |
-| 1010 | `.3 = .1 - .2` (wraps) | No error |
-| 1020 | `.1 = .1 + 1` (in-place, wraps) | No error |
-| 1030 | `.3 = .1 * .2` (16-bit) | Error on overflow |
-| 1039 | `.3 = .1 * .2`, `.4` overflow flag | Flag in `.4` |
-| 1040 | `.3 = .1 / .2` (integer) | `.3 = 0` if `.2 = 0` |
-| 1050 | `.2 = :1 / .1` (32/16 → 16) | Error on quotient overflow |
-| 1500 | `:3 = :1 + :2` (32-bit) | Error on overflow |
-| 1509 | `:3 = :1 + :2`, `:4` overflow flag | Flag in `:4` |
-| 1510 | `:3 = :1 - :2` (32-bit, wraps) | No error |
-| 1520 | `:1 = .1 $ .2` (mingle, explicit) | No overflow possible |
-| 1530 | `:1 = .1 * .2` (16×16 → 32) | No overflow possible |
-| 1540 | `:3 = :1 * :2` (32-bit) | Error on overflow |
-| 1549 | `:3 = :1 * :2`, `:4` overflow flag | Flag in `:4` |
-| 1550 | `:3 = :1 / :2` (32-bit) | `:3 = 0` if `:2 = 0` |
-| 1900 | `.1 = uniform random 0..65535` | — |
-| 1910 | `.2 = gaussian-ish random 0..`.1 | — |
+| Label | Operation | Documented overflow | Actual behaviour |
+|-------|-----------|---------------------|------------------|
+| 1000 | `.3 = .1 + .2` (16-bit) | Error ICL533I | Silent wrap (see note) |
+| 1009 | `.3 = .1 + .2`, `.4 = #1` no overflow or `#2` overflow | Flag in `.4` | As documented |
+| 1010 | `.3 = .1 - .2` (wraps) | No error | As documented |
+| 1020 | `.1 = .1 + 1` (in-place, wraps) | No error | As documented |
+| 1030 | `.3 = .1 * .2` (16-bit) | Error ICL533I | Silent wrap (see note) |
+| 1039 | `.3 = .1 * .2`, `.4` overflow flag | Flag in `.4` | As documented |
+| 1040 | `.3 = .1 / .2` (integer) | `.3 = 0` if `.2 = 0` | As documented |
+| 1050 | `.2 = :1 / .1` (32/16 → 16) | Error on quotient overflow | Silent wrap (see note) |
+| 1500 | `:3 = :1 + :2` (32-bit) | Error ICL533I | Silent wrap (see note) |
+| 1509 | `:3 = :1 + :2`, `:4` overflow flag | Flag in `:4` | As documented |
+| 1510 | `:3 = :1 - :2` (32-bit, wraps) | No error | As documented |
+| 1520 | `:1 = .1 $ .2` (mingle, explicit) | No overflow possible | As documented |
+| 1530 | `:1 = .1 * .2` (16×16 → 32) | No overflow possible | As documented |
+| 1540 | `:3 = :1 * :2` (32-bit) | Error ICL533I | Silent wrap (see note) |
+| 1549 | `:3 = :1 * :2`, `:4` overflow flag | Flag in `:4` | As documented |
+| 1550 | `:3 = :1 / :2` (32-bit) | `:3 = 0` if `:2 = 0` | As documented |
+| 1900 | `.1 = uniform random 0..65535` | — | As documented |
+| 1910 | `.2 = gaussian-ish random 0..`.1 | — | As documented |
 
 Two internal labels exist but should not be called directly: 1525 (a shift helper) and 1999 (the overflow error exit). They are not part of the public interface.
+
+### The silent-overflow caveat
+
+Empirical testing has shown that the labels documented as "error on overflow" (1000, 1030, 1050, 1500, 1540) silently return the wrapped result instead of firing `ICL533I`. The cause is structural: the unwind sequence in `syslib.i` for each of these labels uses a NEXT/RESUME pattern in which the "no overflow" branch always wins because it `FORGET`s its own push and unwinds first; the "error" branch is unreachable in normal flow. The behaviour is therefore identical to the `*9`-suffixed routines (1009, 1039) but without the `.4` flag.
+
+The native syslib mirrors the pure syslib's actual behaviour, so the differential test passes despite the spec divergence. Programs that depend on overflow detection should use the `*9` family (1009, 1039, 1509, 1549) and inspect the flag; do not rely on the error-firing variants.
+
+This is a real divergence from the 1972 spec and the C-INTERCAL convention. It is documented here rather than fixed because the abstain-dance pattern needed to make the error path actually fire is one of the language's hardest constructs, and stage3.i does not yet support the constructs needed to reimplement the relevant labels safely. Tracked in `docs/intercal_patterns.md`.
 
 ## Why two implementations
 

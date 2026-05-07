@@ -11,9 +11,9 @@ This chapter describes the four test suites, the TDD contract that governs chang
 | Bootstrap | `tests/run_tests.sh` | Full language, via `intercalc.sh` | 33 |
 | Pure syslib | `tests/test_syslib_pure.sh` | Pure vs native syslib equivalence | 3 |
 | Self-hosted MVP | `tests/run_self_tests.sh` | Template-dispatch `compiler.i` end-to-end | 25 |
-| Evolving | `tests/run_stage3_tests.sh` | `stage3.i` diagnostics | 3 |
+| Evolving | `tests/run_stage3_tests.sh` | `stage3.i` diagnostics | 4 |
 
-The four together comprise 64 tests, and the count grows as each new compiler feature acquires its regression test. They run in sequence on every push, on every platform: three platforms × 64 tests = 192 distinct test executions per CI run, give or take a handful of platform-skipped cases.
+The four together comprise 65 tests, and the count grows as each new compiler feature acquires its regression test. They run in sequence on every push, on every platform: three platforms × 65 tests = 195 distinct test executions per CI run, give or take a handful of platform-skipped cases.
 
 CI also exercises the bootstrap suite a second time with `INTERCAL_SYSLIB=cache` to verify that the cached pure-syslib path produces correct binaries — bringing the per-platform total higher in practice.
 
