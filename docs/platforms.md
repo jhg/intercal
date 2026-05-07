@@ -88,6 +88,7 @@ This is a distilled version of the platform-pitfalls section of `AGENTS.md`. The
 - `adrp sym` computes the page base of `sym`. GNU `as` infers the page relocation automatically, but Apple `as` requires `sym@PAGE`. The `sed` step adds or removes the suffix accordingly.
 - `add x0, x0, sym@PAGEOFF` on macOS becomes `add x0, x0, :lo12:sym` on Linux. The `:lo12:` prefix does *not* go on the `adrp` instruction; GNU `as` infers the high bits.
 - `:pg_hi21:` never appears in either flavour of our output. Earlier experiments where we emitted it caused GNU `as` to reject the file with "junk at end of line".
+- macOS reserves `svc #0x80` for syscalls; Linux uses `svc #0`. The trap-handler-side check ignores the immediate on macOS — what dispatches the syscall is the value in `x16`. The `0x80` convention on macOS dates back to Apple's BSD heritage on x86 (`int 0x80`); when the platform moved to ARM64, the immediate was preserved out of inertia. Linux ARM64 chose `svc #0` because there is no historical reason for any other value on a fresh ABI.
 
 ### Linux ARM64 only
 

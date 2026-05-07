@@ -71,9 +71,17 @@ The alignment rule is a frequent source of bugs. The idiomatic prologue is `push
 
 ### Small System V AMD64 traps
 
-- The red zone: the 128 bytes below `rsp` are available to leaf functions without adjusting the stack pointer. Our runtime uses this in a few places to avoid prologue overhead. Windows x64 does not have a red zone; if we ever target Windows, the optimisation has to be reverted.
+- The red zone: the 128 bytes below `rsp` are reserved by the ABI for leaf functions to use without adjusting the stack pointer. The reservation says signal and interrupt handlers must not modify this region, so leaf functions can store temporaries there safely. Our runtime uses this in a few places to avoid prologue overhead. Windows x64 does not have a red zone; if we ever target Windows, the optimisation has to be reverted.
 - `syscall` vs `call`: `syscall` does not touch the stack. No return address is pushed. The kernel arranges the return via a privileged instruction.
 - Intel syntax destination-first, AT&T syntax source-first. Our emitted code is uniformly Intel. Mixing the two in the same `.s` file confuses GNU `as`.
+
+### Variadic functions
+
+The System V AMD64 ABI requires that, when calling a variadic function (e.g. `printf`), the caller load `%al` (the low byte of `%rax`) with the number of vector registers used to pass arguments — typically zero for our generated code, since INTERCAL has no floating-point. The value need not be exact, only an upper bound. We never emit calls to variadic functions in our compiled output; the runtime calls libc `write` and `read`, which are not variadic. So `%al` is never set explicitly, and the convention does not bite us today.
+
+### Vector registers
+
+`%xmm0` through `%xmm7` carry the first eight floating-point arguments. `%xmm0` and `%xmm1` carry floating-point return values. AVX2 widens these to `%ymm0`–`%ymm15` (256-bit), AVX-512 to `%zmm0`–`%zmm31` (512-bit). INTERCAL has no floats, so we touch none of these. They are mentioned only because future bridges to C libraries that take `double` arguments would have to follow the convention.
 
 ## macOS ARM64 specifics
 
