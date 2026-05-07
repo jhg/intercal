@@ -30,7 +30,7 @@ A contributor or AI agent who needs to modify the compiler will spend most of th
 
 ## A note on the project itself
 
-This compiler is also a small experiment in AI-assisted software development. Most of the code, the runtime, the syslib, the tests, and the chapters of this book were written by a large language model working with a single human collaborator. The collaborator chose the goals, made the first commits, supplied reference material, and reviewed the result; the day-to-day implementation work was the model's. INTERCAL turned out to be a useful proving ground for that mode of work, small enough to fit comfortably in a model's context, weird enough that off-the-shelf code patterns rarely apply, and well-specified enough that any divergence from the spec is detectable.
+This compiler is also a small experiment in AI-assisted development. Most of the code and most of this book were written by a large language model paired with one human collaborator: the human chose the goals, made the first commits, supplied references, and reviewed; the day-to-day implementation was the model's. INTERCAL fits the experiment well, small enough to hold in context, weird enough that memorised code patterns rarely apply, and specified well enough that any divergence is detectable.
 
 The book documents both the compiler and, by being itself one of the artifacts the model produced, the experiment. Whether that succeeds is best judged by reading on.
 
