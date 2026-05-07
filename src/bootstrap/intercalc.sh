@@ -668,10 +668,18 @@ parse_expr() {
   # Grouped expression: ' or "
   if [[ "$ch" == "'" || "$ch" == '"' ]]; then
     local open="$ch"
+    # Spark/rabbit-ears must alternate: ' inside " or " inside ', never same-in-same.
+    # group_char passed to us is the EXPECTED inner grouping char from our caller.
+    # If we see something different, the user nested same-in-same.
+    if [[ -n "$group_char" && "$open" != "$group_char" ]]; then
+      local quote_name="spark"
+      [[ "$open" == '"' ]] && quote_name="rabbit-ears"
+      die_compile "017" "DO YOU EXPECT ME TO FIGURE THIS OUT? (NESTED $quote_name INSIDE $quote_name; alternate with the other)"
+    fi
     (( parse_pos++ ))
 
     # Determine inner grouping char
-    local inner_group
+    local inner_group=""
     if [[ "$open" == "'" ]]; then
       inner_group='"'
     else
