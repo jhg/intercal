@@ -8,7 +8,7 @@ This chapter explains why the direct approach works for INTERCAL, what the emitt
 
 An IR pays off when you want to share optimisations across source languages or backends, or when you want to apply classical optimisations (constant folding, dead-code elimination, register allocation). We have none of those needs:
 
-- One source language, INTERCAL, that is silly enough that optimisation is mostly a non-goal.
+- One source language, INTERCAL, whose programs are seldom hot paths and for which optimisation is, by design, a non-goal.
 - Two backends — ARM64 and x86-64 — handled by two codegen modules. Three if you count the macOS/Linux ARM64 split, but that is just a `sed` pass at the end.
 - A runtime that already encapsulates the complicated bits (Roman numerals, the Turing tape, mingle/select, error exits) as callable routines. Each INTERCAL statement degenerates to a handful of moves plus a call.
 
