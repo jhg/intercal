@@ -2,7 +2,7 @@
 
 When we say "the compiler produces a binary", the sequence of events behind that claim is: generate assembly text; feed it to an assembler; the assembler produces relocatable object code; a linker resolves symbols and arranges the object into an executable file in the format the operating system's loader understands. Our compiler does not perform these last steps itself, it shells out to `cc -x assembler -`, which invokes the system assembler and linker as a pipeline.
 
-This chapter explains what that pipeline produces, what the resulting file looks like, and what it means for a program to be linked against our runtime.
+What follows: what that pipeline produces, what the resulting file looks like, and what it means for a program to be linked against our runtime.
 
 ## Executable file formats
 

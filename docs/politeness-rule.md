@@ -2,7 +2,7 @@
 
 INTERCAL's politeness rule is a unique compile-time check: every program must use `PLEASE` on between 1/5 and 1/3 of its statements. Too few and the compiler rejects the program as insufficiently polite. Too many and it rejects the program as overly polite. There is no other language whose compiler refuses to translate a program because its statements show the wrong amount of deference.
 
-This chapter is the politeness rule's tour: what the specification says, how our compiler implements it, where the boundaries are, and why the check exists at all.
+A tour of the rule: what the specification says, how our compiler implements it, where the boundaries are, and why the check exists at all.
 
 ## The specification
 

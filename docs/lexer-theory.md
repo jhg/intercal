@@ -25,7 +25,7 @@ The tokens our lexer produces are:
 
 Each of these is recognisable by a small FSA. The union of all such FSAs is still a regular language, so the theoretical tool for recognising them simultaneously is still a single DFA (deterministic finite automaton).
 
-What distinguishes INTERCAL's token language from C's or Python's is essentially two quirks:
+What sets INTERCAL's token language apart from C's or Python's is two quirks:
 
 1. `DON'T` must be one token, not `DO` + `N'T`. This is a direct consequence of the language specification: `DON'T` is a contraction of `DO` + `NOT`, and the contracted form has no compositional interpretation.
 2. Keywords are whole words surrounded by whitespace. `READOUT` is not `READ OUT`. This is unusual, most languages accept both forms of composite keywords, and forces the lexer to check for the space between.

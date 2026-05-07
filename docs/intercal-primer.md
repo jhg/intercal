@@ -112,7 +112,7 @@ Character (Turing Text Model):
 - `DO READ OUT ,1`: walk the tape forwards and backwards, printing characters.
 - `DO WRITE IN ,1`: the inverse, reading characters and converting to tape-offset deltas.
 
-The Turing Text Model (TTM) encoding is what makes `tests/test_hello.i` look the way it does. You cannot just put `H e l l o` in the source. Each character has to be precomputed as a tape-offset delta whose effect, after the tape head's bit-reversed position, lands at the ASCII code you want. The compiler does not care; it just emits calls to `_rt_read_out_array`. But it is worth knowing when you read the test programs. See [runtime.md](runtime.md) for the algorithm in full.
+The Turing Text Model (TTM) encoding is what makes `tests/test_hello.i` look the way it does. You cannot just put `H e l l o` in the source. Each character has to be precomputed as a tape-offset delta whose effect, after the tape head's bit-reversed position, lands at the ASCII code you want. The compiler does not care; it just emits calls to `_rt_read_out_array`. The encoding matters when you read the test programs. See [runtime.md](runtime.md) for the algorithm in full.
 
 ## Politeness
 

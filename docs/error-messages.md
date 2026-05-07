@@ -2,7 +2,7 @@
 
 A compiler's error messages shape its usability more than almost any other surface. A correct compiler with hostile diagnostics is an unfriendly tool; an inaccurate compiler with helpful messages is at least debuggable. INTERCAL puts the bar somewhere unusual: the *format* of error messages is part of the language's deliberate joke (codes like `ICL079I PROGRAMMER IS INSUFFICIENTLY POLITE`), but the format does not relieve us of the obligation to make them helpful.
 
-This chapter documents what our error messages look like, how they have improved since the project began, and where they fall short of what modern compiler diagnostics deliver.
+What our error messages look like, how they have improved since the project began, and where they fall short of what modern compiler diagnostics deliver.
 
 ## The ICL convention
 

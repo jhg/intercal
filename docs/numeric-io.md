@@ -2,7 +2,7 @@
 
 INTERCAL's numeric I/O is, like everything else in the language, a parody of common practice. Numbers are output in Roman numerals; numbers are read in spelled-out English digit names (`ONE TWO THREE` for 123). Neither convention is what a programmer expects, and neither is incidental, they are first-class language features documented in the original 1972 manual.
 
-This chapter describes both directions in detail, including the algorithms, the overbar (vinculum) notation for values above the classical Roman range, and the corner cases that have given the runtime trouble.
+Both directions in detail: the algorithms, the overbar (vinculum) notation for values above the classical Roman range, and the corner cases that have given the runtime trouble.
 
 ## Roman numeral output
 

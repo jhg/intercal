@@ -2,7 +2,7 @@
 
 A calling convention is the contract that governs how a caller and a callee transfer control and data. Which registers hold arguments, which registers survive a call, who cleans the stack, where the return value lands. Every platform we target specifies one, and our generated code has to respect it at every `bl` or `call` boundary.
 
-This chapter describes the conventions for the three targets. AAPCS64 on macOS and Linux ARM64, System V AMD64 on Linux x86-64, and shows where each one surfaces in our code.
+The conventions for the three targets: AAPCS64 on macOS and Linux ARM64, System V AMD64 on Linux x86-64. The chapter walks through where each one surfaces in our code.
 
 ## Why calling conventions matter to this compiler
 
@@ -84,7 +84,7 @@ Our `_rt_write_roman` uses the second form because it has a small stack-local bu
 
 ## System V AMD64. Linux x86-64
 
-The System V AMD64 ABI governs Linux, FreeBSD, macOS (for user code), and essentially every x86-64 Unix. We target it directly for Linux x86-64; macOS on x86-64 is not a platform we support today.
+The System V AMD64 ABI governs Linux, FreeBSD, macOS (for user code), and every x86-64 Unix. We target it directly for Linux x86-64; macOS on x86-64 is not a platform we support today.
 
 ### Register roles
 

@@ -54,7 +54,7 @@ Lisp's parser, in turn, is a `read` loop:
       else if next is digit: read number
       else: read symbol
 
-That is essentially the whole parser. There is no precedence to resolve because every expression is already explicitly grouped by parentheses. There is no dangling else because there is no `else`.
+That is the whole parser. There is no precedence to resolve, because every expression is already explicitly grouped by parentheses. There is no dangling else, because there is no `else`.
 
 INTERCAL's parser sits with Lisp's: we have no precedence either, because every expression is explicitly grouped by sparks `'` or rabbit-ears `"`. The recursive-descent parser has fifteen productions and runs in ~190 lines. Like Lisp, our grammar is LL(1); like Lisp, our parser corresponds line-for-line with the grammar.
 
@@ -70,7 +70,7 @@ C's type system is the main reason a C compiler has a substantial semantic-analy
 - `const`, `volatile`, `restrict` qualifiers.
 - Aggregate types: structs, unions, arrays.
 
-Lisp at the standard end of the spectrum has no compile-time types at all. Every value carries a runtime tag, and operators dispatch on that tag. The compiler's "type checking" reduces to ensuring that every form is syntactically a valid Lisp expression, which is essentially what the parser already does.
+Lisp at the standard end of the spectrum has no compile-time types at all. Every value carries a runtime tag, and operators dispatch on that tag. The compiler's "type checking" reduces to "is this a syntactically valid Lisp expression", which the parser has already answered.
 
 INTERCAL has four types: onespot (16-bit), twospot (32-bit), tail array (16-bit elements), hybrid array (32-bit elements). They are syntactically identifiable by the variable prefix. Type checking reduces to:
 

@@ -2,7 +2,7 @@
 
 INTERCAL has no infix arithmetic. There is no `+`, no `*`, no `/`. The only operators the grammar exposes are bitwise: mingle, select, and the three unary rotate-and-combine variants. Addition, subtraction, multiplication, division, and random-number generation are all supplied as subroutines at reserved labels 1000–1999, via `NEXT`.
 
-This chapter explains how those labels work, why we maintain two parallel implementations (pure INTERCAL and native assembly), and how the compiler decides which one to link against.
+How those labels work, why we maintain two parallel implementations (pure INTERCAL and native assembly), and how the compiler decides which one to link against.
 
 ## The arithmetic interface
 

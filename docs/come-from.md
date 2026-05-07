@@ -2,7 +2,7 @@
 
 `COME FROM` is INTERCAL's contribution to the mythology of programming-language control flow. Where `GOTO` says "execution continues over there", `COME FROM` says "after that other statement runs, execution resumes here". The two are inverses in a precise sense: a program with a `GOTO` from A to B has the same control flow as a program with a `COME FROM A` next to where B would have been. The crucial difference is that the targeted statement does not know it has a follower.
 
-This chapter is the complete tour: history, semantics, our static-resolution algorithm, the multi-target rejection, and the threading possibilities that other implementations expose.
+The complete tour: history, semantics, our static-resolution algorithm, the multi-target rejection, and the threading possibilities other implementations expose.
 
 ## Origins
 

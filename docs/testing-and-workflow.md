@@ -2,7 +2,7 @@
 
 A compiler is a program whose output is another program. That gives it an inconveniently large surface area: a bug can live in the lexer, the parser, the semantic analyser, the code generator, the runtime, the syslib, or the glue between any two of those. A single mistake can pass compilation unchecked and fire only at runtime on a specific platform with a specific input. Testing is therefore not optional; it is the primary mechanism by which this project asserts that anything works.
 
-This chapter describes the four test suites, the TDD contract that governs changes, how differential testing between the bootstrap and the self-hosted compiler is arranged, and the pre-commit / pre-push / CI cadence that enforces everything.
+What follows: the four test suites, the TDD contract that governs changes, how differential testing between the bootstrap and the self-hosted compiler is arranged, and the pre-commit / pre-push / CI cadence that enforces everything.
 
 ## The four test suites
 

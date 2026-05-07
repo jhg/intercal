@@ -2,7 +2,7 @@
 
 Most compilers lower their parse tree into an intermediate representation, optimise that, and then lower again into target code. Our compiler skips the middle step entirely. Every statement of INTERCAL is turned directly into a block of ARM64 or x86-64 assembly, one function-shaped fragment per statement, glued together inside `_main`.
 
-This chapter explains why the direct approach works for INTERCAL, what the emitted code looks like, and where each piece lives in `src/bootstrap/intercalc.sh`.
+Why the direct approach works for INTERCAL, what the emitted code looks like, and where each piece lives in `src/bootstrap/intercalc.sh`.
 
 ## Why no intermediate representation
 

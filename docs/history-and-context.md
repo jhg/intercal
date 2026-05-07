@@ -90,7 +90,7 @@ A C lexer has to handle strings, character constants, escape sequences, preproce
 
 A C parser is LL(k)-untractable in several places; most C compilers use hand-written recursive descent with unbounded lookahead or occasional LR(1) tables (yacc/bison style). Our parser is LL(1) because INTERCAL's expression grammar has no operator precedence: every operator must be explicitly grouped, so there is no ambiguity to resolve.
 
-C's type system is the main reason C compilers have a dedicated semantic analysis phase. INTERCAL has four types (onespot, twospot, tail, hybrid) and no type inference; the type of every expression is determined by its root node. We have essentially no type-checking to do.
+C's type system is the main reason C compilers have a dedicated semantic analysis phase. INTERCAL has four types (onespot, twospot, tail, hybrid) and no type inference; the type of every expression is fixed by its root node. There is almost no type-checking for us to do.
 
 ### Code generation
 

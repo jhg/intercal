@@ -1,6 +1,6 @@
 # The compilation pipeline
 
-This chapter is a single end-to-end walkthrough of what happens when you run:
+An end-to-end walkthrough of what happens when you run:
 
     zsh src/bootstrap/intercalc.sh < program.i > program
     chmod +x program
