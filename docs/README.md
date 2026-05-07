@@ -129,6 +129,16 @@ You want to know *why* something is the way it is.
 | [ai-collaboration.md](ai-collaboration.md) | Working on this repo with an AI agent |
 | [comparing-languages.md](comparing-languages.md) | How a C or Lisp compiler would handle the same tasks |
 
+### Bridging to production compilers
+
+| File | Purpose |
+|------|---------|
+| [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md) | Capstone: maps the book's concepts onto LLVM, rustc, and GCC; reading plan to a first patch |
+| [llvm-overview.md](llvm-overview.md) | LLVM's three-phase architecture, IR, and repo layout |
+| [gcc-overview.md](gcc-overview.md) | GCC's GENERIC/GIMPLE/RTL pipeline and repo layout |
+| [rustc-overview.md](rustc-overview.md) | rustc's HIR/THIR/MIR/LLVM-IR pipeline and crate layout |
+| [contributing-to-production-compilers.md](contributing-to-production-compilers.md) | How to build, find an issue, and submit to each |
+
 ### Reference apparatus
 
 | File | Purpose |

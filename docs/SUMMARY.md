@@ -60,6 +60,14 @@
 - [Your first contribution](your-first-contribution.md)
 - [Working with an AI agent](ai-collaboration.md)
 
+# Part VII: Bridging to production compilers
+
+- [From INTERCAL to real compilers](from-intercal-to-real-compilers.md)
+- [LLVM, in shape](llvm-overview.md)
+- [GCC, in shape](gcc-overview.md)
+- [rustc, in shape](rustc-overview.md)
+- [Contributing to a production compiler](contributing-to-production-compilers.md)
+
 # Reference
 
 - [Statement cheatsheet](statement-cheatsheet.md)

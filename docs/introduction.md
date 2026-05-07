@@ -16,6 +16,8 @@ Parts II through V follow the compiler front to back. Part II is the layout map 
 
 Part VI steps back from the implementation. It compares INTERCAL to conventional languages, places it within the broader genre of esoteric languages, and weighs it against the canonical language-design advice of Hoare and Wirth. It also documents how to land a first contribution and how to work on the codebase alongside an AI agent.
 
+Part VII bridges to production compilers. The vocabulary built up across Parts I–VI maps directly onto LLVM, GCC, and rustc; this final part names the correspondence, gives a structural orientation to each codebase, and walks the practical steps from "I have read this book" to "I am submitting a patch upstream". It is the part the book exists for, in some sense: the rest of the book is preparation.
+
 The reference appendix is for lookup, not reading: a statement cheatsheet, the EBNF grammar, a glossary, exercise hints, and an annotated bibliography.
 
 ## Who should read what
@@ -24,7 +26,9 @@ New to compilers and want a complete worked example? Read Parts I through V in o
 
 Already comfortable with compilers, here for INTERCAL specifically? Skim Part I and dwell in Parts III and IV. The exercises at the end of each chapter are calibrated for somebody testing an explanation, not for a beginner.
 
-Here to modify the compiler? Your home is Part V (platforms, testing, debugging) plus the reference appendix. The map in Part II is where you find any specific routine.
+Here to modify this compiler? Your home is Part V (platforms, testing, debugging) plus the reference appendix. The map in Part II is where you find any specific routine.
+
+Here because you want to contribute to LLVM, rustc, or GCC, and you want the cheapest path? Read Parts I through V to acquire the vocabulary, then jump to Part VII. The capstone chapter [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md) names what you already know and what you do not, and points at the rest.
 
 ## A note on the project
 
