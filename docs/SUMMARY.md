@@ -33,6 +33,13 @@
 - [Executables and linking](executables-and-linking.md)
 - [Anatomy of a compiled binary](anatomy-of-a-binary.md)
 
+# Part IV.5: Distinctive features
+
+- [The politeness rule](politeness-rule.md)
+- [`COME FROM`](come-from.md)
+- [The Turing Text Model](turing-text-model.md)
+- [Numeric I/O](numeric-io.md)
+
 # Part V: Platforms and process
 
 - [Platforms](platforms.md)

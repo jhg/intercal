@@ -97,6 +97,15 @@ You want to know *why* something is the way it is.
 | [label-666-intro.md](label-666-intro.md) | The syscall extension, friendly version |
 | [666.md](666.md) | The syscall extension, deep design rationale |
 
+### Distinctive INTERCAL features
+
+| File | Purpose |
+|------|---------|
+| [politeness-rule.md](politeness-rule.md) | The 1/5 to 1/3 PLEASE check, in detail |
+| [come-from.md](come-from.md) | `COME FROM`: history, semantics, our resolution |
+| [turing-text-model.md](turing-text-model.md) | Character I/O via the bit-reversed tape |
+| [numeric-io.md](numeric-io.md) | Roman numeral output and English digit-name input |
+
 ### Self-hosting and testing
 
 | File | Purpose |
