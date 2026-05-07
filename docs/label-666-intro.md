@@ -2,7 +2,7 @@
 
 INTERCAL has no file I/O, no access to command-line arguments, no way to ask the operating system for the time of day or a random number. The language as specified in 1972 was complete without these features — every program read from stdin and wrote to stdout, and that was that.
 
-Fifty years later this is constraining. A compiler written in INTERCAL needs to open a source file by name, not hope that the user remembered to pipe it in. A self-hosted compiler needs to know its own name to print usage messages. A serious program needs a reliable random number. The 1972 specification offers none of this.
+Five decades later this is constraining. A compiler written in INTERCAL needs to open a source file by name, not hope that the user remembered to pipe it in. A self-hosted compiler needs to know its own name to print usage messages. A serious program needs a reliable random number. The 1972 specification offers none of this.
 
 The solution in this compiler is a feature called *Label 666*. This chapter explains what it is, why we needed it, and how to use it. It is the friendly version; the deep design rationale is in [666.md](666.md).
 
@@ -14,7 +14,7 @@ Consider the INTERCAL program that wants to open a file. In standard INTERCAL:
 - File operations (open, read, write, close) are operating-system calls. INTERCAL has no syscall mechanism.
 - Command-line arguments arrive in `argv[]`. INTERCAL has no reference to `argv`.
 
-So the direct answer is: it can't. A standard INTERCAL program cannot open a file. Period.
+So the direct answer is: it cannot. A standard INTERCAL program has no means to open a file at all.
 
 ## The solution: a syscall extension
 

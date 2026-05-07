@@ -91,7 +91,7 @@ If anything failed, stop here and ask. Something about your setup is off.
 
 ## Tweak your first program
 
-Let me convince you the compiler is doing real work. Open `tests/test_hello.i` and find this line:
+To convince yourself the compiler is doing real work, open `tests/test_hello.i` and find this line:
 
     DO ,1 SUB #4 <- #0
 
@@ -111,7 +111,7 @@ Revert your change when you're done:
 
 The compiler is a zsh script at `src/bootstrap/intercalc.sh`. You can open it in any text editor. It is 1825 lines. Do not try to read the whole thing; just note that it is there, that it is one file, and that everything you just did flowed through it.
 
-The runtime — the code that every compiled INTERCAL program links against — is in `src/runtime/<your-platform>.s`. On Mac, that is `src/runtime/macos_arm64.s`. Open it briefly. It is hand-written assembly, about 970 lines. Do not try to read it either. It is there, it is one file per platform, and your `hello` binary contains a copy.
+The runtime — the code that every compiled INTERCAL program links against — lives in `src/runtime/<your-platform>.s`. On macOS that is `src/runtime/macos_arm64.s`. Open it briefly. It is hand-written assembly, about 970 lines. Do not try to read it either. It is there, it is one file per platform, and your `hello` binary contains a copy.
 
 The system library is in `src/syslib/syslib.i` (for the pure-INTERCAL version) and `src/syslib/native/<platform>.s` (for the fast native version). These provide arithmetic. Hello world does not use arithmetic, so neither was linked into your binary.
 

@@ -63,7 +63,7 @@ Every scalar assignment begins with a similar three-instruction sequence checkin
 
 Similar cost and benefit to the abstain case.
 
-## What a real IR would let us do
+## What a real IR would enable
 
 If we ever wanted to take optimisation seriously, the first step would be to introduce an IR. SSA form is the standard choice: every variable is assigned exactly once, and uses are explicit. In SSA, most classical optimisations become one-pass tree rewrites.
 

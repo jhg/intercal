@@ -7,7 +7,7 @@ It is also, on purpose, an educational artifact. INTERCAL is an esoteric languag
 - A scanner that tokenises a whitespace-insensitive, case-insensitive source.
 - A parser whose grammar has no operator precedence and uses two alternating grouping characters instead.
 - A compile-time check (the politeness rule) that rejects a program that is statistically too polite or not polite enough.
-- A `COME FROM` statement, the celebrated inverse of `GOTO`, which is resolved at link-time inside the compiler rather than at parse-time.
+- A `COME FROM` statement, the celebrated inverse of `GOTO`, resolved during semantic analysis so that the runtime cost is a single unconditional jump.
 - A runtime that does I/O in Roman numerals and a Turing Text Model tape, not printf.
 - A self-hosting strategy that goes through a shell-script bootstrap, a template-dispatch MVP, and finally a real INTERCAL compiler written in INTERCAL itself.
 

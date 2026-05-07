@@ -47,7 +47,7 @@ A small community of programmers has maintained INTERCAL implementations continu
 Why? Three reasons, in decreasing order of seriousness:
 
 - **Because it is a clean test case for compiler construction.** INTERCAL is small enough that a full implementation fits in a single person's head, but weird enough that writing the compiler forces you to engage with every classical compiler-theory topic. It is a good teaching language precisely because it is bad.
-- **Because self-hosting INTERCAL is a flex.** Writing a compiler for a language in that language is a rite of passage; writing one for INTERCAL is particularly absurd. As of this writing, nobody has ever produced a self-hosted INTERCAL compiler where the compiler itself is written in INTERCAL. This repository is trying.
+- **Because self-hosting INTERCAL is a feat in its own right.** Writing a compiler for a language in that same language is a rite of passage; doing it for INTERCAL is particularly absurd. As of this writing, nobody has ever produced a self-hosted INTERCAL compiler whose own source is written in INTERCAL. This repository is trying.
 - **Because it is funny.** Some of the most influential programming languages (Lisp, Smalltalk, Forth) were invented partly as jokes and partly as serious experiments in language design. INTERCAL sits squarely in that tradition. Reading a long INTERCAL program is a kind of performance art.
 
 ## What INTERCAL is not

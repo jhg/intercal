@@ -58,7 +58,7 @@ The three words describe different machines or environments involved in producin
 
 - *Host* — the machine the compiler itself runs on. When you invoke `zsh src/bootstrap/intercalc.sh < program.i` on your laptop, the host is your laptop.
 - *Target* — the machine the compiled program will run on. For our compiler, the target is always the same as the host: we are a *native compiler*, not a cross-compiler. A Mac compiling INTERCAL produces a binary that runs on a Mac; it cannot today produce a binary that runs on a Raspberry Pi.
-- *Runtime* — the collection of library code and services the target needs in order to execute the compiled program. Our runtime is the hand-written assembly under `src/runtime/<platform>.s` plus the syslib under `src/syslib/`. Every compiled INTERCAL binary links against it.
+- *Runtime* — the collection of library code and services the target needs to execute the compiled program. Our runtime is the hand-written assembly under `src/runtime/<platform>.s` plus the syslib under `src/syslib/`. Every compiled INTERCAL binary links against it.
 
 A *cross-compiler* is a compiler whose host and target are different machines. We are not one today. A *self-hosting compiler* is a compiler whose source language is the same as the language it compiles. Our bootstrap (`intercalc.sh`) is not self-hosting (it is zsh, not INTERCAL). Our goal is that `src/compiler/stage3.i` eventually will be self-hosting.
 

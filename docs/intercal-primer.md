@@ -1,6 +1,8 @@
-# INTERCAL primer for compiler readers
+# INTERCAL primer
 
-This is a minimal introduction to INTERCAL. Its purpose is not to teach you to write INTERCAL programs but to let you read the source files in `tests/` and follow the compiler chapters that come after this one. For the complete language reference see `AGENTS.md`, section "INTERCAL language reference".
+This is a minimal introduction to INTERCAL aimed at two audiences: a programmer who wants to read the test programs under `tests/`, and a compiler reader who needs the language vocabulary before approaching the per-phase chapters. The goal is not to teach you to write INTERCAL programs from scratch — for that, follow the resources in [further-reading.md](further-reading.md). For the complete language reference, see `AGENTS.md`, section "INTERCAL language reference".
+
+If you have not yet built the compiler, start with [getting-started.md](getting-started.md). If you want a non-technical introduction first, read [what-is-intercal.md](what-is-intercal.md).
 
 ## A program, stripped down
 
@@ -88,7 +90,7 @@ Four statement modifiers control what is live at runtime:
 - `DO IGNORE var-list` — make variables read-only (writes silently discarded).
 - `DO REMEMBER var-list` — reverse an IGNORE.
 
-The compiler tracks abstention state as a bit-per-statement in a BSS region called `_stmt_flags`. Each statement starts by checking its flag and jumping over itself if abstained.
+The compiler tracks abstention state as a bit-per-statement in a region of zero-initialised memory (BSS) called `_stmt_flags`. Each statement starts by checking its flag and jumping over itself if abstained.
 
 ## STASH and RETRIEVE
 
@@ -110,7 +112,7 @@ Character (Turing Text Model):
 - `DO READ OUT ,1` — walk the tape forwards/backwards, printing characters.
 - `DO WRITE IN ,1` — the inverse, reading characters and converting to tape-offset deltas.
 
-The TTM encoding is what makes the `tests/test_hello.i` program look like it does. You can't just put `H e l l o` in the source; you have to precompute each character as a tape-offset delta that, after the tape head's bit-reversed position, leaves you at the ASCII code you want. The compiler doesn't care about any of this — it just emits calls to `_rt_read_out_array` — but it is worth knowing when you read the test programs.
+The Turing Text Model (TTM) encoding is what makes the `tests/test_hello.i` program look the way it does. You cannot simply place `H e l l o` in the source; you have to precompute each character as a tape-offset delta that, after the tape head's bit-reversed position, leaves you at the ASCII code you want. The compiler does not care about any of this — it just emits calls to `_rt_read_out_array` — but it is worth knowing when you read the test programs. See [runtime.md](runtime.md) for the algorithm in full.
 
 ## Politeness
 
