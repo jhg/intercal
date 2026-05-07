@@ -67,6 +67,7 @@ The `docs/` directory is the book-length walkthrough, structured so it can be re
 - Learning compiler construction? Follow [docs/overview.md](docs/overview.md) → [docs/pipeline.md](docs/pipeline.md) → per-phase chapters.
 - Working on the code? Start at [docs/map-of-the-compiler.md](docs/map-of-the-compiler.md) and [docs/your-first-contribution.md](docs/your-first-contribution.md).
 - Curious about decisions? See [docs/design-rationale.md](docs/design-rationale.md).
+- Want to contribute to LLVM, rustc, or GCC after reading this? See [docs/from-intercal-to-real-compilers.md](docs/from-intercal-to-real-compilers.md) and the four chapters of Part VII.
 
 The full chapter index lives at [docs/README.md](docs/README.md). To preview the book locally, install [mdBook](https://rust-lang.github.io/mdBook/) and run `mdbook serve --open`.
 

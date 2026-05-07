@@ -1,8 +1,8 @@
 # The Turing Text Model
 
-Most languages have a `print` and a `read` that move characters between the program and the terminal directly. INTERCAL does not. Instead, character I/O on arrays goes through a deliberately convoluted intermediary called the *Turing Text Model*, a circular tape of 256 positions, an offset-based encoding, and a bit-reversal step. This chapter explains the mechanism in full, derives the encoding for a single character, and works through the hello-world deltas to demystify what the test program is doing.
+Most languages have a `print` and a `read` that move characters between the program and the terminal directly. INTERCAL does not. Character I/O on arrays goes through a deliberately convoluted intermediary called the *Turing Text Model*: a circular tape of 256 positions, an offset-based encoding, and a bit-reversal step. What follows is the mechanism in full, the encoding derived for a single character, and the hello-world deltas worked out so the test program stops looking arbitrary.
 
-The TTM is one of INTERCAL's signature features. Once you understand it, the rest of the language feels comparatively gentle.
+The TTM is one of INTERCAL's signature features. Once you understand it, the rest of the language feels gentle by comparison.
 
 ## The setup
 

@@ -4,12 +4,13 @@ This directory is the narrative companion to the compiler. The root `README.md` 
 
 When the docs are rendered as an [mdBook](https://rust-lang.github.io/mdBook/) and published to GitHub Pages, the book's homepage is [introduction.md](introduction.md). This file you are reading now (`README.md`) is the directory index that appears on github.com when you browse the `docs/` folder, and it is also the navigational map for contributors and AI agents working on the repository.
 
-The target audiences are four:
+The target audiences are five:
 
 1. A complete beginner who has never seen INTERCAL or worked on a compiler before.
 2. A reader who wants to understand compiler construction using this repository as a teaching example.
-3. A contributor (human or AI) who needs to locate the right file or phase to modify.
-4. An experienced developer who wants quick answers about the design decisions.
+3. A reader who wants the fastest possible path from no compiler experience to contributing to LLVM, rustc, or GCC.
+4. A contributor (human or AI) who needs to locate the right file or phase to modify in this repository.
+5. An experienced developer who wants quick answers about the design decisions.
 
 ## Four reading paths
 
@@ -54,12 +55,22 @@ You want to change a phase or fix a bug.
 6. [platforms.md](platforms.md): the per-platform syntactic and syscall differences.
 7. [AGENTS.md](../AGENTS.md): authoritative contributor rules.
 
+### Production-compiler bridge path
+
+You want to contribute to LLVM, rustc, or GCC and you want the cheapest preparation.
+
+1. [introduction.md](introduction.md), [overview.md](overview.md), [pipeline.md](pipeline.md): orientation.
+2. The per-phase chapters of Parts III and IV: lexing, parsing, semantic analysis, code generation, runtime, syslib, calling conventions, executables.
+3. [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md): the capstone bridge that names the correspondence between this book's vocabulary and production-compiler vocabulary.
+4. [llvm-overview.md](llvm-overview.md), [gcc-overview.md](gcc-overview.md), [rustc-overview.md](rustc-overview.md): structural orientation for the three.
+5. [contributing-to-production-compilers.md](contributing-to-production-compilers.md): the practical walk to a first patch.
+
 ### Design-rationale / quick-answer path
 
 You want to know *why* something is the way it is.
 
 1. [design-rationale.md](design-rationale.md): the FAQ covering every major decision.
-2. [history-and-context.md](history-and-context.md): INTERCAL's history and how this compiler relates to the existing implementations.
+2. [history-and-context.md](history-and-context.md): INTERCAL's history and how this compiler relates to existing implementations.
 3. [666.md](666.md): the deep rationale for Label 666.
 4. [further-reading.md](further-reading.md): external resources for deeper study.
 

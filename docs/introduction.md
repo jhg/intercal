@@ -16,7 +16,7 @@ Parts II through V follow the compiler front to back. Part II is the layout map 
 
 Part VI steps back from the implementation. It compares INTERCAL to conventional languages, places it within the broader genre of esoteric languages, and weighs it against the canonical language-design advice of Hoare and Wirth. It also documents how to land a first contribution and how to work on the codebase alongside an AI agent.
 
-Part VII bridges to production compilers. The vocabulary built up across Parts I–VI maps directly onto LLVM, GCC, and rustc; this final part names the correspondence, gives a structural orientation to each codebase, and walks the practical steps from "I have read this book" to "I am submitting a patch upstream". It is the part the book exists for, in some sense: the rest of the book is preparation.
+Part VII bridges to production compilers. The vocabulary built up across Parts I to VI maps directly onto LLVM, GCC, and rustc; this final part names the correspondence, gives a structural orientation to each codebase, and walks the practical steps from "I have read this book" to "I am submitting a patch upstream". It is the part the book exists for: the rest is preparation.
 
 The reference appendix is for lookup, not reading: a statement cheatsheet, the EBNF grammar, a glossary, exercise hints, and an annotated bibliography.
 
