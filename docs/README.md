@@ -110,8 +110,10 @@ You want to know *why* something is the way it is.
 | File | Purpose |
 |------|---------|
 | [walkthrough-hello.md](walkthrough-hello.md) | Hello world through every phase |
+| [anatomy-of-a-binary.md](anatomy-of-a-binary.md) | Dissecting a compiled binary with `otool` / `objdump` |
 | [your-first-contribution.md](your-first-contribution.md) | End-to-end walkthrough of landing a change |
 | [ai-collaboration.md](ai-collaboration.md) | Working on this repo with an AI agent |
+| [comparing-languages.md](comparing-languages.md) | How a C or Lisp compiler would handle the same tasks |
 
 ### Reference apparatus
 
