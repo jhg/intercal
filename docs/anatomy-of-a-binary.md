@@ -218,13 +218,15 @@ The kernel reclaims every page of mapped memory, every open file descriptor, eve
 
 If the program had instead fallen off the end without `GIVE UP`, the codegen-emitted `bl _rt_error_E633` after the last statement would print `ICL633I PROGRAM FELL OFF THE EDGE` to stderr and exit with status 1.
 
-## A thought experiment
+## Reproducible builds
 
 Take the hello-world binary, save it, then recompile it and `diff` the two binaries. Are they identical?
 
-On a single-platform machine, they should be byte-identical. The codegen is deterministic, the input is the same, the runtime is committed to the repository. There are no timestamps in the output, no random padding, no UUIDs.
+On Linux, yes — by construction. The build pipeline strips the linker's per-build UUID and timestamp via `tools/rewrite_uuid.py`, so a recompilation of the same source on the same toolchain version produces a byte-identical binary. CI verifies this property on every push.
 
-If you do not get byte equality, something is non-deterministic. The most common culprit is the system linker writing a different layout because of small differences in section ordering. On Apple Silicon with recent Xcode, this should not happen.
+On macOS the situation is similar in spirit: most of the binary is deterministic, but the Mach-O LC_UUID load command is rewritten to a stable derived value at the same step.
+
+If you do get a diff anyway, the usual culprits are: a stale build cache mixed with fresh output, an Xcode update that shifted the linker version (which feeds into the rewrite step), or a system-library symbol whose absolute address moved. Running the rewrite tool by hand against the diff is usually the quickest way to localise the source of nondeterminism.
 
 ## Exercises
 

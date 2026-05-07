@@ -118,6 +118,19 @@ A caveat: the template manifest (`src/compiler/templates/manifest.txt`) is updat
 
 It prints each intermediate stage of compilation for the given program: the tokenised statement list, the generated assembly, and (optionally) the linked binary's disassembly. Useful for explaining the pipeline to somebody else, less useful as a debugging tool because `INTERCAL_ASM_ONLY=1` already gives you the one stage you usually want.
 
+For statement-level structural analysis, the compiler exposes a `--diagnose` flag:
+
+    zsh src/bootstrap/intercalc.sh --diagnose < tests/test_hello.i
+
+This prints the tokenised statement table — type, polite flag, negation, label, body — without invoking the codegen. Useful when you want to confirm that the lexer is classifying statements the way you expect.
+
+For performance regressions, `tools/bench.sh` measures compile and link timings on representative programs:
+
+    tools/bench.sh                      # tabular output
+    tools/bench.sh --json > before.json # save baseline
+    # ... make a change ...
+    tools/bench.sh --compare before.json # diff vs baseline
+
 ## Lint checks
 
 `tools/lint_intercal.sh` runs basic sanity checks against `.i` files: politeness balance, obvious typos in verb keywords, unreferenced labels. `tools/lint_assembly.sh` scans `.s` files for known platform pitfalls (three-register x86 addressing, misplaced `//` in x86 source, etc.). Both are invoked in CI but can be run locally:

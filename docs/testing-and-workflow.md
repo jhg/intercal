@@ -8,12 +8,14 @@ This chapter describes the four test suites, the TDD contract that governs chang
 
 | Suite | File | Scope | Count |
 |-------|------|-------|-------|
-| Bootstrap | `tests/run_tests.sh` | Full language, via `intercalc.sh` | 25 |
+| Bootstrap | `tests/run_tests.sh` | Full language, via `intercalc.sh` | 30 |
 | Pure syslib | `tests/test_syslib_pure.sh` | Pure vs native syslib equivalence | 3 |
 | Self-hosted MVP | `tests/run_self_tests.sh` | Template-dispatch `compiler.i` end-to-end | 25 |
 | Evolving | `tests/run_stage3_tests.sh` | `stage3.i` diagnostics | 3 |
 
-The four together comprise 56 tests. They run in sequence on every push, on every platform: three platforms × 56 tests = 168 distinct test executions per CI run, give or take a handful of platform-skipped cases.
+The four together comprise 61 tests, and the count grows as each new compiler feature acquires its regression test. They run in sequence on every push, on every platform: three platforms × 61 tests = 183 distinct test executions per CI run, give or take a handful of platform-skipped cases.
+
+A separate `tools/bench.sh` script measures compile and link times across representative programs, with `--json` output and a `--compare baseline.json` mode for tracking regressions across commits. It is not part of the test suites themselves; treat it as the project's lightweight performance dashboard.
 
 ### `run_tests.sh` — the ground truth
 

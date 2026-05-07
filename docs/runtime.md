@@ -164,10 +164,10 @@ The full table is:
 | Code | Meaning | Emitted by |
 |------|---------|------------|
 | E000 | UNDECODABLE STATEMENT | codegen for UNKNOWN statements |
-| E017 | BAD EXPRESSION | reserved; not currently emitted |
+| E017 | BAD EXPRESSION | parser (compile-time on bad spark/rabbit-ears nesting); also reserved at runtime |
 | E123 | NEXT STACK OVERFLOW | NEXT codegen |
-| E129 | NEXT TO UNKNOWN LABEL | NEXT codegen (if label lookup fails) |
-| E139 | ABSTAIN/REINSTATE OF UNKNOWN LABEL | ABSTAIN/REINSTATE codegen |
+| E129 | NEXT TO UNKNOWN LABEL | NEXT codegen — now fired at compile time when the target label does not exist |
+| E139 | ABSTAIN/REINSTATE OF UNKNOWN LABEL | ABSTAIN/REINSTATE codegen — now fired at compile time when the target label does not exist |
 | E200 | UNDEFINED VARIABLE | latent; reserved for future checks |
 | E240 | ZERO-DIM ARRAY | dimension codegen |
 | E241 | BAD SUBSCRIPT | array-access codegen |

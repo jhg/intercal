@@ -62,7 +62,7 @@ The grammar of an expression in INTERCAL is, in informal form:
     grouped   ::= "'" expr "'"   |   '"' expr '"'
     array_ref ::= variable 'SUB' primary (primary)*
 
-Plus the rule that nested grouping must alternate spark ↔ rabbit-ears. Our parser does not enforce that rule syntactically; the runtime enforces it only indirectly through the way the tree walks happen. In practice, badly nested sparks produce ICL017I at runtime. That is a latent issue listed in our TODO.
+Plus the rule that nested grouping must alternate spark ↔ rabbit-ears. The parser enforces this at parse time: a spark immediately inside another spark, or a rabbit-ears immediately inside another rabbit-ears, fails with `ICL017I` and a diagnostic identifying the statement.
 
 ### The expression tree
 
@@ -105,4 +105,4 @@ See [self-hosting.md](self-hosting.md) for the stage3 roadmap and [code-generati
 2. List every keyword the lexer recognises. How many bytes does each occupy in the source after uppercasing? Are any prefixes of others (which would matter for a different lexing strategy)?
 3. The expression parser builds a tree per statement at codegen time, not at lexing time. Sketch what the tree looks like for `'.1 $ "#5 ~ #3"'`. How many nodes does it have?
 4. Find the line in `parse_expr` that consumes a binary operator (`$` or `~`). Why does the parser not need to peek ahead to disambiguate the two?
-5. The parser does not enforce alternation of sparks `'` and rabbit-ears `"`. Construct a malformed expression that the parser accepts but the runtime rejects. What ICL code fires?
+5. The parser enforces alternation of sparks `'` and rabbit-ears `"` at parse time. Construct a malformed expression that triggers the new check, then trace through `parse_expr` to identify the exact line where the rejection happens.

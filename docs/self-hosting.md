@@ -13,7 +13,7 @@ Our approach is option (1), executed in three phases, with the deliberate choice
 
 ## Phase 1 — The shell bootstrap
 
-`src/bootstrap/intercalc.sh` is a complete INTERCAL compiler written in zsh. It reads `.i` from stdin, emits ARM64 or x86-64 assembly, concatenates that with the runtime and (optionally) the syslib, and invokes `cc -x assembler -` to produce a binary. It is 1825 lines long and handles the full language — every statement type, every operator, all four variable prefixes, arrays, abstention, COME FROM, the politeness rule, and the 16 runtime error codes.
+`src/bootstrap/intercalc.sh` is a complete INTERCAL compiler written in zsh. It reads `.i` from stdin, emits ARM64 or x86-64 assembly, concatenates that with the runtime and (optionally) the syslib, and invokes `cc -x assembler -` to produce a binary. It runs to roughly 2100 lines and handles the full language — every statement type, every operator, all four variable prefixes, arrays, abstention, COME FROM, the politeness rule, and the 16 runtime error codes.
 
 This is what gives us the "primordial spark" (*chispa primigenea*) — the first INTERCAL compiler that exists at all. Everything that follows builds on its output.
 

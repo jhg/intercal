@@ -7,7 +7,7 @@ This chapter is for the human who wants to use an AI coding assistant on this re
 This project's design is unusual along several dimensions that AI agents, trained on conventional codebases, tend to get wrong:
 
 - The source language is INTERCAL. Pattern-matching against C, Python, or Rust idioms produces misleading suggestions.
-- The bootstrap compiler is a 1825-line zsh script, not a Python or Rust program. Agents often try to introduce tooling from other ecosystems.
+- The bootstrap compiler is a single zsh script (about 2100 lines today, growing as compile-time checks and optimisations are added), not a Python or Rust program. Agents often try to introduce tooling from other ecosystems.
 - There is no intermediate representation. Agents trained on LLVM-style architectures often suggest adding one.
 - The platform differences are syntactic, not semantic. An agent that sees "ARM64 assembly" and assumes it can be copy-pasted from a Linux source to a macOS source will break things.
 - The self-hosting goal is a fixpoint, not a feature flag. An agent that makes a change that breaks the bootstrap compiler has broken everything downstream.

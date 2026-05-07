@@ -81,6 +81,13 @@ Several checks that a textbook would call "semantic" happen during codegen becau
 
 This is not a coincidence. INTERCAL allows the full expression language wherever a value is expected, and many of these checks depend on runtime values. What looks like a compile-time guard in a C-like language has to be a runtime check here.
 
+A handful of checks that used to live at runtime have been promoted to compile time:
+
+- `NEXT (N)`, `ABSTAIN FROM (N)`, and `REINSTATE (N)` with an undefined label `N` used to emit a runtime branch into `_rt_error_E129` or `_rt_error_E139`. The label set is known at compile time, so the check now fires `ICL129I` or `ICL139I` at compile time and refuses to produce a binary.
+- `ABSTAIN FROM gerund-list` (and the matching `REINSTATE`) used to silently ignore unknown gerund names. The check is now a compile-time rejection: `DO ABSTAIN FROM PROCRASTINATING` fails with a diagnostic naming the unknown gerund.
+
+The pattern — fold a runtime structural check into compile time once we are sure the relevant data is available — is a small but real form of optimisation. Each check moved removes both a per-emitted-statement cost and a class of late-firing bugs.
+
 ## `scan_variables`
 
 Not strictly a check, but run in the same pass group. `scan_variables` records which `.N`, `:N`, `,N`, `;N` numbers appear anywhere in the program. The result is four associative arrays keyed by number. Codegen uses them to emit exactly the BSS symbols it needs.

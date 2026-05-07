@@ -9,7 +9,7 @@ This appendix gives a formal grammar for the INTERCAL subset that the compiler a
 - Literal punctuation is in quotes.
 - Whitespace between tokens is implicit and consumed by the lexer.
 
-The grammar is *permissive* in the spirit of INTERCAL: expressions that mix grouping characters in non-alternating ways (`'a + 'b' + c'`) parse, but evaluating them fires a runtime error. The compiler does not statically reject ill-grouped expressions today. Where the grammar is looser than the language specification, a note calls it out.
+The compiler enforces the alternation of sparks `'` and rabbit-ears `"` at parse time: a same-in-same nesting (a spark immediately inside another spark) fails with `ICL017I` and a diagnostic that names the violation and the statement number. Where the grammar is otherwise looser than the language specification, a note calls it out below.
 
 ## Top level
 
@@ -95,7 +95,7 @@ Variable numbers are in the range 1–65535. The namespaces for spot, twospot, t
 
 There is no operator precedence. Two `binary_op`s in a row read left-to-right: `a $ b ~ c` means `(a $ b) ~ c`. To force right-associated evaluation, use grouping: `a $ 'b ~ c'`.
 
-The language specification requires grouping to alternate between sparks (`'`) and rabbit-ears (`"`): a spark may enclose either a grouped rabbit-ears expression or no grouping at all, but not another spark directly. Our parser does not enforce the alternation. Non-alternating grouping parses successfully; an attempt to evaluate an expression with ambiguous boundaries fires ICL017I at runtime.
+The language specification requires grouping to alternate between sparks (`'`) and rabbit-ears (`"`): a spark may enclose either a grouped rabbit-ears expression or no grouping at all, but not another spark directly. The parser enforces this at parse time. A same-in-same nesting fails with `ICL017I` and a diagnostic naming the offending statement.
 
 ## Gerunds
 

@@ -21,47 +21,43 @@ Four reasons, in increasing order of honesty:
 3. **We have no production users for whom performance matters.** Compiler performance becomes important when somebody is waiting for a build, or when the compiled program is on a hot path. Our compiler is an educational artifact. Neither constraint applies.
 4. **Optimising an esoteric language is poorly-rewarded.** The classical optimisations assume that the source language has features (`if`, `for`, call sites with known targets) whose improved handling translates to real speedups. INTERCAL's constructs don't map onto those assumptions cleanly, and the idiomatic performance traps in INTERCAL programs (deep STASH stacks, large TTM arrays) are not what loop unrolling or constant folding address.
 
-So we skip the middle end on principle. The compiler stays at 1825 lines of zsh instead of 5000 lines with an IR.
+So we skip the middle end on principle. The compiler stays at roughly 2100 lines of zsh instead of 5000 lines with a real IR. A handful of local optimisations (constant folding, peephole, dead-flag elimination — see below) live as small passes that operate directly on the parse tree or the emitted assembly, without an IR layer in between.
 
-## What obvious speedups we leave on the table
+## Optimisations the compiler already performs
 
-If we ever needed to make compiled programs faster, here is what we would attack first. This is roughly an ordered list of low-hanging fruit.
+A handful of local optimisations have been added incrementally. Each lives as a small pass over the parse tree or the emitted assembly, without the overhead of an IR.
 
-### 1. Constant folding at codegen time
+### Constant folding (implemented)
 
-Every `mov w0, #<constant>; bl _rt_mingle; ...` pattern where both operands of the operator are compile-time constants could be replaced with the precomputed result. Our codegen does not check for this; a call to `_rt_mingle` emits the call even when the result could be computed at compile time.
+When both operands of `$` (mingle) or `~` (select), or the child of a unary operator (`&`, `V`, `?`), are compile-time constants, the codegen computes the result directly and emits a single `mov` instead of a call into the runtime. The fold lives inside `codegen_expr` and adds a few dozen lines per operator.
 
-The cost to add this: an optional fold step inside `codegen_expr` that, when both children of a binary node are `NODE_CONST`, computes the result directly in zsh and emits a single `mov` instead of the call. Maybe 50 lines. The benefit: small — most INTERCAL programs have few wholly-constant expressions.
+The benefit is small in absolute terms — most INTERCAL programs have few wholly-constant expressions — but the savings on TTM-encoded text output (where every character is a constant manipulated by mingle / select before being stored) are visible.
 
-### 2. Peephole optimisation on the emitted assembly
+### Dead-flag elimination (implemented)
 
-Consecutive instructions that cancel out, such as `str w0, [x1]; ldr w0, [x1]`, appear occasionally in our output because we emit each statement independently and do not track register state across statement boundaries. A peephole pass would eliminate them.
+Every compiled statement used to begin with a three-instruction sequence that loaded the abstain flag, tested it, and jumped over the body if set. The compiler now analyses the statement list at compile time and computes, for each statement, whether its abstain bit is ever touched by an `ABSTAIN FROM (N)`, an `ABSTAIN FROM gerund-list`, or an initial `NOT` / `N'T` / `DON'T`. Statements that survive this analysis as immutable skip the check entirely. The analysis lives in `compute_flag_checks` and traces through both label-based and gerund-based modifiers.
 
-The cost: perhaps 100 lines of an assembly post-processing script. The benefit: measurable on programs with many assignments to the same variable, negligible on anything else.
+### Peephole pass (implemented)
 
-### 3. Register allocation for expression trees
+A post-codegen pass walks the emitted assembly looking for short patterns that cancel out — for example, a `str` immediately followed by an `ldr` from the same address. The current pass is small but catches the most common per-statement redundancies. Lives in `peephole_optimize`.
+
+## What we still leave on the table
+
+### Register allocation for expression trees
 
 When an expression has multiple sub-results, we spill to the stack between them rather than keeping them in registers. For example, `.1 $ '.2 ~ .3'` requires evaluating `.2 ~ .3` first, stacking the result, evaluating `.1`, then restoring the stack and calling `_rt_mingle`. A simple register allocator with even two registers would eliminate the spill in small cases.
 
 The cost: substantial. Register allocation is a well-understood problem but requires tracking liveness across the tree. Probably 300 lines minimum, with a real risk of bugs.
 
-### 4. Inlining the runtime primitives
+### Inlining the runtime primitives
 
 `_rt_mingle`, `_rt_select`, and the three unary operators are called many times during a program's execution. Inlining their bodies at each call site would eliminate the `bl`/`ret` overhead. For mingle in particular, where the routine is a tight 16-iteration loop, inlining is the difference between ~15 cycles per call and ~40 cycles.
 
 The cost: minor. Each routine is short enough to inline unconditionally. The benefit: depends heavily on how often the program calls them.
 
-### 5. The abstain-flag check on every statement
+### The ignore-flag check on every scalar assignment
 
-Every compiled statement begins with a three-instruction sequence that loads the abstain flag, tests it, and jumps over the body if set. If we could prove at compile time that a given statement is never abstained (no `ABSTAIN FROM (N)` refers to it, either directly or through gerunds, and it is not marked with `NOT` / `N'T`), we could skip the check entirely.
-
-The cost: a new analysis that walks the statement list and computes for each statement whether its flag is ever touched. Maybe 200 lines. The benefit: a few percent improvement on programs without abstain, zero improvement on programs that use abstain.
-
-### 6. The ignore-flag check on every scalar assignment
-
-Every scalar assignment begins with a similar three-instruction sequence checking the variable's `_ign` flag. If the variable is never `IGNORE`d in the program, the check is dead code.
-
-Similar cost and benefit to the abstain case.
+Every scalar assignment begins with a three-instruction sequence checking the variable's `_ign` flag. If the variable is never `IGNORE`d in the program, the check is dead code. The same kind of compile-time analysis used for dead-flag elimination on statements would catch this; we have not extended it to ignore flags yet.
 
 ## What a real IR would enable
 
@@ -85,7 +81,7 @@ Several standard optimisations do not apply well to INTERCAL:
 - **Loop unrolling.** INTERCAL loops are implicit: a NEXT back to the top of a body, with a RESUME-like exit. Detecting a loop requires reverse-engineering the control flow. Unrolling is then a rewrite of the entire statement list. Feasible but non-trivial.
 - **Escape analysis.** INTERCAL has no notion of allocation other than the once-per-array `_rt_mmap`. There is nothing to escape-analyse.
 
-The optimisations that apply best are the local ones: constant folding, peephole, dead-code elimination on runtime-flag checks. These are the ones the list above prioritises.
+The optimisations that apply best are the local ones: constant folding, peephole, dead-code elimination on runtime-flag checks. These are the ones already implemented above.
 
 ## The `--pure-syslib` thought experiment
 
@@ -110,7 +106,7 @@ None of these apply today. The compiler stays frontend-backend-only.
 
 1. Measure the compile time of `tests/test_syslib.i` with and without `--pure-syslib`. What is the ratio? Is constant folding or the syslib-size multiplication the dominant cost?
 2. Identify three consecutive statements in the emitted assembly of `tests/test_variables.i` that could be collapsed by a peephole pass. What would the peephole rule look like?
-3. The abstain-flag check is three instructions per statement. On a program with 100 statements, how many instructions would we save by eliminating the check where it is provably dead? Is that meaningful on modern hardware, where branch prediction handles the dead case well?
+3. The abstain-flag check is three instructions per statement, and `compute_flag_checks` already eliminates it where the analysis can prove the flag is never touched. On a program with 100 statements that does not use ABSTAIN at all, what fraction of statements survive with no flag check? On a program that ABSTAINs from CALCULATING, what fraction survive?
 4. Sketch the shape of a three-address IR for INTERCAL. How many instruction opcodes would it need? Compare to LLVM IR's ~60 opcodes.
 5. SSA form requires φ-functions at control-flow joins. INTERCAL's control flow is NEXT and COME FROM. How many φ-functions would a realistic INTERCAL program have, roughly, per 100 lines of source?
 

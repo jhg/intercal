@@ -38,7 +38,7 @@ The function signature (in zsh terms):
       returns: parse_result = index of root node in the expression-tree arrays
       on failure: parse_result = -1, and a runtime error is queued
 
-The context argument tracks the expected grouping depth. Sparks and rabbit-ears alternate, and the argument keeps track of which one is next expected. (In practice our parser is permissive about the alternation — see [appendix-grammar.md](appendix-grammar.md).)
+The context argument tracks which grouping character is next expected: sparks `'` must contain rabbit-ears `"` directly, and vice versa. Same-in-same nesting (a spark immediately inside another spark) is rejected at parse time with `ICL017I`, with a diagnostic that names the violation and the statement number it occurred in.
 
 Internally, `parse_expr` is structured around the grammar:
 

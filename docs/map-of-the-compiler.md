@@ -73,7 +73,7 @@ The MVP classifies incoming programs by content hash and emits the matching pre-
 
 ## Tests
 
-    tests/run_tests.sh               Bootstrap compiler, 25 tests, full language coverage.
+    tests/run_tests.sh               Bootstrap compiler, 30 tests, full language coverage.
     tests/test_syslib_pure.sh        Pure vs native syslib equivalence, 3 tests.
     tests/run_self_tests.sh          Self-hosted MVP dispatcher, 25 tests.
     tests/run_stage3_tests.sh        Evolving compiler (stage3.i), 3 tests.

@@ -97,7 +97,7 @@ If a chapter's exercises are not listed below, the exercises are direct enough t
 
 1. ICL079I tests fail because the bound moved. Reproduce: change bounds, run tests, check `politeness_*` failures.
 2. 80 NEXTs without intervening RESUMEs trigger ICL123I (the 80th attempt fails).
-3. Multiplication tests fail first — `_rt_mingle` is on every multiplication's hot path. ~15 of the 25 tests use mingle.
+3. Multiplication tests fail first — `_rt_mingle` is on every multiplication's hot path. Roughly half of the bootstrap suite exercises mingle directly or transitively through arithmetic syslib labels.
 4. Use `git log --oneline | grep -i 'open\|write'` to find candidate commits. Test each with `git bisect run`.
 5. Yes — `stage3.i` may have a politeness or label issue caught by the linter.
 
