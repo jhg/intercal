@@ -741,9 +741,8 @@ parse_expr() {
 # ============================================================
 
 # eval_const(id) - if the expression at $id is a pure constant (no
-# variables, no array refs), echo its value; else echo "". 16-bit
-# unary AND/OR/XOR and 16-bit mingle are folded; select is not folded
-# because it depends on dynamic operand widths.
+# variables, no array refs), echo its value; else echo "". 16-bit and
+# 32-bit unary AND/OR/XOR, mingle, and select are all folded.
 eval_const() {
   local id=$1
   local t="${expr_type[$id]}"
@@ -752,11 +751,11 @@ eval_const() {
       echo "${expr_val[$id]}"
       ;;
     OP_AND|OP_OR|OP_XOR)
-      local cv
+      local cv=""
       cv=$(eval_const "${expr_child[$id]}")
       [[ -z "$cv" ]] && return
       local w=${expr_width[$id]}
-      local mask rot
+      local mask=0 rot=0
       if (( w == 32 )); then
         mask=$((0xFFFFFFFF))
         # rotate right 1 bit in 32-bit
@@ -772,16 +771,36 @@ eval_const() {
       esac
       ;;
     OP_MINGLE)
-      local lv rv
+      local lv="" rv=""
       lv=$(eval_const "${expr_left[$id]}")
       [[ -z "$lv" ]] && return
       rv=$(eval_const "${expr_right[$id]}")
       [[ -z "$rv" ]] && return
-      local result=0 i
+      local result=0 i=0
       for (( i=0; i<16; i++ )); do
         local bit_l=$(( (lv >> i) & 1 ))
         local bit_r=$(( (rv >> i) & 1 ))
         result=$(( result | (bit_l << (2*i + 1)) | (bit_r << (2*i)) ))
+      done
+      echo "$result"
+      ;;
+    OP_SELECT)
+      local lv="" rv=""
+      lv=$(eval_const "${expr_left[$id]}")
+      [[ -z "$lv" ]] && return
+      rv=$(eval_const "${expr_right[$id]}")
+      [[ -z "$rv" ]] && return
+      # Pack bits of lv at positions where rv has 1, right-justified.
+      local result=0 out_pos=0 i=0
+      local lw=${expr_width[${expr_left[$id]}]}
+      local rw=${expr_width[${expr_right[$id]}]}
+      local bits=$(( lw > rw ? lw : rw ))
+      for (( i=0; i<bits; i++ )); do
+        if (( (rv >> i) & 1 )); then
+          local bit_l=$(( (lv >> i) & 1 ))
+          result=$(( result | (bit_l << out_pos) ))
+          out_pos=$(( out_pos + 1 ))
+        fi
       done
       echo "$result"
       ;;
@@ -795,8 +814,8 @@ codegen_expr() {
   # Constant folding: if the whole subtree evaluates to a literal,
   # emit a single mov instead of recursing into runtime calls.
   case "$type" in
-    OP_AND|OP_OR|OP_XOR|OP_MINGLE)
-      local cval
+    OP_AND|OP_OR|OP_XOR|OP_MINGLE|OP_SELECT)
+      local cval=""
       cval=$(eval_const "$id")
       if [[ -n "$cval" ]]; then
         if (( cval <= 65535 )); then

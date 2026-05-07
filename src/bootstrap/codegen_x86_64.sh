@@ -16,8 +16,8 @@ codegen_expr() {
   # intercalc.sh. Both backends share the expr_* tables, so the
   # ARM64-side helper is reusable.
   case "$type" in
-    OP_AND|OP_OR|OP_XOR|OP_MINGLE)
-      local cval
+    OP_AND|OP_OR|OP_XOR|OP_MINGLE|OP_SELECT)
+      local cval=""
       cval=$(eval_const "$id")
       if [[ -n "$cval" ]]; then
         emit "  mov eax, ${cval}"
