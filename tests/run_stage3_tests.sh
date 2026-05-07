@@ -92,22 +92,20 @@ cd "$SCRIPT_DIR"
 echo "Running Stage 3 (self-hosted compiler under development) tests..."
 echo ""
 
-# Stage 3.1.a: byte count test
-# Create fixtures on the fly so tests are self-contained.
+# Stage 3.x source-byte probes:
+# Format: count, first byte, last byte, is_D, is_O, is_P, is_A, is_DO
+# Byte 2 is read so all sources must be >= 2 bytes.
+# Roman of 0 prints empty line.
 FIXTURES=$(mktemp -d /tmp/stage3_fix.XXXXXX)
-printf '' > "$FIXTURES/empty.i"
-printf 'A' > "$FIXTURES/one.i"
-printf 'ABC' > "$FIXTURES/three.i"
+printf 'AB'         > "$FIXTURES/two.i"
+printf 'ABC'        > "$FIXTURES/three.i"
+printf 'DO'         > "$FIXTURES/do2.i"
 printf 'DO GIVE UP\n' > "$FIXTURES/give_up.i"
 
-# Stage 3.1.a byte count
-# Stage 3.1.b first byte value
-# Stage 3.1.c last byte value
-# Stage 3.1.d-e: branchless equality probes of first byte against D O P A
-# Format: count, first, last, is_D, is_O, is_P, is_A (each as Roman; 0 -> empty)
-run_stage3 "one_byte_A"   "$FIXTURES/one.i"     "$(printf 'I\nLXV\nLXV\n\n\n\nI')"
-run_stage3 "three_bytes"  "$FIXTURES/three.i"   "$(printf 'III\nLXV\nLXVII\n\n\n\nI')"
-run_stage3 "give_up_11b"  "$FIXTURES/give_up.i" "$(printf 'XI\nLXVIII\nX\nI')"
+run_stage3 "two_bytes_AB"  "$FIXTURES/two.i"     "$(printf 'II\nLXV\nLXVI\n\n\n\nI')"
+run_stage3 "three_bytes"   "$FIXTURES/three.i"   "$(printf 'III\nLXV\nLXVII\n\n\n\nI')"
+run_stage3 "do_match"      "$FIXTURES/do2.i"     "$(printf 'II\nLXVIII\nLXXIX\nI\n\n\n\nI')"
+run_stage3 "give_up_11b"   "$FIXTURES/give_up.i" "$(printf 'XI\nLXVIII\nX\nI\n\n\n\nI')"
 
 rm -rf "$FIXTURES"
 
