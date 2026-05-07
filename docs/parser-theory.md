@@ -28,7 +28,7 @@ Three reasons we did not use a parser generator:
 - **Size.** Our grammar has ~15 productions. Setting up a generator's build pipeline, learning the generator's grammar meta-language, and debugging the generated tables would cost more than writing the parser by hand has.
 - **Flexibility.** Recursive descent lets us mix parsing and codegen freely if we ever want to. We currently do not — the parser produces a tree, and codegen walks the tree — but the option is there.
 
-Almost every production compiler has a hand-written parser for at least some part of the language (C++, Swift, Rust) for exactly these reasons. Parser generators are useful at very large grammar sizes and in environments where formal verification is a priority.
+Almost every production compiler has a hand-written parser for at least some part of the language. The C++ front-end of Clang is a hand-written recursive-descent parser. GCC's C, C++, and Java parsers are all hand-written recursive descent. The Rust compiler's `rustc_parse` is hand-written recursive descent with limited backtracking. Even where the language grammar is technically LALR-tractable, the implementers usually choose hand-written code for the same reasons we did: better error messages, tighter coupling to the rest of the front end, less generated code to debug. Parser generators remain useful at very large grammar sizes (think: SQL dialects) and in environments where formal verification of parser correctness is a priority.
 
 ## The shape of `parse_expr`
 

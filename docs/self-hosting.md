@@ -105,6 +105,16 @@ It is tempting to conflate "self-hosting" with "production-ready" or "optimised"
 
 In our case we care about self-hosting for the same reason every historical language implementation did: it is the cleanest demonstration that the language is complete enough to express its own translation.
 
+## Trusting Trust
+
+Ken Thompson's 1984 Turing Award lecture, *Reflections on Trusting Trust*, set out a class of attack that is unique to self-hosting compilers. Roughly: a malicious compiler can be modified to recognise when it is compiling its own source, reinsert a backdoor into the new compiler binary, and propagate that backdoor through every future generation — even after the malicious code has been removed from the source. The attack is invisible to source-level inspection because the malicious behaviour lives only in the binary that compiles the next binary.
+
+Our compiler is a tiny, hand-readable program with no production users; a serious Trusting Trust attack on it would not be worth anyone's effort. The lesson is conceptual rather than operational: once a compiler can compile itself, the source is no longer the only thing you have to trust. You also have to trust the binary that compiled the source, and the binary that compiled *that*, and so on back to the chispa primigenea.
+
+The standard countermeasure, *Diverse Double-Compiling* (DDC) by David A. Wheeler (2005, formalised in his 2009 PhD), is to compile the same source with two independent compilers and verify that their outputs agree. If two unrelated compilers produce byte-equivalent binaries from the same INTERCAL source, both would have to share the backdoor for the attack to survive. For us, the practical analogue is the differential test we already run: pure-INTERCAL syslib compiled by `intercalc.sh` versus native syslib hand-written in assembly. The two paths are independent enough that a Trusting Trust attack on one would have to be replicated by a hand attacker on the other.
+
+This is also why we keep the bootstrap compiler readable and small. A 1825-line zsh script is not malice-proof, but it is auditable in an afternoon — which is the most defensible position a small language implementation can occupy.
+
 ## Exercises
 
 1. Read `bootstrap.sh`. At what step does it assume `compiler.i` is a real compiler rather than the template-dispatch MVP? What heuristic does it use to decide?

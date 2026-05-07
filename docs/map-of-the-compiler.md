@@ -10,17 +10,22 @@ The bootstrap compiler lives almost entirely in a single zsh file, `src/bootstra
 
 | Phase (textbook name) | Our implementation | File | Approx. lines |
 |-----------------------|--------------------|------|---------------|
-| Driver / entry | `main()` | `src/bootstrap/intercalc.sh` | 1717–1825 |
-| Source reader | `read_source()` | `src/bootstrap/intercalc.sh` | 59–66 |
-| Lexer (scanner) | `tokenize()` | `src/bootstrap/intercalc.sh` | 68–261 |
-| Symbol collection | `scan_variables()` | `src/bootstrap/intercalc.sh` | 262–294 |
-| Semantic analysis | `check_politeness()`, `check_labels()`, `resolve_come_from` | `src/bootstrap/intercalc.sh` | 295–398 |
-| Parser (numbers) | `parse_number()` | `src/bootstrap/intercalc.sh` | 399–414 |
-| Parser (expressions) | `parse_expr()` | `src/bootstrap/intercalc.sh` | 415–602 |
-| Codegen (expressions) | `codegen_expr()`, `codegen_array_ref()` | `src/bootstrap/intercalc.sh` | 603–762 |
-| Codegen (program entry) | `codegen_program()`, `codegen_statement()` | `src/bootstrap/intercalc.sh` | 763–852 |
-| Codegen (per statement type) | `codegen_give_up`, `codegen_read_out`, `codegen_write_in`, `codegen_assign`, `codegen_array_dim`, `codegen_next`, `codegen_resume`, `codegen_forget`, `codegen_abstain`, `codegen_reinstate`, `codegen_gerund_modify`, `codegen_ignore`, `codegen_remember`, `codegen_stash`, `codegen_retrieve` | `src/bootstrap/intercalc.sh` | 853–1621 |
-| Data emission (.data, .bss) | `emit_data()` | `src/bootstrap/intercalc.sh` | 1622–1716 |
+| Diagnostics (`--diagnose`) | `diagnose()` | `src/bootstrap/intercalc.sh` | 78–122 |
+| Compile-time error helper | `die_compile()` | `src/bootstrap/intercalc.sh` | 124–145 |
+| Source reader | `read_source()` | `src/bootstrap/intercalc.sh` | 156–163 |
+| Lexer (scanner) | `tokenize()`, `classify_statement()` | `src/bootstrap/intercalc.sh` | 165–357 |
+| Symbol collection | `scan_variables()` | `src/bootstrap/intercalc.sh` | 359–386 |
+| Semantic analysis | `check_politeness()`, `check_labels()`, `resolve_come_from()`, `detect_syslib()` | `src/bootstrap/intercalc.sh` | 392–463 |
+| Dead-flag elimination | `compute_flag_checks()` | `src/bootstrap/intercalc.sh` | 471–533 |
+| Parser primitives | `expr_new`, `peek_char`, `next_char`, `parse_number` | `src/bootstrap/intercalc.sh` | 539–578 |
+| Parser (expressions) | `parse_expr()` | `src/bootstrap/intercalc.sh` | 582–772 |
+| Constant folding | `eval_const()` | `src/bootstrap/intercalc.sh` | 781–843 |
+| Codegen (expressions) | `codegen_expr()`, `codegen_array_ref()` | `src/bootstrap/intercalc.sh` | 845–1021 |
+| Codegen (program entry / dispatch) | `codegen_program()`, `codegen_statement()`, `codegen_probability()` | `src/bootstrap/intercalc.sh` | 1023–1137 |
+| Codegen (per statement type) | `codegen_give_up`, `codegen_read_out`, `codegen_write_in`, `codegen_assign`, `codegen_array_elem_assign`, `codegen_array_dim`, `codegen_next`, `codegen_resume`, `codegen_forget`, `codegen_abstain`, `codegen_reinstate`, `codegen_gerund_modify`, `codegen_ignore`, `codegen_remember`, `codegen_stash`, `codegen_retrieve` | `src/bootstrap/intercalc.sh` | 1115–1887 |
+| Data emission (.data, .bss) | `emit_data()` | `src/bootstrap/intercalc.sh` | 1889–1984 |
+| Peephole optimiser | `peephole_optimize()` | `src/bootstrap/intercalc.sh` | 47–76 |
+| Driver / main | `main()` | `src/bootstrap/intercalc.sh` | 1986–end |
 
 Counts are approximate line numbers in the current version; they are there as a navigation aid, not a contract.
 

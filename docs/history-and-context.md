@@ -4,11 +4,11 @@ The INTERCAL language, the compilers that have implemented it, and the design ch
 
 ## INTERCAL, 1972
 
-The language was designed by Donald R. Woods and James M. Lyon at Princeton University in 1972. The original reference manual, titled *The INTERCAL Programming Language Revised Reference Manual*, was the first formal specification; it circulated in typewritten form before being scanned and republished online. The manual's tone is a parody of the technical writing conventions of the era, but the language it specifies is a complete, Turing-complete programming language with deliberate and consistent semantics.
+The language was designed on 26 May 1972 by Donald R. Woods and James M. Lyon at Princeton University. The original reference manual, *The INTERCAL Programming Language Reference Manual* (1973), was the first formal specification; the more widely-circulated revision is *The INTERCAL Programming Language Revised Reference Manual*. The manual's tone is a parody of the technical writing conventions of the era, but the language it specifies is a complete, Turing-complete programming language with deliberate and consistent semantics.
 
-INTERCAL's defining design choice is to avoid every feature then fashionable. No keywords shared with any other language (no `IF`, no `GOTO`, no `WHILE`). Grouping with two alternating bracket types. Arithmetic only through bitwise operators. Politeness as a compile-time check. The result is a language that is Turing-complete, specifiable in a few dozen pages, and pleasant to read after one gets over the first hour.
+The design brief stated explicitly that the new language should have nothing in common with any major language of the time. The languages the designers wanted to differ from, named in the manual itself, include FORTRAN, BASIC, COBOL, ALGOL, SNOBOL, SPITBOL, FOCAL, SOLVE, TEACH, APL, LISP, and PL/I. INTERCAL's defining design choice is therefore to avoid every feature then fashionable: no keywords shared with any other language (no `IF`, no `GOTO`, no `WHILE`); grouping with two alternating bracket types instead of nested parentheses; arithmetic only through bitwise operators; politeness as a compile-time check. The result is a language that is Turing-complete, specifiable in a few dozen pages, and pleasant to read after one gets over the first hour.
 
-The earliest implementation, by Woods and Lyon themselves, was written in SPITBOL (a Snobol dialect) and compiled INTERCAL-72 programs on a mainframe. It is not publicly available today.
+The earliest implementation, written by Woods and Lyon, was a compiler in SPITBOL (a SNOBOL4 dialect) targeting an IBM System/360 at Princeton. It was used by a small Princeton community in the early 1970s. The original sources are not publicly available today, but the manual that documented its acceptance has been digitised and circulates online.
 
 ## C-INTERCAL (ick), 1990
 
