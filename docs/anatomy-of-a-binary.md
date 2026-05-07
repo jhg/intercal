@@ -222,9 +222,9 @@ If the program had instead fallen off the end without `GIVE UP`, the codegen-emi
 
 Take the hello-world binary, save it, then recompile it and `diff` the two binaries. Are they identical?
 
-On Linux, yes — by construction. ELF binaries from `cc` typically embed an `NT_GNU_BUILD_ID` note (a hash of the linker's view of the input objects) plus, for some toolchains, an absolute path or timestamp. The build pipeline strips or normalises these via `tools/rewrite_uuid.py`, so a recompilation of the same source on the same toolchain version produces a byte-identical binary. CI verifies this property on every push.
+On Linux, yes, by construction. ELF binaries from `cc` typically embed an `NT_GNU_BUILD_ID` note (a hash of the linker's view of the input objects) plus, for some toolchains, an absolute path or timestamp. The build pipeline strips or normalises these via `tools/rewrite_uuid.py`, so a recompilation of the same source on the same toolchain version produces a byte-identical binary. CI verifies this property on every push.
 
-On macOS the picture is similar in spirit. Mach-O binaries carry an `LC_UUID` load command that the linker (`ld64`) computes by hashing the relevant inputs. Recent Apple toolchains derive this UUID deterministically — the linker fills the slot with zeros, hashes the binary, then writes the derived UUID back over the placeholder — so two compilations of identical input produce identical UUIDs out of the box. We still run the rewrite step on macOS as a defence against earlier toolchains and a couple of edge cases (timestamps in `__LINKEDIT`).
+On macOS the picture is similar in spirit. Mach-O binaries carry an `LC_UUID` load command that the linker (`ld64`) computes by hashing the relevant inputs. Recent Apple toolchains derive this UUID deterministically, the linker fills the slot with zeros, hashes the binary, then writes the derived UUID back over the placeholder, so two compilations of identical input produce identical UUIDs out of the box. We still run the rewrite step on macOS as a defence against earlier toolchains and a couple of edge cases (timestamps in `__LINKEDIT`).
 
 The standard mechanism for controlling embedded timestamps is the [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/) environment variable, defined by the [Reproducible Builds project](https://reproducible-builds.org/). When set to a Unix timestamp, every conforming build tool uses that timestamp wherever it would otherwise sample the wall clock. Our compiler does not embed timestamps, so we have nothing to honour, but anybody adding a `__date__`-style feature to the language should consult the spec before sampling time.
 
@@ -232,7 +232,7 @@ If you do get a diff anyway, the usual culprits are: a stale build cache mixed w
 
 ## Exercises
 
-1. Compile a slightly different program — say, change one constant in `tests/test_hello.i` — and `diff` the two binaries. Where is the change visible?
+1. Compile a slightly different program, say, change one constant in `tests/test_hello.i`: and `diff` the two binaries. Where is the change visible?
 2. Use `otool -tv` (or `objdump -d`) to find where `_rt_write_roman` is called from. How many times is it called in the hello-world binary? In `tests/test_read_out_num.i`?
 3. Estimate the memory footprint of a compiled INTERCAL program with 1000 statements and 100 used scalar variables. Compare to the hello-world figure.
 4. Strip the binary with `strip ./hello`. How much smaller does it get? What was removed?
@@ -240,6 +240,6 @@ If you do get a diff anyway, the usual culprits are: a stale build cache mixed w
 
 ## Next reading
 
-- [executables-and-linking.md](executables-and-linking.md) — the format-level theory of Mach-O and ELF.
-- [runtime.md](runtime.md) — what each `_rt_*` routine does.
-- [debugging.md](debugging.md) — how to use `otool` and `objdump` while chasing bugs.
+- [executables-and-linking.md](executables-and-linking.md): the format-level theory of Mach-O and ELF.
+- [runtime.md](runtime.md): what each `_rt_*` routine does.
+- [debugging.md](debugging.md): how to use `otool` and `objdump` while chasing bugs.

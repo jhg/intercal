@@ -26,7 +26,7 @@ Our compiler is clean-room: it has been written without reading C-INTERCAL's sou
 
 CLC-INTERCAL, maintained by Claudio Calvelli, is a later implementation in Perl with further extensions: quantum computing primitives, an object system, Baudot-coded text I/O, and a syscall mechanism via a reserved label called `666`. The CLC-INTERCAL project is hosted at https://uilebheist.srht.site/.
 
-Label 666 is the feature of CLC-INTERCAL we borrowed most directly. Its parameter-passing convention — "call by vague resemblance to the last assignment" — is idiosyncratic and obscurely documented (see [666.md](666.md)). Our version of Label 666 uses a simpler fixed-register convention: `.1` as syscall number, `.2`/`.3`/`.4` as parameters and results, and `,65535` as the data buffer. This is not CLC-INTERCAL compatible, and we make that clear to any reader.
+Label 666 is the feature of CLC-INTERCAL we borrowed most directly. Its parameter-passing convention, "call by vague resemblance to the last assignment", is idiosyncratic and obscurely documented (see [666.md](666.md)). Our version of Label 666 uses a simpler fixed-register convention: `.1` as syscall number, `.2`/`.3`/`.4` as parameters and results, and `,65535` as the data buffer. This is not CLC-INTERCAL compatible, and we make that clear to any reader.
 
 The decision to adopt something Label-666-shaped rather than inventing a new mechanism was driven by the fact that `666` is already mentally associated with "syscall gate" for anybody familiar with CLC-INTERCAL. Using it for the same purpose, even with a different calling convention, reduces confusion.
 
@@ -48,7 +48,7 @@ A short catalogue of how our design decisions differ from other INTERCAL impleme
 
 ### Transpilation vs direct emission
 
-C-INTERCAL emits C; CLC-INTERCAL emits Perl; we emit ARM64 or x86-64 assembly. The transpilation path trades one layer of complexity (dealing with machine code) for another (dealing with the target language's constraints). In practice, transpiling to C is the less risky choice — C compilers are well-tested — but it forces the INTERCAL implementer to match INTERCAL's semantics to C's, and some mismatches are awkward (C's signed-overflow undefined behaviour versus INTERCAL's unsigned wrap semantics).
+C-INTERCAL emits C; CLC-INTERCAL emits Perl; we emit ARM64 or x86-64 assembly. The transpilation path trades one layer of complexity (dealing with machine code) for another (dealing with the target language's constraints). In practice, transpiling to C is the less risky choice. C compilers are well-tested, but it forces the INTERCAL implementer to match INTERCAL's semantics to C's, and some mismatches are awkward (C's signed-overflow undefined behaviour versus INTERCAL's unsigned wrap semantics).
 
 ### Operator implementation
 
@@ -84,7 +84,7 @@ A reader familiar with C compilers might find it useful to know what the INTERCA
 
 ### Lexing
 
-A C lexer has to handle strings, character constants, escape sequences, preprocessor directives, numeric literals in three bases, and trigraphs. Our lexer handles none of those — no strings, no literals other than decimal, no preprocessor. On the other hand, we handle `DON'T` as a single token, which no C lexer has to deal with.
+A C lexer has to handle strings, character constants, escape sequences, preprocessor directives, numeric literals in three bases, and trigraphs. Our lexer handles none of those, no strings, no literals other than decimal, no preprocessor. On the other hand, we handle `DON'T` as a single token, which no C lexer has to deal with.
 
 ### Parsing
 
@@ -125,8 +125,8 @@ There are, roughly, four genres of compiler-construction text:
 1. **Theory first.** The Dragon Book, Appel's Modern Compiler Implementation. Full formal treatment of grammars, parsing tables, IR, optimisation.
 2. **Hands-on build.** Crafting Interpreters, Thain's Introduction to Compilers, Crenshaw's Let's Build a Compiler. Take the reader through a complete compiler, one phase at a time.
 3. **Technique catalogues.** Cooper & Torczon's Engineering a Compiler, Muchnick's Advanced Compiler Design. Surveys of modern techniques, with deep treatment of specific optimisations.
-4. **Case studies.** Project-specific writeups — the CHICKEN Scheme implementation notes, the Go compiler internals talks, the LLVM documentation.
+4. **Case studies.** Project-specific writeups, the CHICKEN Scheme implementation notes, the Go compiler internals talks, the LLVM documentation.
 
 This repository's `docs/` directory belongs to genre (4), with elements of genre (2). It is a case study of a small self-hosting compiler, narrated phase by phase, with exercises and cross-references to the classical literature for the reader who wants depth beyond what we provide here.
 
-The design choice to remain small — no IR, no optimisation, hand-written runtime — is what makes this case-study role feasible. A full modern compiler could not be documented this way; it is too big. INTERCAL, and this compiler specifically, are small enough.
+The design choice to remain small, no IR, no optimisation, hand-written runtime, is what makes this case-study role feasible. A full modern compiler could not be documented this way; it is too big. INTERCAL, and this compiler specifically, are small enough.

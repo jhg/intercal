@@ -1,12 +1,12 @@
 # INTERCAL among the esoteric languages
 
-INTERCAL is the oldest member of a small but persistent genre: the *esoteric programming language* (esolang). An esolang is a language designed not for production use but to make a point — usually about minimalism, parody, conceptual difficulty, or computational theory. INTERCAL invented the genre in 1972; the second wave arrived in the early 1990s; the genre is still active today.
+INTERCAL is the oldest member of a small but persistent genre: the *esoteric programming language* (esolang). An esolang is a language designed not for production use but to make a point, usually about minimalism, parody, conceptual difficulty, or computational theory. INTERCAL invented the genre in 1972; the second wave arrived in the early 1990s; the genre is still active today.
 
 This chapter places INTERCAL alongside the other prominent esolangs and identifies what each contributes.
 
 ## Brainfuck (1993)
 
-Designed by Urban Müller, Brainfuck has eight commands: `> < + - [ ] , .`. It exposes a Turing-machine view of computation: a tape of cells, a data pointer, the four pointer-and-cell operations, and balanced bracket loops. A complete Brainfuck compiler fits in 240 bytes — Müller's original target — and implementations exist for almost every architecture.
+Designed by Urban Müller, Brainfuck has eight commands: `> < + - [ ] , .`. It exposes a Turing-machine view of computation: a tape of cells, a data pointer, the four pointer-and-cell operations, and balanced bracket loops. A complete Brainfuck compiler fits in 240 bytes. Müller's original target, and implementations exist for almost every architecture.
 
 Brainfuck's design philosophy is *minimalism*: how few primitives can you have and still be Turing-complete? The answer is six (the I/O can be omitted in a strict mathematical sense), and Brainfuck is an exhibit of that fact. Its I/O is byte-stream-oriented and convention-free.
 
@@ -18,7 +18,7 @@ Chris Pressey designed Befunge as a two-dimensional language: code is laid out o
 
 Befunge's contribution is *spatial structure*. Where Brainfuck makes computation linear and minimal, Befunge makes it geometric. A Befunge program is read as a 2D diagram, not a sequence of statements.
 
-INTERCAL has no spatial structure at all — its programs are top-to-bottom statement lists. The two languages share the genre but explore different axes of unconventionality.
+INTERCAL has no spatial structure at all, its programs are top-to-bottom statement lists. The two languages share the genre but explore different axes of unconventionality.
 
 ## Malbolge (1998)
 
@@ -30,7 +30,7 @@ Malbolge's contribution is *adversarial design*. Where INTERCAL is hard to read 
 
 Karl Hasselström and Jon Åslund's Shakespeare expresses programs as Shakespearean plays. Variables are characters, statements are dialogue lines, control flow is acts and scenes. A correct program reads as a coherent (if absurd) play.
 
-Shakespeare's contribution is *literary mimicry*. The language extends INTERCAL's parodic intent — make programming look like something else — to literary form rather than just to syntactic form. Many similar languages followed (Chef, Whitespace, ArnoldC), but Shakespeare set the template.
+Shakespeare's contribution is *literary mimicry*. The language extends INTERCAL's parodic intent, make programming look like something else, to literary form rather than just to syntactic form. Many similar languages followed (Chef, Whitespace, ArnoldC), but Shakespeare set the template.
 
 INTERCAL parodies the conventions of programming-language design itself; Shakespeare parodies the boundary between programming and literature.
 
@@ -67,11 +67,11 @@ Most early esolangs are no longer maintained. INTERCAL is. Three reasons:
 - Its parodic posture has not dated. The conventions it ridicules are still recognisable today.
 - The maintainer community is small but persistent: three serious implementations (C-INTERCAL, CLC-INTERCAL, this one) have kept it in working condition since 1990.
 
-Brainfuck and Befunge are similarly persistent. Malbolge and Whitespace less so — they made their point and the point was made. Shakespeare survives mostly as a teaching example.
+Brainfuck and Befunge are similarly persistent. Malbolge and Whitespace less so, they made their point and the point was made. Shakespeare survives mostly as a teaching example.
 
 ## What INTERCAL is *not*
 
-It is not the most minimal esolang (Brainfuck is). It is not the hardest (Malbolge is). It is not the most literary (Shakespeare is). It is not the most novel in execution model (Befunge is). What it is, is the *first* and the most conceptually elaborate parody — the language that established the genre's conventions: parody as design intent, deliberately inconvenient features, a complete spec, a small maintainer community.
+It is not the most minimal esolang (Brainfuck is). It is not the hardest (Malbolge is). It is not the most literary (Shakespeare is). It is not the most novel in execution model (Befunge is). What it is, is the *first* and the most conceptually elaborate parody, the language that established the genre's conventions: parody as design intent, deliberately inconvenient features, a complete spec, a small maintainer community.
 
 This is a useful position, and the reason the language is worth implementing fifty-plus years after its first compiler. Understanding INTERCAL is understanding the genre.
 
@@ -91,6 +91,6 @@ For INTERCAL specifically, the resources in [further-reading.md](further-reading
 
 ## Next reading
 
-- [what-is-intercal.md](what-is-intercal.md) — INTERCAL on its own terms.
-- [history-and-context.md](history-and-context.md) — INTERCAL's place in the broader history of programming languages.
-- [further-reading.md](further-reading.md) — surveys of the genre.
+- [what-is-intercal.md](what-is-intercal.md): INTERCAL on its own terms.
+- [history-and-context.md](history-and-context.md): INTERCAL's place in the broader history of programming languages.
+- [further-reading.md](further-reading.md): surveys of the genre.

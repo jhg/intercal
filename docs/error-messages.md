@@ -6,7 +6,7 @@ This chapter documents what our error messages look like, how they have improved
 
 ## The ICL convention
 
-Every compile-time and runtime error fires a message of the form `ICLnnnI MESSAGE TEXT`, where `nnn` is a three-digit decimal code. The convention dates to the 1972 INTERCAL manual and has been preserved by every subsequent implementation. The codes are part of the language's specification — `ICL079I` is the rude-program error in C-INTERCAL, in CLC-INTERCAL, and in ours.
+Every compile-time and runtime error fires a message of the form `ICLnnnI MESSAGE TEXT`, where `nnn` is a three-digit decimal code. The convention dates to the 1972 INTERCAL manual and has been preserved by every subsequent implementation. The codes are part of the language's specification, `ICL079I` is the rude-program error in C-INTERCAL, in CLC-INTERCAL, and in ours.
 
 The text is uppercase by tradition. `PROGRAMMER IS INSUFFICIENTLY POLITE` is the spec text; substitutions are not allowed. This is a constraint our diagnostics inherit and that we honour.
 
@@ -23,7 +23,7 @@ Three pieces:
 2. The statement number where the error fired.
 3. The label (if any) of that statement, plus the source line number.
 
-The second and third pieces are project-specific; they did not exist a few months ago. `die_compile` was extended to take an optional statement-index argument, and many call sites now pass it. The result is a diagnostic that points at *some* location in the source — not a Rust-grade caret, but enough that a programmer can find the offending line.
+The second and third pieces are project-specific; they did not exist a few months ago. `die_compile` was extended to take an optional statement-index argument, and many call sites now pass it. The result is a diagnostic that points at *some* location in the source, not a Rust-grade caret, but enough that a programmer can find the offending line.
 
 A runtime error, fired by `_rt_error_E*`:
 
@@ -98,24 +98,24 @@ die_compile() {
 }
 ```
 
-The context-detection heuristic — if no third arg is passed, look for an `i` variable in the caller's scope — lets old call sites keep working without modification while new ones get the context for free. It is a small example of the kind of incremental usability work that a compiler benefits from.
+The context-detection heuristic, if no third arg is passed, look for an `i` variable in the caller's scope, lets old call sites keep working without modification while new ones get the context for free. It is a small example of the kind of incremental usability work that a compiler benefits from.
 
 ## The runtime side
 
-Runtime errors do not have access to the source file, so they cannot print source lines. They could, in principle, print the statement number that fired the error — the codegen knows which statement is being executed at the call site. This would require emitting the statement index as a data argument to every `_rt_error_*` call, which doubles the size of error-emitting code. We have not done it.
+Runtime errors do not have access to the source file, so they cannot print source lines. They could, in principle, print the statement number that fired the error, the codegen knows which statement is being executed at the call site. This would require emitting the statement index as a data argument to every `_rt_error_*` call, which doubles the size of error-emitting code. We have not done it.
 
 A useful intermediate would be a `--debug` flag that emits per-statement labels into the binary and a runtime hook that prints the active statement on error. The cost is binary size and a small startup penalty; the benefit is much better runtime diagnostics. Worth considering for a future release.
 
 ## Exercises
 
 1. Construct a program that fires `ICL182I` (duplicate label). What information does the current diagnostic give you? What would a multi-label version look like?
-2. Run `intercalc.sh --diagnose` on `tests/test_hello.i`. The output is a different kind of diagnostic — informational rather than error. Compare its format to the error format. What design choices differ?
+2. Run `intercalc.sh --diagnose` on `tests/test_hello.i`. The output is a different kind of diagnostic, informational rather than error. Compare its format to the error format. What design choices differ?
 3. The lexer collapses whitespace and tracks no source positions. If we wanted line:column references in diagnostics, what data would `tokenize` need to record per statement?
 4. Pick one of the cheap improvements listed above (e.g. typo suggestions for unknown verbs). Sketch the implementation in zsh. How many lines?
 5. Compare `ICL079I PROGRAMMER IS INSUFFICIENTLY POLITE` with what Rust would say for an analogous offence (e.g. a `#[deny(missing_docs)]` violation). Which is more helpful? Which is more memorable?
 
 ## Next reading
 
-- [debugging.md](debugging.md) — how to use the current diagnostics in practice.
-- [semantic-analysis.md](semantic-analysis.md) — where most compile-time errors fire from.
-- [runtime.md](runtime.md) — the runtime-error catalogue.
+- [debugging.md](debugging.md): how to use the current diagnostics in practice.
+- [semantic-analysis.md](semantic-analysis.md): where most compile-time errors fire from.
+- [runtime.md](runtime.md): the runtime-error catalogue.

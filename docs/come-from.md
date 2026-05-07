@@ -6,7 +6,7 @@ This chapter is the complete tour: history, semantics, our static-resolution alg
 
 ## Origins
 
-`COME FROM` was not part of the original 1972 INTERCAL specification. It first appeared in print in R. Lawrence Clark's 1973 article *We Don't Know Where to GOTO if We Don't Know Where We've COME FROM*, published in *Datamation*. Clark's article was a satire of the structured programming debate then raging — Edsger Dijkstra had published *Go To Statement Considered Harmful* in 1968, and Clark proposed `COME FROM` as a deliberate provocation.
+`COME FROM` was not part of the original 1972 INTERCAL specification. It first appeared in print in R. Lawrence Clark's 1973 article *We Don't Know Where to GOTO if We Don't Know Where We've COME FROM*, published in *Datamation*. Clark's article was a satire of the structured programming debate then raging. Edsger Dijkstra had published *Go To Statement Considered Harmful* in 1968, and Clark proposed `COME FROM` as a deliberate provocation.
 
 The proposal was, at the time, a joke. It became serious when Eric Raymond's C-INTERCAL added it to the language in 1990, on the reasonable grounds that any language designed to mock convention should include the most thoroughly mocked control structure in the literature. CLC-INTERCAL adopted it as well. Every modern INTERCAL implementation, including ours, treats it as canonical.
 
@@ -14,7 +14,7 @@ The proposal was, at the time, a joke. It became serious when Eric Raymond's C-I
 
 A `COME FROM (N)` statement attaches itself to the labelled statement at label `N`. The program text contains both the `(N) DO ...` statement (the *target*) and the `DO COME FROM (N)` statement (the *follower*). Their textual order does not matter; the relationship is purely topological.
 
-When the program runs, the target statement executes normally. After it finishes — and instead of falling through to the next statement — control transfers to the follower. The follower executes its own body, then falls through to the statement after it.
+When the program runs, the target statement executes normally. After it finishes, and instead of falling through to the next statement, control transfers to the follower. The follower executes its own body, then falls through to the statement after it.
 
 In flow-graph terms, `COME FROM (N)` modifies the *exit edge* of statement N: it adds a back edge from N's exit to the follower's entry. The original fall-through edge from N to N+1 is removed.
 
@@ -25,11 +25,11 @@ Two consequences worth dwelling on:
 
 ## Our resolution algorithm
 
-We resolve `COME FROM` statically — at compile time, in the `resolve_come_from` pass — so that the runtime cost is a single unconditional jump appended to the target's code. The algorithm:
+We resolve `COME FROM` statically, at compile time, in the `resolve_come_from` pass, so that the runtime cost is a single unconditional jump appended to the target's code. The algorithm:
 
 1. Walk every statement. If its type is `COME_FROM`, extract the target label from `stmt_cf_target`.
 2. Look the target up in `label_to_stmt`. If the label is undefined, fire `ICL129I`. (Note: this check is currently delegated to the codegen; a refactor would move it here.)
-3. Look the target up in `come_from_target`. If a previous `COME FROM` already registered for this label, fire `ICL555I MULTIPLE COME FROM TARGETING SAME LABEL`. This is the multi-target rejection — see below.
+3. Look the target up in `come_from_target`. If a previous `COME FROM` already registered for this label, fire `ICL555I MULTIPLE COME FROM TARGETING SAME LABEL`. This is the multi-target rejection, see below.
 4. Otherwise, register `come_from_target[target_label] = follower_index`.
 
 Codegen then consults `come_from_target` when emitting each statement's body. If a follower is registered for this statement's label, the codegen appends an unconditional branch (`b _stmt_<follower>_start` on ARM64, `jmp _stmt_<follower>_start` on x86-64) to the body, before the statement's `_end:` marker. The peephole optimiser drops the branch if `_stmt_<follower>_start` immediately follows.
@@ -69,7 +69,7 @@ More elaborate patterns use `COME FROM` in conjunction with `ABSTAIN` to build d
 - A 2004 April Fool's RFC (RFC 3514, the "evil bit") references `COME FROM` as part of its parody apparatus.
 - Brendan Eich considered (and rejected) `COME FROM` for early JavaScript. The story is apocryphal but plausible given the era.
 
-The construct also appears, unintentionally, in any language that supports aspect-oriented programming — an "after" advice on a method is precisely a `COME FROM` for that method. AspectJ and similar systems make the relationship visible; INTERCAL just makes it a punchline.
+The construct also appears, unintentionally, in any language that supports aspect-oriented programming, an "after" advice on a method is precisely a `COME FROM` for that method. AspectJ and similar systems make the relationship visible; INTERCAL just makes it a punchline.
 
 ## Why no `GOTO`?
 
@@ -87,7 +87,7 @@ INTERCAL has `NEXT` (the labelled jump that pushes a return address) and `RESUME
 
 ## Next reading
 
-- [semantic-analysis.md](semantic-analysis.md) — the resolution pass in context.
-- [code-generation.md](code-generation.md) — how the back-edge is emitted.
-- [intercal-primer.md](intercal-primer.md) — the brief introduction.
-- [history-and-context.md](history-and-context.md) — Clark's 1973 article in its broader context.
+- [semantic-analysis.md](semantic-analysis.md): the resolution pass in context.
+- [code-generation.md](code-generation.md): how the back-edge is emitted.
+- [intercal-primer.md](intercal-primer.md): the brief introduction.
+- [history-and-context.md](history-and-context.md): Clark's 1973 article in its broader context.

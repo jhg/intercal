@@ -15,11 +15,11 @@ This chapter describes the four test suites, the TDD contract that governs chang
 
 The four together comprise 65 tests, and the count grows as each new compiler feature acquires its regression test. They run in sequence on every push, on every platform: three platforms × 65 tests = 195 distinct test executions per CI run, give or take a handful of platform-skipped cases.
 
-CI also exercises the bootstrap suite a second time with `INTERCAL_SYSLIB=cache` to verify that the cached pure-syslib path produces correct binaries — bringing the per-platform total higher in practice.
+CI also exercises the bootstrap suite a second time with `INTERCAL_SYSLIB=cache` to verify that the cached pure-syslib path produces correct binaries, bringing the per-platform total higher in practice.
 
 A separate `tools/bench.sh` script measures compile and link times across representative programs, with `--json` output and a `--compare baseline.json` mode for tracking regressions across commits. It is not part of the test suites themselves; treat it as the project's lightweight performance dashboard.
 
-### `run_tests.sh` — the ground truth
+### `run_tests.sh`: the ground truth
 
 This suite is the source of truth. Each entry is an INTERCAL program under `tests/test_<name>.i` with an expected output (inline or in a sibling file). The runner compiles the program with `intercalc.sh`, executes it, captures stdout, and compares to the expected value. Failures surface with the actual vs expected diff.
 
@@ -30,15 +30,15 @@ The tests are grouped by what they exercise:
 - Control flow: `test_control.i`, `test_come_from.i`, `test_forget.i`, `test_give_up.i`.
 - State management: `test_stash.i`, `test_ignore_remember.i`, `test_abstain.i`, `test_abstain_gerund.i`.
 - Arithmetic via syslib: `test_syslib.i`, `test_divide.i`, `test_multiply.i`, `test_multidim_array.i`.
-- Politeness: `test_errors_rude.i`, `test_errors_polite.i` — each expects a specific ICL error on stderr.
-- Runtime errors: `test_error_e123.i`, `test_error_e621.i`, `test_error_e633.i` — each must terminate with the matching ICL code.
-- Label 666: `test_syscall_readself.i` — the program reads its own source via argv[0] and Label 666, then prints metrics about it.
+- Politeness: `test_errors_rude.i`, `test_errors_polite.i`: each expects a specific ICL error on stderr.
+- Runtime errors: `test_error_e123.i`, `test_error_e621.i`, `test_error_e633.i`: each must terminate with the matching ICL code.
+- Label 666: `test_syscall_readself.i`: the program reads its own source via argv[0] and Label 666, then prints metrics about it.
 
 A new language feature or codegen path requires a new entry. A bug fix requires a reproducer that fails before the fix and passes after. These rules are binding; see "TDD contract" below.
 
-### `test_syslib_pure.sh` — differential testing
+### `test_syslib_pure.sh`: differential testing
 
-The pure-vs-native syslib split (see [syslib.md](syslib.md)) is the basis of our strongest differential test. Three programs — add, multiply, divide — are compiled twice, once with `intercalc.sh` (native syslib) and once with `intercalc.sh --pure-syslib` (syslib expressed in INTERCAL and fed through the full pipeline). Both binaries are run, and their outputs are compared byte for byte.
+The pure-vs-native syslib split (see [syslib.md](syslib.md)) is the basis of our strongest differential test. Three programs, add, multiply, divide, are compiled twice, once with `intercalc.sh` (native syslib) and once with `intercalc.sh --pure-syslib` (syslib expressed in INTERCAL and fed through the full pipeline). Both binaries are run, and their outputs are compared byte for byte.
 
 Any divergence is a fail. The failure modes this catches include:
 
@@ -46,21 +46,21 @@ Any divergence is a fail. The failure modes this catches include:
 - A compiler change that mishandles some INTERCAL construct used by the pure syslib but not by the test programs.
 - A runtime change (e.g. to `_rt_mingle` or `_rt_select`) that affects only one of the two paths.
 
-Differential testing is cheap and high-value because the two implementations are independent. A bug that hides in both — a miscompilation of the shared runtime operator primitives — survives this test but fails the bootstrap suite.
+Differential testing is cheap and high-value because the two implementations are independent. A bug that hides in both, a miscompilation of the shared runtime operator primitives, survives this test but fails the bootstrap suite.
 
-### `run_self_tests.sh` — self-hosted MVP
+### `run_self_tests.sh`: self-hosted MVP
 
 This suite runs the same 25 INTERCAL programs as `run_tests.sh` but compiles them with the self-hosted `intercal` wrapper instead of the bootstrap script. Because the MVP's "compilation" is template dispatch, the test harness confirms three things simultaneously:
 
 1. The pre-generated assembly template for each program is correct (i.e. it is byte-for-byte what the bootstrap produces today).
 2. The wrapper correctly identifies the input program by content hash and selects the right template.
-3. The self-hosted compiler binary itself — `intercal_core`, produced by compiling `src/compiler/compiler.i` with the bootstrap — correctly reads its argv, opens the source file, reads it via Label 666, and writes the template to stdout.
+3. The self-hosted compiler binary itself, `intercal_core`, produced by compiling `src/compiler/compiler.i` with the bootstrap, correctly reads its argv, opens the source file, reads it via Label 666, and writes the template to stdout.
 
 Drift is caught through the template integrity manifest (`src/compiler/templates/manifest.txt`, SHA-256 checksums) and verified by `tools/verify_manifest.sh` before the tests run. If anybody changes an INTERCAL test program or an `intercalc.sh` codegen detail, the template must be regenerated and re-manifested; otherwise the manifest check fails.
 
-### `run_stage3_tests.sh` — the evolving compiler
+### `run_stage3_tests.sh`: the evolving compiler
 
-Three programs today, and growing. They exercise the diagnostic instrumentation in `src/compiler/stage3.i` — byte count, first byte, last byte — and will grow as the evolving compiler acquires a real lexer, parser, and codegen. Each new sub-stage adds one or two tests before the implementation lands (the TDD red-green cadence is strict here).
+Three programs today, and growing. They exercise the diagnostic instrumentation in `src/compiler/stage3.i`: byte count, first byte, last byte, and will grow as the evolving compiler acquires a real lexer, parser, and codegen. Each new sub-stage adds one or two tests before the implementation lands (the TDD red-green cadence is strict here).
 
 ## The TDD contract
 
@@ -98,7 +98,7 @@ This is the last line of defence before CI takes over. It is slower than pre-com
 - `ubuntu-24.04-arm` for Linux ARM64.
 - `ubuntu-latest` for Linux x86-64.
 
-A regression that is platform-specific — different syscall convention, different assembler syntax — lands in exactly the job that catches it. All three must be green for the branch to be mergeable.
+A regression that is platform-specific, different syscall convention, different assembler syntax, lands in exactly the job that catches it. All three must be green for the branch to be mergeable.
 
 ### Release validation
 
@@ -136,6 +136,6 @@ The containers install `zsh` and `gcc` from the distro, mount the repo read-writ
 
 ## Next reading
 
-- [platforms.md](platforms.md) — the per-platform syscall and syntax details that CI exercises.
-- [self-hosting.md](self-hosting.md) — the fixpoint test that will eventually join the test suites.
-- `AGENTS.md` — the authoritative TDD contract and commit discipline.
+- [platforms.md](platforms.md): the per-platform syscall and syntax details that CI exercises.
+- [self-hosting.md](self-hosting.md): the fixpoint test that will eventually join the test suites.
+- `AGENTS.md`: the authoritative TDD contract and commit discipline.

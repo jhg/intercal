@@ -22,7 +22,7 @@ On Fedora or similar:
 
 That is the full dependency list. We do not need Python, we do not need Node, we do not need any programming language other than INTERCAL itself.
 
-If you plan to run the Linux cross-platform tests from a macOS laptop, you will also want Docker Desktop. This is optional — the tests that matter for this chapter do not need it.
+If you plan to run the Linux cross-platform tests from a macOS laptop, you will also want Docker Desktop. This is optional, the tests that matter for this chapter do not need it.
 
 ## Get the code
 
@@ -75,7 +75,7 @@ You should see:
 
     Hello, World!
 
-The source of that program is seventeen statements that look alien. Open `tests/test_hello.i` and glance at it. If you cannot make sense of what the constants mean, that is fine — most of INTERCAL is designed to resist sense at first. The [walkthrough-hello.md](walkthrough-hello.md) chapter decodes it when you're ready.
+The source of that program is seventeen statements that look alien. Open `tests/test_hello.i` and glance at it. If you cannot make sense of what the constants mean, that is fine, most of INTERCAL is designed to resist sense at first. The [walkthrough-hello.md](walkthrough-hello.md) chapter decodes it when you're ready.
 
 ## Run the test suite
 
@@ -95,7 +95,7 @@ To convince yourself the compiler is doing real work, open `tests/test_hello.i` 
 
     DO ,1 SUB #4 <- #0
 
-That is the fifth element of the array `,1`, and its value is what produces the comma `,` in "Hello, World!". Change `#0` to something else — say, `#50` — save the file, and recompile:
+That is the fifth element of the array `,1`, and its value is what produces the comma `,` in "Hello, World!". Change `#0` to something else, say, `#50`: save the file, and recompile:
 
     zsh src/bootstrap/intercalc.sh < tests/test_hello.i > hello
     chmod +x hello
@@ -111,7 +111,7 @@ Revert your change when you're done:
 
 The compiler is a zsh script at `src/bootstrap/intercalc.sh`. You can open it in any text editor. It is roughly two thousand lines. Do not try to read the whole thing; just note that it is there, that it is one file, and that everything you just did flowed through it.
 
-The runtime — the code that every compiled INTERCAL program links against — lives in `src/runtime/<your-platform>.s`. On macOS that is `src/runtime/macos_arm64.s`. Open it briefly. It is hand-written assembly, about 970 lines. Do not try to read it either. It is there, it is one file per platform, and your `hello` binary contains a copy.
+The runtime, the code that every compiled INTERCAL program links against, lives in `src/runtime/<your-platform>.s`. On macOS that is `src/runtime/macos_arm64.s`. Open it briefly. It is hand-written assembly, about 970 lines. Do not try to read it either. It is there, it is one file per platform, and your `hello` binary contains a copy.
 
 The system library is in `src/syslib/syslib.i` (for the pure-INTERCAL version) and `src/syslib/native/<platform>.s` (for the fast native version). These provide arithmetic. Hello world does not use arithmetic, so neither was linked into your binary.
 
@@ -129,29 +129,29 @@ Every other file in the repository is in support of those three pieces. The sepa
 
 If you are curious about the language:
 
-- [what-is-intercal.md](what-is-intercal.md) — INTERCAL in plain English, no code.
-- [intercal-primer.md](intercal-primer.md) — a tighter, programmer-oriented tour.
+- [what-is-intercal.md](what-is-intercal.md): INTERCAL in plain English, no code.
+- [intercal-primer.md](intercal-primer.md): a tighter, programmer-oriented tour.
 
 If you are curious about the compiler:
 
-- [overview.md](overview.md) — a slightly more technical "what this repo is".
-- [pipeline.md](pipeline.md) — how source becomes binary, step by step.
+- [overview.md](overview.md): a slightly more technical "what this repo is".
+- [pipeline.md](pipeline.md): how source becomes binary, step by step.
 
 If you are curious about the unusual design decisions:
 
-- [design-rationale.md](design-rationale.md) — a FAQ covering why every major choice was made.
-- [666.md](666.md) — the deep dive on the Label 666 syscall extension.
+- [design-rationale.md](design-rationale.md): a FAQ covering why every major choice was made.
+- [666.md](666.md): the deep dive on the Label 666 syscall extension.
 
 If you want to make a change:
 
-- [your-first-contribution.md](your-first-contribution.md) — a concrete walkthrough of adding a small feature.
-- `AGENTS.md` (in the repo root) — the authoritative contributor guide.
+- [your-first-contribution.md](your-first-contribution.md): a concrete walkthrough of adding a small feature.
+- `AGENTS.md` (in the repo root): the authoritative contributor guide.
 
 ## If you got stuck
 
-- `intercalc.sh: command not found` — you are probably running from a directory other than the repo root. `cd` into it.
-- `ICL079I PROGRAMMER IS INSUFFICIENTLY POLITE` — you got an error at compile time because the program you gave it is too impolite. We will explain later. For now, go back to a test program that passes.
-- `zsh: bad interpreter` on Linux — install zsh (`sudo apt install zsh`).
-- Nothing prints when you run `./hello` — check that the file exists (`ls -l hello`) and that it is executable (`chmod +x hello`).
+- `intercalc.sh: command not found`: you are probably running from a directory other than the repo root. `cd` into it.
+- `ICL079I PROGRAMMER IS INSUFFICIENTLY POLITE`: you got an error at compile time because the program you gave it is too impolite. We will explain later. For now, go back to a test program that passes.
+- `zsh: bad interpreter` on Linux, install zsh (`sudo apt install zsh`).
+- Nothing prints when you run `./hello`: check that the file exists (`ls -l hello`) and that it is executable (`chmod +x hello`).
 
 For anything else, open `AGENTS.md` or ask.

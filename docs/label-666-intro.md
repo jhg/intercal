@@ -1,6 +1,6 @@
 # Label 666: a gentle introduction
 
-INTERCAL has no file I/O, no access to command-line arguments, no way to ask the operating system for the time of day or a random number. The language as specified in 1972 was complete without these features — every program read from stdin and wrote to stdout, and that was that.
+INTERCAL has no file I/O, no access to command-line arguments, no way to ask the operating system for the time of day or a random number. The language as specified in 1972 was complete without these features, every program read from stdin and wrote to stdout, and that was that.
 
 Five decades later this is constraining. A compiler written in INTERCAL needs to open a source file by name, not hope that the user remembered to pipe it in. A self-hosted compiler needs to know its own name to print usage messages. A serious program needs a reliable random number. The 1972 specification offers none of this.
 
@@ -65,19 +65,19 @@ Here is a program that reads the first command-line argument and prints it as a 
 
 Line by line:
 
-- `DO ,65535 <- #65535` — dimension the data buffer `,65535` to the maximum size. You do this exactly once at program entry.
-- `PLEASE DO .1 <- #6` — set the syscall number to 6 (argv).
-- `PLEASE DO .2 <- #1` — set the primary parameter to 1 (the first argument, 0-indexed).
-- `DO (666) NEXT` — invoke the syscall. The runtime reads the argument into `,65535` and stores its length in `.3`.
-- `PLEASE DO .10 <- .3` — save the length so we don't lose it.
-- `DO READ OUT .10` — print the length in Roman numerals.
-- `DO GIVE UP` — exit.
+- `DO ,65535 <- #65535`: dimension the data buffer `,65535` to the maximum size. You do this exactly once at program entry.
+- `PLEASE DO .1 <- #6`: set the syscall number to 6 (argv).
+- `PLEASE DO .2 <- #1`: set the primary parameter to 1 (the first argument, 0-indexed).
+- `DO (666) NEXT`: invoke the syscall. The runtime reads the argument into `,65535` and stores its length in `.3`.
+- `PLEASE DO .10 <- .3`: save the length so we don't lose it.
+- `DO READ OUT .10`: print the length in Roman numerals.
+- `DO GIVE UP`: exit.
 
 If you compile this program and run it as `./program foo`, it prints `III` (3, the length of "foo"). If you run it as `./program hello`, it prints `V` (5).
 
 ## The reserved `,65535` array
 
-One of Label 666's design decisions is to reserve a specific array — `,65535` — for syscall data. Every syscall that needs a buffer (filenames for `open`, contents for `read`, arguments for `argv`) uses this array. The choice of 65535 is deliberate: it is the largest 16-bit array index, far from any number a realistic program would use naturally.
+One of Label 666's design decisions is to reserve a specific array, `,65535`: for syscall data. Every syscall that needs a buffer (filenames for `open`, contents for `read`, arguments for `argv`) uses this array. The choice of 65535 is deliberate: it is the largest 16-bit array index, far from any number a realistic program would use naturally.
 
 The runtime auto-dimensions `,65535` on the first use if you haven't explicitly. However, the convention across this project is for programs to dimension it explicitly at entry:
 
@@ -138,6 +138,6 @@ On the INTERCAL side, the minimal usage is what you saw above: set `.1` (and `.2
 
 ## Next reading
 
-- [666.md](666.md) — the full design rationale, CLC-INTERCAL analysis, and implementation choices.
-- [runtime.md](runtime.md) — the dispatcher and handler code in the runtime.
-- [self-hosting.md](self-hosting.md) — why Label 666 is critical to the self-hosting story.
+- [666.md](666.md): the full design rationale, CLC-INTERCAL analysis, and implementation choices.
+- [runtime.md](runtime.md): the dispatcher and handler code in the runtime.
+- [self-hosting.md](self-hosting.md): why Label 666 is critical to the self-hosting story.

@@ -1,6 +1,6 @@
 # The Turing Text Model
 
-Most languages have a `print` and a `read` that move characters between the program and the terminal directly. INTERCAL does not. Instead, character I/O on arrays goes through a deliberately convoluted intermediary called the *Turing Text Model* — a circular tape of 256 positions, an offset-based encoding, and a bit-reversal step. This chapter explains the mechanism in full, derives the encoding for a single character, and works through the hello-world deltas to demystify what the test program is doing.
+Most languages have a `print` and a `read` that move characters between the program and the terminal directly. INTERCAL does not. Instead, character I/O on arrays goes through a deliberately convoluted intermediary called the *Turing Text Model*, a circular tape of 256 positions, an offset-based encoding, and a bit-reversal step. This chapter explains the mechanism in full, derives the encoding for a single character, and works through the hello-world deltas to demystify what the test program is doing.
 
 The TTM is one of INTERCAL's signature features. Once you understand it, the rest of the language feels comparatively gentle.
 
@@ -85,7 +85,7 @@ The full sequence in `tests/test_hello.i` encodes `Hello, World!\n`:
 | 12 | `!` | 33  | 132 | 38  | 162 | 132 |
 | 13 | `\n` | 10 | 80  | 132 | 52  | 80  |
 
-The fourth delta is `0` — that is "no head movement" — because the same character `l` follows another `l`, so the head is already in the right place.
+The fourth delta is `0`: that is "no head movement", because the same character `l` follows another `l`, so the head is already in the right place.
 
 Compare to the actual contents of `tests/test_hello.i`:
 
@@ -93,9 +93,9 @@ Compare to the actual contents of `tests/test_hello.i`:
     DO ,1 SUB #2 <- #108
     DO ,1 SUB #3 <- #112
     PLEASE ,1 SUB #4 <- #0
-    DO ,1 SUB #5 <- #64       (← this is "o" — let me recompute)
+    DO ,1 SUB #5 <- #64       (← this is "o", let me recompute)
 
-The deltas in the source diverge from the table above at element 5. That is a clue: the test program is encoding a slightly different string than `Hello, World!` — perhaps without the comma, or with a different separator. Working through the actual test deltas is left as an exercise for the reader (see [appendix-exercise-hints.md](appendix-exercise-hints.md)).
+The deltas in the source diverge from the table above at element 5. That is a clue: the test program is encoding a slightly different string than `Hello, World!`: perhaps without the comma, or with a different separator. Working through the actual test deltas is left as an exercise for the reader (see [appendix-exercise-hints.md](appendix-exercise-hints.md)).
 
 ## Why the bit-reversal?
 
@@ -122,7 +122,7 @@ Both start zero at process entry. The output routine, in pseudo-code:
       write(stdout, &ch, 1)
     store pos back to _ttm_out_pos
 
-The bit-reversal is a few shifts and `and` masks. The modular subtraction is a `sub` followed by a mask with `0xFF`. The `write` syscall is one per character — there is no buffering. This makes a long string slow but keeps the runtime simple. A future optimisation would batch into a stack buffer and flush less often.
+The bit-reversal is a few shifts and `and` masks. The modular subtraction is a `sub` followed by a mask with `0xFF`. The `write` syscall is one per character, there is no buffering. This makes a long string slow but keeps the runtime simple. A future optimisation would batch into a stack buffer and flush less often.
 
 ## Encoding script
 
@@ -141,7 +141,7 @@ def encode_ttm(text):
 
 Pass this `"Hello, World!\n"` and you get the array of constants to embed in your `,N` array.
 
-The repository does not currently include such a script — the existing test files were encoded by hand. Adding one would be a useful contribution.
+The repository does not currently include such a script, the existing test files were encoded by hand. Adding one would be a useful contribution.
 
 ## Exercises
 
@@ -153,6 +153,6 @@ The repository does not currently include such a script — the existing test fi
 
 ## Next reading
 
-- [runtime.md](runtime.md) — the assembly that implements `_rt_read_out_array` and `_rt_write_in_array`.
-- [walkthrough-hello.md](walkthrough-hello.md) — the hello-world program traced through every phase, including the `READ OUT ,1` call.
-- [intercal-primer.md](intercal-primer.md) — short language tour, including the brief TTM summary.
+- [runtime.md](runtime.md): the assembly that implements `_rt_read_out_array` and `_rt_write_in_array`.
+- [walkthrough-hello.md](walkthrough-hello.md): the hello-world program traced through every phase, including the `READ OUT ,1` call.
+- [intercal-primer.md](intercal-primer.md): short language tour, including the brief TTM summary.

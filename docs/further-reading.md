@@ -8,7 +8,7 @@ All entries listed are free to read online or widely available in libraries. Pri
 
 - *Crafting Interpreters* by Robert Nystrom. Available at https://craftinginterpreters.com. A hands-on introduction to scanning, parsing, and evaluation, written against a small scripting language called Lox. The Java half of the book walks through a tree-walk interpreter, the C half walks through a bytecode VM. Pairs with our [pipeline.md](pipeline.md) and [lexing-and-parsing.md](lexing-and-parsing.md). The book's deliberate choice to hand-write everything rather than use generators matches the style of this project.
 
-- *Introduction to Compilers and Language Design* by Douglas Thain, University of Notre Dame. Available at https://dthain.github.io/books/compiler/. A single-semester textbook that walks through a full compiler for a C-like language targeting real assembly. Broader than *Crafting Interpreters* in coverage — includes optimisation and register allocation — and closer in tone to a university syllabus. Pairs with [code-generation.md](code-generation.md) and [platforms.md](platforms.md).
+- *Introduction to Compilers and Language Design* by Douglas Thain, University of Notre Dame. Available at https://dthain.github.io/books/compiler/. A single-semester textbook that walks through a full compiler for a C-like language targeting real assembly. Broader than *Crafting Interpreters* in coverage, includes optimisation and register allocation, and closer in tone to a university syllabus. Pairs with [code-generation.md](code-generation.md) and [platforms.md](platforms.md).
 
 - *Essentials of Compilation* by Jeremy G. Siek. Available in both Python and Racket editions at https://github.com/IUCompilerCourse. An incremental approach: start with a tiny arithmetic language and grow it, chapter by chapter, into a realistic language. Emphasises the intermediate-representation design decisions that our no-IR approach skips. Pairs with [self-hosting.md](self-hosting.md) if the reader is considering adding an IR later.
 
@@ -30,7 +30,7 @@ All entries listed are free to read online or widely available in libraries. Pri
 
 - "Reflections on Trusting Trust" by Ken Thompson. Turing Award lecture, 1984. Available at https://www.cs.cmu.edu/~rdriley/487/papers/Thompson_1984_ReflectionsonTrustingTrust.pdf. The canonical discussion of the trust implications of a self-hosted compiler: a malicious compiler can perpetuate itself through generations of self-compilation. Worth reading even though our compiler is too small to be a realistic vehicle for such an attack.
 
-- The Onramp project at https://github.com/ludocode/onramp. A portable self-bootstrapping C compiler designed to build itself on systems that lack any pre-existing C compiler. Different philosophy from ours — minimal subset first, grow outward — but the same family of problem. Pairs with [self-hosting.md](self-hosting.md).
+- The Onramp project at https://github.com/ludocode/onramp. A portable self-bootstrapping C compiler designed to build itself on systems that lack any pre-existing C compiler. Different philosophy from ours, minimal subset first, grow outward, but the same family of problem. Pairs with [self-hosting.md](self-hosting.md).
 
 - The shecc project at https://github.com/sysprog21/shecc. A self-hosting educational C compiler targeting ARM32 and RISC-V. Similar educational ambitions to this repository but for a real language. Good comparison point.
 
@@ -44,7 +44,7 @@ All entries listed are free to read online or widely available in libraries. Pri
 
 - The OSDev wiki's "Making a Compiler" page at https://wiki.osdev.org/Making_a_Compiler. A brief survey of the compiler anatomy. Overlaps with [map-of-the-compiler.md](map-of-the-compiler.md) from a different angle: OS-development readers coming to compilers often arrive here first.
 
-- CS 6120: Advanced Compilers, Cornell, self-guided edition by Adrian Sampson. Available at https://www.cs.cornell.edu/courses/cs6120/2023fa/self-guided/. An introduction to modern compiler optimisation techniques — SSA, dataflow analysis, loop transformations. Useful for the reader who wants to see where a compiler goes *after* the basic pipeline this repository implements.
+- CS 6120: Advanced Compilers, Cornell, self-guided edition by Adrian Sampson. Available at https://www.cs.cornell.edu/courses/cs6120/2023fa/self-guided/. An introduction to modern compiler optimisation techniques. SSA, dataflow analysis, loop transformations. Useful for the reader who wants to see where a compiler goes *after* the basic pipeline this repository implements.
 
 ## INTERCAL resources
 

@@ -61,12 +61,12 @@ The Linux ARM64 and Linux x86-64 runtimes are translated versions of the same lo
 
 ## Self-hosted compiler
 
-    src/compiler/compiler.i                  Self-hosted MVP — template-dispatch passthrough.
-    src/compiler/stage3.i                    Evolving real compiler — Phase 4 work-in-progress.
+    src/compiler/compiler.i                  Self-hosted MVP, template-dispatch passthrough.
+    src/compiler/stage3.i                    Evolving real compiler. Phase 4 work-in-progress.
     src/compiler/templates/<platform>/*.s    Pre-generated assembly per test program per platform.
     src/compiler/templates/manifest.txt      SHA-256 manifest for integrity checking.
 
-The MVP classifies incoming programs by content hash and emits the matching pre-generated assembly. It is not a real compiler — it's just enough of one to prove the self-hosted pipeline end-to-end (read a `.i` file via Label 666, emit assembly to stdout, let the wrapper link it). See [self-hosting.md](self-hosting.md).
+The MVP classifies incoming programs by content hash and emits the matching pre-generated assembly. It is not a real compiler, it's just enough of one to prove the self-hosted pipeline end-to-end (read a `.i` file via Label 666, emit assembly to stdout, let the wrapper link it). See [self-hosting.md](self-hosting.md).
 
 `stage3.i` is where the real lexer / parser / codegen is slowly being rewritten in pure INTERCAL. Today (2026-04-21) it only reads the source file and prints byte-count and first/last byte diagnostics.
 

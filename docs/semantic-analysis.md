@@ -2,9 +2,9 @@
 
 By the time the lexer finishes, the compiler knows enough about every statement to start checking program-wide properties. Three checks run in `src/bootstrap/intercalc.sh` between tokenisation and codegen:
 
-- `check_politeness` — the PLEASE ratio must be in [1/5, 1/3] (programs of fewer than five statements bypass the rule).
-- `check_labels` — labels must be in the range 1–65535 and unique; build the label → statement-index map.
-- `resolve_come_from` — match every `COME FROM (N)` to the labelled statement it targets, rejecting duplicate targets.
+- `check_politeness`: the PLEASE ratio must be in [1/5, 1/3] (programs of fewer than five statements bypass the rule).
+- `check_labels`: labels must be in the range 1–65535 and unique; build the label → statement-index map.
+- `resolve_come_from`: match every `COME FROM (N)` to the labelled statement it targets, rejecting duplicate targets.
 
 These are almost the entirety of the static analysis the compiler performs. Everything else in the INTERCAL error catalogue (undefined variable, dimension zero, bad subscript, overflow, ...) fires at runtime, because INTERCAL's statement-level activation model makes most conditions undecidable at compile time.
 
@@ -44,7 +44,7 @@ The map is essential for the phases that follow:
 - `COME FROM` resolution needs to find the statement with that label so it can install the back-edge.
 - `ABSTAIN FROM (N)` and `REINSTATE (N)` codegen need the statement index to locate the bit in `_stmt_flags`.
 
-Labels 1000–1999 are reserved for the syslib. `check_labels` does not enforce this today — that is a latent consistency gap we rely on programmers to respect. If user code defines a label in 1000–1999, the syslib's own definition of the same label will either override or conflict depending on link order. The syslib is always concatenated after the user code, so the user's label wins; if the user did not also define the syslib's internal jumps, the syslib itself may break. A compile-time check for this is listed in the TODO.
+Labels 1000–1999 are reserved for the syslib. `check_labels` does not enforce this today, that is a latent consistency gap we rely on programmers to respect. If user code defines a label in 1000–1999, the syslib's own definition of the same label will either override or conflict depending on link order. The syslib is always concatenated after the user code, so the user's label wins; if the user did not also define the syslib's internal jumps, the syslib itself may break. A compile-time check for this is listed in the TODO.
 
 ## COME FROM resolution
 
@@ -71,7 +71,7 @@ A COME FROM statement can itself have `%N` and can be abstained. Both are handle
     _stmt_come_from_body:
     ; abstain flag check
     ; probability roll
-    ; (the COME FROM body itself is empty — it just falls through)
+    ; (the COME FROM body itself is empty, it just falls through)
     ; continue at _stmt_come_from+1
 
 If the abstain flag is set, the COME FROM body jumps back to `_stmt_N+1`, i.e. to normal flow. If the probability roll fails, same thing. Only when both checks pass does control stay at the COME FROM body and continue with the statement after it.
@@ -91,13 +91,13 @@ A handful of checks that used to live at runtime have been promoted to compile t
 - `NEXT (N)`, `ABSTAIN FROM (N)`, and `REINSTATE (N)` with an undefined label `N` used to emit a runtime branch into `_rt_error_E129` or `_rt_error_E139`. The label set is known at compile time, so the check now fires `ICL129I` or `ICL139I` at compile time and refuses to produce a binary.
 - `ABSTAIN FROM gerund-list` (and the matching `REINSTATE`) used to silently ignore unknown gerund names. The check is now a compile-time rejection: `DO ABSTAIN FROM PROCRASTINATING` fails with a diagnostic naming the unknown gerund.
 
-The pattern — fold a runtime structural check into compile time once we are sure the relevant data is available — is a small but real form of optimisation. Each check moved removes both a per-emitted-statement cost and a class of late-firing bugs.
+The pattern, fold a runtime structural check into compile time once we are sure the relevant data is available, is a small but real form of optimisation. Each check moved removes both a per-emitted-statement cost and a class of late-firing bugs.
 
 ## `scan_variables`
 
 Not strictly a check, but run in the same pass group. `scan_variables` records which `.N`, `:N`, `,N`, `;N` numbers appear anywhere in the program. The result is four associative arrays keyed by number. Codegen uses them to emit exactly the BSS symbols it needs.
 
-For a variable that appears in an expression but is never assigned, we still record it as "used" — reading it is well-defined (value 0), and we need the BSS slot.
+For a variable that appears in an expression but is never assigned, we still record it as "used", reading it is well-defined (value 0), and we need the BSS slot.
 
 ## Exercises
 
@@ -109,5 +109,5 @@ For a variable that appears in an expression but is never assigned, we still rec
 
 ## Next reading
 
-- [code-generation.md](code-generation.md) — what we do with the resolved label map and the come_from_target entries.
-- [runtime.md](runtime.md) — the `_rt_error_*` targets that codegen emits for the runtime-side checks listed here.
+- [code-generation.md](code-generation.md): what we do with the resolved label map and the come_from_target entries.
+- [runtime.md](runtime.md): the `_rt_error_*` targets that codegen emits for the runtime-side checks listed here.

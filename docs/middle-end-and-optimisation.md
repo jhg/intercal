@@ -21,7 +21,7 @@ Four reasons, in increasing order of honesty:
 3. **We have no production users for whom performance matters.** Compiler performance becomes important when somebody is waiting for a build, or when the compiled program is on a hot path. Our compiler is an educational artifact. Neither constraint applies.
 4. **Optimising an esoteric language is poorly-rewarded.** The classical optimisations assume that the source language has features (`if`, `for`, call sites with known targets) whose improved handling translates to real speedups. INTERCAL's constructs don't map onto those assumptions cleanly, and the idiomatic performance traps in INTERCAL programs (deep STASH stacks, large TTM arrays) are not what loop unrolling or constant folding address.
 
-So we skip the middle end on principle. The compiler stays at roughly 2100 lines of zsh instead of 5000 lines with a real IR. A handful of local optimisations (constant folding, peephole, dead-flag elimination — see below) live as small passes that operate directly on the parse tree or the emitted assembly, without an IR layer in between.
+So we skip the middle end on principle. The compiler stays at roughly 2100 lines of zsh instead of 5000 lines with a real IR. A handful of local optimisations (constant folding, peephole, dead-flag elimination, see below) live as small passes that operate directly on the parse tree or the emitted assembly, without an IR layer in between.
 
 ## Optimisations the compiler already performs
 
@@ -31,9 +31,9 @@ A handful of local optimisations have been added incrementally. Each lives as a 
 
 When both operands of `$` (mingle) or `~` (select), or the child of a unary operator (`&`, `V`, `?`), are compile-time constants, the codegen computes the result directly and emits a single `mov` instead of a call into the runtime. The fold lives inside `codegen_expr` and adds a few dozen lines per operator.
 
-The benefit is small in absolute terms — most INTERCAL programs have few wholly-constant expressions — but the savings on TTM-encoded text output (where every character is a constant manipulated by mingle / select before being stored) are visible.
+The benefit is small in absolute terms, most INTERCAL programs have few wholly-constant expressions, but the savings on TTM-encoded text output (where every character is a constant manipulated by mingle / select before being stored) are visible.
 
-In compiler-theory terms, our `eval_const` is an instance of the broader *constant propagation* family. The full version of the technique computes, for each program point, the set of variables whose values are statically known, then replaces uses of those variables with the literal values. Constant folding is the leaf-level case — when an expression is built only from literals, evaluate it. The next step up is *sparse conditional constant propagation* (SCCP), which combines folding with reachability analysis to eliminate dead branches whose conditions evaluate to compile-time constants. We do not run SCCP because we do not have control-flow constructs of the right shape; the `%N` probability check is technically reachable from any value of N, and the abstain-flag check is conditional on runtime state.
+In compiler-theory terms, our `eval_const` is an instance of the broader *constant propagation* family. The full version of the technique computes, for each program point, the set of variables whose values are statically known, then replaces uses of those variables with the literal values. Constant folding is the leaf-level case, when an expression is built only from literals, evaluate it. The next step up is *sparse conditional constant propagation* (SCCP), which combines folding with reachability analysis to eliminate dead branches whose conditions evaluate to compile-time constants. We do not run SCCP because we do not have control-flow constructs of the right shape; the `%N` probability check is technically reachable from any value of N, and the abstain-flag check is conditional on runtime state.
 
 ### Dead-flag elimination (implemented)
 
@@ -41,7 +41,7 @@ Every compiled statement used to begin with a three-instruction sequence that lo
 
 ### Peephole pass (implemented)
 
-A post-codegen pass walks the emitted assembly looking for one specific pattern: an unconditional branch (`b LABEL` on ARM64, `jmp LABEL` on x86-64) immediately followed by the label it targets. The branch is dead — fall-through reaches the label anyway — so the pass drops it. Lives in `peephole_optimize`. The pattern arises naturally from the way the dispatcher used to emit a trampoline label after every statement; eliminating the trampoline plus this peephole keeps the emitted code compact.
+A post-codegen pass walks the emitted assembly looking for one specific pattern: an unconditional branch (`b LABEL` on ARM64, `jmp LABEL` on x86-64) immediately followed by the label it targets. The branch is dead, fall-through reaches the label anyway, so the pass drops it. Lives in `peephole_optimize`. The pattern arises naturally from the way the dispatcher used to emit a trampoline label after every statement; eliminating the trampoline plus this peephole keeps the emitted code compact.
 
 More elaborate peephole rules (load-after-store cancellation, redundant `mov`, jump-to-jump short-circuiting) are within reach but not yet implemented.
 
@@ -69,7 +69,7 @@ If we ever wanted to take optimisation seriously, the first step would be to int
 
 The textbook construction is Cytron, Ferrante, Rosen, Wegman and Zadeck (1991), *Efficiently Computing Static Single Assignment Form and the Control Dependence Graph*. The algorithm has two parts:
 
-1. Compute the control-flow graph and its dominance relation. Then compute the *dominance frontier* of every node — the set of nodes Y where the current node X dominates a predecessor of Y but does not strictly dominate Y. This is where φ-functions belong.
+1. Compute the control-flow graph and its dominance relation. Then compute the *dominance frontier* of every node, the set of nodes Y where the current node X dominates a predecessor of Y but does not strictly dominate Y. This is where φ-functions belong.
 2. Place φ-functions at the dominance frontiers, then rename variables so that every definition has a unique name and every use names the dominating definition.
 
 The result is in worst-case linear time in the size of the program, which is what made SSA practical for production compilers. LLVM, GCC's GIMPLE, and most modern back-ends rely on it.
@@ -100,7 +100,7 @@ When the compiler is invoked with `INTERCAL_SYSLIB=cache` (env var), the syslib'
 
 1. The compiler hashes `src/syslib/syslib.i` with SHA-256.
 2. It looks for a pre-compiled artifact at `$XDG_CACHE_HOME/intercal/syslib-<platform>-<hash>.s` (default `$HOME/.cache/intercal/`).
-3. If present, the artifact is concatenated with the runtime and the program — same shape as the native path.
+3. If present, the artifact is concatenated with the runtime and the program, same shape as the native path.
 4. If absent, `intercalc.sh --emit-syslib` is invoked recursively to produce the artifact, which is then placed in the cache and used.
 
 The artifact is a stand-alone assembly file with all internal `_stmt_*` symbols renamed to `_syslib_stmt_*` (avoiding link-time clash with the user program), BSS variables emitted as `.comm` (mergeable across translation units), and `.global _rt_syslib_NNNN` aliases for every labelled syslib routine.
@@ -132,6 +132,6 @@ None of these apply today. The compiler stays frontend-backend-only.
 
 ## Next reading
 
-- [code-generation.md](code-generation.md) — the current direct-emission codegen.
-- [self-hosting.md](self-hosting.md) — why we are not in a position to add a middle end yet.
-- [further-reading.md](further-reading.md) — the books to read (Cooper & Torczon, Appel) if you want to implement one anyway.
+- [code-generation.md](code-generation.md): the current direct-emission codegen.
+- [self-hosting.md](self-hosting.md): why we are not in a position to add a middle end yet.
+- [further-reading.md](further-reading.md): the books to read (Cooper & Torczon, Appel) if you want to implement one anyway.

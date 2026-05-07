@@ -12,8 +12,8 @@ Windows is on the roadmap but not implemented. The macOS ARM64 target is the pri
 
 Supporting a new target for this compiler means providing three things, all of which live in the repository as hand-written assembly:
 
-1. A runtime — `src/runtime/<platform>.s` — with every `_rt_*` routine listed in [runtime.md](runtime.md).
-2. A native syslib — `src/syslib/native/<platform>.s` — with all 20 arithmetic labels.
+1. A runtime, `src/runtime/<platform>.s`: with every `_rt_*` routine listed in [runtime.md](runtime.md).
+2. A native syslib, `src/syslib/native/<platform>.s`: with all 20 arithmetic labels.
 3. Either a codegen module that directly emits the target assembly (as in `src/bootstrap/codegen_x86_64.sh`), or a source-to-source conversion from the macOS ARM64 assembly produced by `intercalc.sh` (as in the `sed` pipeline inside `main` for Linux ARM64).
 
 The first two are mechanical translations. The third is the real design decision, and we have made it differently for Linux ARM64 than for Linux x86-64.
@@ -38,7 +38,7 @@ A compressed version of the table in `AGENTS.md`:
 | `exit` syscall number | 1 | 93 | 60 |
 | `read` | 3 | 63 | 0 |
 | `write` | 4 | 64 | 1 |
-| `open` | 5 | — (use `openat` = 56) | 2 |
+| `open` | 5 | (use `openat` = 56) | 2 |
 | `close` | 6 | 57 | 3 |
 | `mmap` | 197 | 222 | 9 |
 | `MAP_ANON` \| `MAP_PRIVATE` | 0x1002 | 0x22 | 0x22 |
@@ -88,7 +88,7 @@ This is a distilled version of the platform-pitfalls section of `AGENTS.md`. The
 - `adrp sym` computes the page base of `sym`. GNU `as` infers the page relocation automatically, but Apple `as` requires `sym@PAGE`. The `sed` step adds or removes the suffix accordingly.
 - `add x0, x0, sym@PAGEOFF` on macOS becomes `add x0, x0, :lo12:sym` on Linux. The `:lo12:` prefix does *not* go on the `adrp` instruction; GNU `as` infers the high bits.
 - `:pg_hi21:` never appears in either flavour of our output. Earlier experiments where we emitted it caused GNU `as` to reject the file with "junk at end of line".
-- macOS reserves `svc #0x80` for syscalls; Linux uses `svc #0`. The trap-handler-side check ignores the immediate on macOS — what dispatches the syscall is the value in `x16`. The `0x80` convention on macOS dates back to Apple's BSD heritage on x86 (`int 0x80`); when the platform moved to ARM64, the immediate was preserved out of inertia. Linux ARM64 chose `svc #0` because there is no historical reason for any other value on a fresh ABI.
+- macOS reserves `svc #0x80` for syscalls; Linux uses `svc #0`. The trap-handler-side check ignores the immediate on macOS, what dispatches the syscall is the value in `x16`. The `0x80` convention on macOS dates back to Apple's BSD heritage on x86 (`int 0x80`); when the platform moved to ARM64, the immediate was preserved out of inertia. Linux ARM64 chose `svc #0` because there is no historical reason for any other value on a fresh ABI.
 
 ### Linux ARM64 only
 
@@ -137,6 +137,6 @@ The script spins up a Docker container for the requested platform, installs zsh 
 
 ## Next reading
 
-- [runtime.md](runtime.md) — the per-platform runtime routines that this chapter's differences manifest in.
-- [testing-and-workflow.md](testing-and-workflow.md) — how the CI job configures each platform.
-- `AGENTS.md` sections "Multi-platform porting guide" and "Assembly pitfalls by platform" — the authoritative versions of the tables and pitfalls summarised here.
+- [runtime.md](runtime.md): the per-platform runtime routines that this chapter's differences manifest in.
+- [testing-and-workflow.md](testing-and-workflow.md): how the CI job configures each platform.
+- `AGENTS.md` sections "Multi-platform porting guide" and "Assembly pitfalls by platform", the authoritative versions of the tables and pitfalls summarised here.

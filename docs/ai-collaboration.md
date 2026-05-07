@@ -1,6 +1,6 @@
 # Working on this repository with an AI agent
 
-This chapter is for the human who wants to use an AI coding assistant on this repository, and for the AI agent itself. The primary guide for any contributor — human or AI — is `AGENTS.md` in the repository root. That file is the authoritative contract: how to run tests, how to structure commits, what the TDD workflow looks like, which language pitfalls apply to which platform. What follows here is the shorter, compiler-specific briefing that assumes `AGENTS.md` will be consulted whenever specifics are needed.
+This chapter is for the human who wants to use an AI coding assistant on this repository, and for the AI agent itself. The primary guide for any contributor, human or AI, is `AGENTS.md` in the repository root. That file is the authoritative contract: how to run tests, how to structure commits, what the TDD workflow looks like, which language pitfalls apply to which platform. What follows here is the shorter, compiler-specific briefing that assumes `AGENTS.md` will be consulted whenever specifics are needed.
 
 ## Why this matters
 
@@ -21,7 +21,7 @@ From `AGENTS.md`, summarised:
 - Before modifying the compiler, syslib, or runtime, add a failing test that captures the intended behaviour.
 - Run `zsh tests/run_tests.sh` locally before every commit. For self-hosted changes run `zsh tests/run_self_tests.sh` too.
 - One sub-stage per commit during stage3 development; each commit is green on all three platforms.
-- Never edit `CLAUDE.md` directly — it is a symlink to `AGENTS.md`.
+- Never edit `CLAUDE.md` directly, it is a symlink to `AGENTS.md`.
 - Never skip git hooks (`--no-verify`) without explicit permission.
 - Never commit broken code. If a commit fails tests, fix it or revert; do not amend a broken commit's predecessor.
 - Never delegate understanding to a sub-agent. Sub-agents are for parallel research, not for one-off edits to `intercalc.sh` or the runtime assembly.
@@ -32,7 +32,7 @@ These rules exist because past violations have caused real regressions. The TDD 
 
 - Broad searches across the codebase (find every place `,65535` is written, find every `_rt_error_*` call site, enumerate all TODOs).
 - Parallel research (platform-specific assembly pitfalls vs cross-platform pitfalls, differential-testing techniques vs traditional golden-output testing).
-- Drafting documentation — the kind of editorial work this directory represents.
+- Drafting documentation, the kind of editorial work this directory represents.
 - Proposing test cases from a natural-language description of a bug.
 - Reviewing a diff for consistency with the rest of the codebase.
 
@@ -59,9 +59,9 @@ A poorly briefed agent produces generic, middle-of-the-road answers. A well-brie
 
 The repository's `memory/` directory (private to each user) stores per-user notes that persist across sessions. The general convention established in this project:
 
-- `memory/project_status.md` — what is done, what is next, phase tracking.
-- `memory/architecture.md` — the current compiler architecture, per-platform.
-- `memory/bugs_learned.md` — critical bugs and the lessons from them.
+- `memory/project_status.md`: what is done, what is next, phase tracking.
+- `memory/architecture.md`: the current compiler architecture, per-platform.
+- `memory/bugs_learned.md`: critical bugs and the lessons from them.
 
 These files are not committed to the repository, by design. They hold the agent's running understanding of the project, which would be noise for another human reading the history.
 
@@ -71,12 +71,12 @@ The `TODO.md` at the repository root is different: it is a working notes file be
 
 Words that mean specific things in this project and should not be interpreted through their general software-engineering meaning:
 
-- *Bootstrap* — the shell-script compiler `src/bootstrap/intercalc.sh`, the chispa primigenea. Not the CI concept, not the OS-loading concept.
-- *Self-hosted* — compiled by `intercal_core`, itself produced from `src/compiler/compiler.i`. Specifically not the bootstrap path.
-- *Fixpoint* — the property that gen2 and gen3 of the self-hosting process produce byte-identical assembly.
-- *Template* — a pre-generated assembly file under `src/compiler/templates/`. Not a Jinja template or a C++ template.
-- *Runtime* — the hand-written platform-specific assembly under `src/runtime/`. Not a Python runtime, not the JVM.
-- *Pure syslib* — the INTERCAL-language implementation of labels 1000–1999 in `src/syslib/syslib.i`. The `--pure-syslib` flag makes the compiler use it instead of the native assembly version.
+- *Bootstrap*: the shell-script compiler `src/bootstrap/intercalc.sh`, the chispa primigenea. Not the CI concept, not the OS-loading concept.
+- *Self-hosted*: compiled by `intercal_core`, itself produced from `src/compiler/compiler.i`. Specifically not the bootstrap path.
+- *Fixpoint*: the property that gen2 and gen3 of the self-hosting process produce byte-identical assembly.
+- *Template*: a pre-generated assembly file under `src/compiler/templates/`. Not a Jinja template or a C++ template.
+- *Runtime*: the hand-written platform-specific assembly under `src/runtime/`. Not a Python runtime, not the JVM.
+- *Pure syslib*: the INTERCAL-language implementation of labels 1000–1999 in `src/syslib/syslib.i`. The `--pure-syslib` flag makes the compiler use it instead of the native assembly version.
 
 ## The commit message convention
 
@@ -104,10 +104,10 @@ The rule of thumb from `AGENTS.md`: the cost of pausing is low; the cost of an u
 
 ## Reading order for a fresh agent session
 
-1. `AGENTS.md` — the contract.
-2. `README.md` — what the repository is and how to build it.
-3. `docs/overview.md` — why it is shaped this way.
-4. `docs/map-of-the-compiler.md` — where to find things.
+1. `AGENTS.md`: the contract.
+2. `README.md`: what the repository is and how to build it.
+3. `docs/overview.md`: why it is shaped this way.
+4. `docs/map-of-the-compiler.md`: where to find things.
 5. The phase chapters, as needed for the task at hand.
 
 An agent that starts with the first three files and consults the rest on demand is operating correctly.

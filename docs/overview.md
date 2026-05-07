@@ -35,7 +35,7 @@ There is no IR. The pipeline is:
 
 1. **Read** the `.i` source from stdin or argv.
 2. **Tokenise** into statements with their modifiers (PLEASE, NOT, %probability).
-3. **Classify** each statement (assignment, NEXT, RESUME, READ OUT, etc.) and parse its body — for expressions, into a tree.
+3. **Classify** each statement (assignment, NEXT, RESUME, READ OUT, etc.) and parse its body, for expressions, into a tree.
 4. **Check** politeness (between 1/5 and 1/3 of statements must use PLEASE), label uniqueness, and resolve `COME FROM` targets.
 5. **Emit** ARM64 or x86-64 assembly directly, one function-like block per statement.
 6. **Concatenate** the generated assembly with the pre-written runtime and syslib for the platform.
@@ -50,14 +50,14 @@ Most compiler textbooks build a mini-C or a mini-Lisp. Those are practical, but 
 | Concept | How INTERCAL forces you to think about it |
 |---------|-------------------------------------------|
 | Tokenisation | Case-insensitive, whitespace-agnostic, no statement terminator. `DON'T` must be one token. |
-| Grammar | Grouping with sparks `'` and rabbit-ears `"` that must alternate — two families of brackets, not one. |
+| Grammar | Grouping with sparks `'` and rabbit-ears `"` that must alternate, two families of brackets, not one. |
 | Operator semantics | Unary operators work on adjacent bits of the same value, not between two values. |
 | Static analysis | Politeness is a property of the whole program, not any single statement. |
-| Non-local control flow | `COME FROM` reverses the caller/callee relationship — the target statement doesn't know it has a follower. |
+| Non-local control flow | `COME FROM` reverses the caller/callee relationship, the target statement doesn't know it has a follower. |
 | Calling convention | The system library is itself INTERCAL source, glued into the program via labels 1000–1999. |
 | Runtime | Output is Roman numerals (READ OUT a scalar) or a Turing tape (READ OUT an array). Neither is free. |
 | Self-hosting | The compiler's own source is INTERCAL, and it must reach a three-generation fixpoint. |
-| Bootstrap | Before the compiler exists, a shell script has to do its job — and the shell script must emit the same assembly the INTERCAL compiler will eventually emit. |
+| Bootstrap | Before the compiler exists, a shell script has to do its job, and the shell script must emit the same assembly the INTERCAL compiler will eventually emit. |
 
 A C compiler teaches you the happy path. INTERCAL teaches you the full shape.
 

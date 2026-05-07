@@ -54,7 +54,7 @@ A useful crutch: modify the source program to precede the suspect statement with
 
 `SIGSEGV` in the compiled binary is usually one of:
 
-- The codegen emitted an addressing expression that the assembler accepted but the CPU rejects (exceedingly rare — three-register addressing on x86-64 is usually caught by the assembler).
+- The codegen emitted an addressing expression that the assembler accepted but the CPU rejects (exceedingly rare, three-register addressing on x86-64 is usually caught by the assembler).
 - The runtime mis-manages the stack: a saved register is not restored, or a stack-local buffer was sized incorrectly.
 - The codegen overwrote a callee-saved register without saving it.
 
@@ -74,7 +74,7 @@ The hardest category. The binary compiles, runs, exits, and prints the wrong ans
 
 Strategy in order of escalation:
 
-1. Compare the output to the expected. How big is the diff — one byte, one line, one word? One byte usually means an arithmetic off-by-one or a TTM tape miscalculation. Longer suggests a control-flow divergence.
+1. Compare the output to the expected. How big is the diff, one byte, one line, one word? One byte usually means an arithmetic off-by-one or a TTM tape miscalculation. Longer suggests a control-flow divergence.
 2. Reproduce with the smallest possible input. Delete statements until the divergence no longer reproduces; the last statement whose deletion fixes it is the one the bug lives in.
 3. Compile the reduced reproducer with `INTERCAL_ASM_ONLY=1` and read the emitted assembly for that statement. Does it match your mental model of what the codegen should produce?
 4. If it does, the bug is in the runtime routine the codegen called. Open the corresponding `_rt_*` routine in the platform assembly file and read it.
@@ -122,7 +122,7 @@ For statement-level structural analysis, the compiler exposes a `--diagnose` fla
 
     zsh src/bootstrap/intercalc.sh --diagnose < tests/test_hello.i
 
-This prints the tokenised statement table — type, polite flag, negation, label, body — without invoking the codegen. Useful when you want to confirm that the lexer is classifying statements the way you expect.
+This prints the tokenised statement table, type, polite flag, negation, label, body, without invoking the codegen. Useful when you want to confirm that the lexer is classifying statements the way you expect.
 
 For performance regressions, `tools/bench.sh` measures compile and link timings on representative programs:
 
@@ -144,7 +144,7 @@ A lint failure is not definitive proof of a bug, but it is a strong hint.
 
 The private `memory/bugs_learned.md` file, per developer, records critical bugs and what we learned from them. The existing entries cover the major regressions: the syslib prepend-vs-append issue, the DON'T tokenisation bug, the Linux x86-64 stack-slot collision.
 
-New bugs worth documenting are those whose fix is non-obvious from the diff — usually a root-cause analysis deeper than "we forgot to handle case X". Updating `memory/bugs_learned.md` after debugging a hard bug is one of the few routine maintenance habits the project has.
+New bugs worth documenting are those whose fix is non-obvious from the diff, usually a root-cause analysis deeper than "we forgot to handle case X". Updating `memory/bugs_learned.md` after debugging a hard bug is one of the few routine maintenance habits the project has.
 
 ## Exercises
 

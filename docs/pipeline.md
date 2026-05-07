@@ -58,14 +58,14 @@ The script is `src/bootstrap/intercalc.sh`. It runs seven phases, all inside one
 
 The list, with their entry points in `intercalc.sh`:
 
-1. `read_source` — slurp stdin, flatten newlines and tabs to spaces, uppercase everything.
-2. `tokenize` — split into statements; attach label, polite flag, negation, probability, type and body to each.
-3. `scan_variables` — record which variable numbers are actually used, so we can allocate BSS space later.
-4. `check_politeness` — count PLEASE usage; reject if outside [1/5, 1/3].
-5. `check_labels` — reject duplicate labels; build the label→statement map.
-6. `resolve_come_from` — for each `COME FROM (N)`, record the reverse edge from label `N`.
-7. `detect_syslib` — scan NEXT targets; if any land in 1000–1999, flag that we need to link the syslib.
-8. `codegen_program` — emit one block of assembly per statement into a growing string `$asm`.
+1. `read_source`: slurp stdin, flatten newlines and tabs to spaces, uppercase everything.
+2. `tokenize`: split into statements; attach label, polite flag, negation, probability, type and body to each.
+3. `scan_variables`: record which variable numbers are actually used, so we can allocate BSS space later.
+4. `check_politeness`: count PLEASE usage; reject if outside [1/5, 1/3].
+5. `check_labels`: reject duplicate labels; build the label→statement map.
+6. `resolve_come_from`: for each `COME FROM (N)`, record the reverse edge from label `N`.
+7. `detect_syslib`: scan NEXT targets; if any land in 1000–1999, flag that we need to link the syslib.
+8. `codegen_program`: emit one block of assembly per statement into a growing string `$asm`.
 9. Final assembly: concatenate `src/runtime/<platform>.s`, optionally `src/syslib/native/<platform>.s`, and the generated program assembly, then pipe the whole thing through `cc -x assembler - -o binary`.
 
 Strictly speaking, steps 4–7 are separate passes over the statement list, not one phase. From a textbook standpoint they are all "semantic analysis".
@@ -74,7 +74,7 @@ Strictly speaking, steps 4–7 are separate passes over the statement list, not 
 
 `read_source` reads stdin into a single zsh string `SOURCE`. Newlines, tabs and carriage returns are collapsed to spaces. Everything is uppercased. INTERCAL is whitespace-agnostic and case-insensitive, so this simplification costs nothing and makes every later phase easier.
 
-There is no file-level syntax to preserve. Comments don't exist. A line break has no meaning. So losing the original formatting is fine — the compiler only needs the stream of significant tokens.
+There is no file-level syntax to preserve. Comments don't exist. A line break has no meaning. So losing the original formatting is fine, the compiler only needs the stream of significant tokens.
 
 ## Phase 2: Tokenise
 
@@ -105,7 +105,7 @@ Why: the codegen phase emits one BSS symbol per used variable. A program that re
 
 `check_politeness` counts statements (numerator = those with `stmt_polite=1`, denominator = `stmt_count`) and verifies that `numerator * 5 >= denominator` and `numerator * 3 <= denominator`. Failure fires `die_compile 079` or `die_compile 099`, which prints `ICL079I` or `ICL099I` to stderr and exits with status 1.
 
-This is the only compile-time error the compiler reports for a well-formed program. Every other error in the INTERCAL error catalogue is a runtime error, because INTERCAL lets you write unrecognised statements — they might be abstained and never execute.
+This is the only compile-time error the compiler reports for a well-formed program. Every other error in the INTERCAL error catalogue is a runtime error, because INTERCAL lets you write unrecognised statements, they might be abstained and never execute.
 
 ## Phase 5: Check labels
 
@@ -139,7 +139,7 @@ The full per-statement walk-through lives in [code-generation.md](code-generatio
 
 With the assembly text ready in the zsh variable `$asm`, `main` concatenates:
 
-1. `src/runtime/<platform>.s` — the runtime.
+1. `src/runtime/<platform>.s`: the runtime.
 2. `src/syslib/native/<platform>.s` if `needs_syslib=1` and `--pure-syslib` was not set.
 3. The generated `$asm`.
 
@@ -166,7 +166,7 @@ For smaller debugging you can always add a `set -x` near the top of `intercalc.s
 
 ## Next reading
 
-- [lexing-and-parsing.md](lexing-and-parsing.md) — Phases 2 and the expression parser.
-- [semantic-analysis.md](semantic-analysis.md) — Phases 4–6.
-- [code-generation.md](code-generation.md) — Phase 8.
-- [runtime.md](runtime.md) — what the emitted assembly calls into.
+- [lexing-and-parsing.md](lexing-and-parsing.md): Phases 2 and the expression parser.
+- [semantic-analysis.md](semantic-analysis.md): Phases 4–6.
+- [code-generation.md](code-generation.md): Phase 8.
+- [runtime.md](runtime.md): what the emitted assembly calls into.

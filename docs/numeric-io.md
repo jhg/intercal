@@ -1,6 +1,6 @@
 # Numeric I/O: Roman numerals and English digit names
 
-INTERCAL's numeric I/O is, like everything else in the language, a parody of common practice. Numbers are output in Roman numerals; numbers are read in spelled-out English digit names (`ONE TWO THREE` for 123). Neither convention is what a programmer expects, and neither is incidental — they are first-class language features documented in the original 1972 manual.
+INTERCAL's numeric I/O is, like everything else in the language, a parody of common practice. Numbers are output in Roman numerals; numbers are read in spelled-out English digit names (`ONE TWO THREE` for 123). Neither convention is what a programmer expects, and neither is incidental, they are first-class language features documented in the original 1972 manual.
 
 This chapter describes both directions in detail, including the algorithms, the overbar (vinculum) notation for values above the classical Roman range, and the corner cases that have given the runtime trouble.
 
@@ -53,7 +53,7 @@ Programs that need to verify overbar handling can use `tests/test_overbar.i`.
 
 ### The zero corner case
 
-Roman numerals have no symbol for zero. The convention adopted by every modern INTERCAL implementation, including ours, is to emit nothing — a literal empty output — when `READ OUT` is called on a variable holding zero. This is silent rather than an error, on the grounds that the spec is silent on the question and an error message would be more annoying than useful.
+Roman numerals have no symbol for zero. The convention adopted by every modern INTERCAL implementation, including ours, is to emit nothing, a literal empty output, when `READ OUT` is called on a variable holding zero. This is silent rather than an error, on the grounds that the spec is silent on the question and an error message would be more annoying than useful.
 
 Programs that need to distinguish "zero output" from "no output" can pad their output with another non-zero `READ OUT` call before or after.
 
@@ -83,7 +83,7 @@ function write_roman(n):
   write(stdout, "\n")
 ```
 
-The actual ARM64 implementation walks a table in `.data` and emits one syscall per output. There is no buffering — character at a time, which is slow but simple.
+The actual ARM64 implementation walks a table in `.data` and emits one syscall per output. There is no buffering, character at a time, which is slow but simple.
 
 ## English digit-name input
 
@@ -104,7 +104,7 @@ The supported tokens, with their digit values:
 | `EIGHT` | 8 |
 | `NINER` | 9 |
 
-Note: `NINE` is *not* recognised. The 1972 manual specifies `NINER`, the radio-procedural rendering of nine. This is the most common gotcha for new INTERCAL programmers — typing `NINE` produces `ICL579I BAD INPUT`. The convention is preserved in our implementation for spec compatibility.
+Note: `NINE` is *not* recognised. The 1972 manual specifies `NINER`, the radio-procedural rendering of nine. This is the most common gotcha for new INTERCAL programmers, typing `NINE` produces `ICL579I BAD INPUT`. The convention is preserved in our implementation for spec compatibility.
 
 ### Token parsing
 
@@ -120,7 +120,7 @@ For 32-bit destinations (`:N`), the same algorithm runs against a 32-bit accumul
 
 ## Why these specific conventions?
 
-Both Roman numerals and English digit names are deliberate complications. The spec writers chose them because they are universally recognised but inconvenient — a programmer reading Roman output knows what number is meant but cannot read it as fluently as decimal, and a programmer typing English digit names has to think about each digit individually.
+Both Roman numerals and English digit names are deliberate complications. The spec writers chose them because they are universally recognised but inconvenient, a programmer reading Roman output knows what number is meant but cannot read it as fluently as decimal, and a programmer typing English digit names has to think about each digit individually.
 
 This contrasts with typical input/output, where the goal is to be transparent. INTERCAL's I/O is opaque on purpose. The output of `READ OUT .42` (printed as `XLII`) is correct but slightly slow to parse mentally. The input of `WRITE IN .42` (typed as `FOUR TWO`) is correct but slightly slow to type.
 
@@ -130,7 +130,7 @@ The combination forces the programmer to engage with the language at every I/O b
 
 `_rt_write_roman` is around 60 lines of platform-specific assembly. The table of (value, symbol) pairs is in `.data`. The routine itself is a tight loop that walks the table.
 
-`_rt_write_in_scalar` is more elaborate — around 150 lines — because it has to lex tokens, compare against the digit-name table, and assemble a numeric value. The lexer is a small state machine that uppercases input on the fly. The digit-name table is in `.data`, with each entry being the token bytes followed by the digit value.
+`_rt_write_in_scalar` is more elaborate, around 150 lines, because it has to lex tokens, compare against the digit-name table, and assemble a numeric value. The lexer is a small state machine that uppercases input on the fly. The digit-name table is in `.data`, with each entry being the token bytes followed by the digit value.
 
 A future optimisation worth noting: `_rt_write_in_scalar` could share its uppercasing logic with the compiler's own `read_source` (which folds source case the same way). They do not today, because the compiler runs in zsh and the scalar reader runs in compiled assembly. After self-hosting (when `stage3.i` becomes the compiler), both could share an INTERCAL-level implementation.
 
@@ -153,6 +153,6 @@ Both bugs were fixed before any release. They are mentioned here as evidence tha
 
 ## Next reading
 
-- [runtime.md](runtime.md) — the full runtime context for both routines.
-- [intercal-primer.md](intercal-primer.md) — the language tour with the brief I/O section.
-- [turing-text-model.md](turing-text-model.md) — the array-based character I/O that complements the scalar numeric I/O described here.
+- [runtime.md](runtime.md): the full runtime context for both routines.
+- [intercal-primer.md](intercal-primer.md): the language tour with the brief I/O section.
+- [turing-text-model.md](turing-text-model.md): the array-based character I/O that complements the scalar numeric I/O described here.

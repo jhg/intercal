@@ -70,7 +70,7 @@ C's type system is the main reason a C compiler has a substantial semantic-analy
 - `const`, `volatile`, `restrict` qualifiers.
 - Aggregate types: structs, unions, arrays.
 
-Lisp at the standard end of the spectrum has no compile-time types at all. Every value carries a runtime tag, and operators dispatch on that tag. The compiler's "type checking" reduces to ensuring that every form is syntactically a valid Lisp expression — which is essentially what the parser already does.
+Lisp at the standard end of the spectrum has no compile-time types at all. Every value carries a runtime tag, and operators dispatch on that tag. The compiler's "type checking" reduces to ensuring that every form is syntactically a valid Lisp expression, which is essentially what the parser already does.
 
 INTERCAL has four types: onespot (16-bit), twospot (32-bit), tail array (16-bit elements), hybrid array (32-bit elements). They are syntactically identifiable by the variable prefix. Type checking reduces to:
 
@@ -125,7 +125,7 @@ Our emitted code looks closer to a tail-end C compiler's output than to a Lisp c
 
 ## Memory model
 
-C's memory model is a contract between the compiler and the programmer. Every variable lives at a specific address. The programmer can take addresses of variables, do arithmetic on them, and read or write through them. The compiler is responsible for making sure that "what looks like a write to a variable" actually reaches that variable's address (subject to some optimisation latitude — the as-if rule).
+C's memory model is a contract between the compiler and the programmer. Every variable lives at a specific address. The programmer can take addresses of variables, do arithmetic on them, and read or write through them. The compiler is responsible for making sure that "what looks like a write to a variable" actually reaches that variable's address (subject to some optimisation latitude, the as-if rule).
 
 Lisp's memory model is opaque to the programmer. Every value is allocated on a heap (with the exception of fixnums and a few other immediate types in some implementations). A garbage collector reclaims memory periodically. The programmer cannot take addresses or do arithmetic on them.
 
@@ -155,13 +155,13 @@ Our runtime is a few hundred lines of platform-specific assembly per platform. I
 - 16 error-exit routines.
 - 8 Label 666 syscall handlers.
 
-A C program could embed the same set of services in well under 10 KB. A Lisp program could not — even the smallest Lisp runtime needs a garbage collector. We sit at the C end of the runtime-size spectrum.
+A C program could embed the same set of services in well under 10 KB. A Lisp program could not, even the smallest Lisp runtime needs a garbage collector. We sit at the C end of the runtime-size spectrum.
 
 ## Self-hosting
 
 C compilers are routinely self-hosted: GCC and Clang both compile themselves. The mechanics are well understood and the bootstrap process is documented in their respective build instructions.
 
-Lisp compilers are typically self-hosted too: SBCL, CMUCL, and many smaller Lisps compile themselves. The Lisp tradition explicitly emphasises this — a Lisp implementation that cannot bootstrap itself is rare.
+Lisp compilers are typically self-hosted too: SBCL, CMUCL, and many smaller Lisps compile themselves. The Lisp tradition explicitly emphasises this, a Lisp implementation that cannot bootstrap itself is rare.
 
 INTERCAL has not, to public knowledge, ever been self-hosted. C-INTERCAL is written in C; CLC-INTERCAL is written in Perl. Our project's ambition to write `compiler.i` in INTERCAL (and reach a 3-generation fixpoint) is the first such attempt. Whether it succeeds is open; the current state is documented in [self-hosting.md](self-hosting.md).
 
@@ -183,6 +183,6 @@ A reader who expects a C-compiler-shaped implementation will be surprised by how
 
 ## Next reading
 
-- [overview.md](overview.md) — what we are.
-- [middle-end-and-optimisation.md](middle-end-and-optimisation.md) — what we deliberately do not have.
-- [further-reading.md](further-reading.md) — books that walk through C and Lisp compilers in their own right.
+- [overview.md](overview.md): what we are.
+- [middle-end-and-optimisation.md](middle-end-and-optimisation.md): what we deliberately do not have.
+- [further-reading.md](further-reading.md): books that walk through C and Lisp compilers in their own right.

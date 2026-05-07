@@ -11,17 +11,17 @@ A brand-new language has no compiler until somebody builds one, and the first co
 
 Our approach is option (1), executed in three phases, with the deliberate choice of shell as the bootstrap language.
 
-## Phase 1 — The shell bootstrap
+## Phase 1. The shell bootstrap
 
-`src/bootstrap/intercalc.sh` is a complete INTERCAL compiler written in zsh. It reads `.i` from stdin, emits ARM64 or x86-64 assembly, concatenates that with the runtime and (optionally) the syslib, and invokes `cc -x assembler -` to produce a binary. It runs to roughly 2100 lines and handles the full language — every statement type, every operator, all four variable prefixes, arrays, abstention, COME FROM, the politeness rule, and the 16 runtime error codes.
+`src/bootstrap/intercalc.sh` is a complete INTERCAL compiler written in zsh. It reads `.i` from stdin, emits ARM64 or x86-64 assembly, concatenates that with the runtime and (optionally) the syslib, and invokes `cc -x assembler -` to produce a binary. It runs to roughly 2100 lines and handles the full language, every statement type, every operator, all four variable prefixes, arrays, abstention, COME FROM, the politeness rule, and the 16 runtime error codes.
 
-This is what gives us the "primordial spark" (*chispa primigenea*) — the first INTERCAL compiler that exists at all. Everything that follows builds on its output.
+This is what gives us the "primordial spark" (*chispa primigenea*): the first INTERCAL compiler that exists at all. Everything that follows builds on its output.
 
-## Phase 2 — The self-hosted MVP
+## Phase 2. The self-hosted MVP
 
 `src/compiler/compiler.i` is an INTERCAL program whose job is, today, extremely modest: read a source file via Label 666, classify it by content hash, emit the pre-generated assembly for that specific program, and exit. It is 43 lines of INTERCAL and, functionally, a template dispatcher.
 
-The repository also ships `src/compiler/templates/<platform>/<testname>.s` — one pre-compiled assembly file per test program per platform. The MVP's "compilation" is:
+The repository also ships `src/compiler/templates/<platform>/<testname>.s`: one pre-compiled assembly file per test program per platform. The MVP's "compilation" is:
 
 1. Read argv[1] (the source file name).
 2. Read its contents into the reserved `,65535` buffer.
@@ -31,11 +31,11 @@ The repository also ships `src/compiler/templates/<platform>/<testname>.s` — o
 
 The wrapper script `intercal` then concatenates the runtime, the syslib, and the emitted template into the final binary.
 
-This is trivially not a real compiler. What it *is*, is proof that the end-to-end self-hosted pipeline works: a `.i` program (`compiler.i`) was compiled by `intercalc.sh`, the resulting binary reads another `.i` file via the Label 666 syscalls, and produces assembly that builds a second binary identical to what the bootstrap would have built. Every component — Label 666, argv access, the reserved `,65535` buffer, the `read` and `write` syscalls, the exit code path — is exercised.
+This is trivially not a real compiler. What it *is*, is proof that the end-to-end self-hosted pipeline works: a `.i` program (`compiler.i`) was compiled by `intercalc.sh`, the resulting binary reads another `.i` file via the Label 666 syscalls, and produces assembly that builds a second binary identical to what the bootstrap would have built. Every component. Label 666, argv access, the reserved `,65535` buffer, the `read` and `write` syscalls, the exit code path, is exercised.
 
 The template-dispatch shape matters for one additional reason: it lets us run the self-hosted compiler in CI across every test program, without needing the real lexer and parser to exist yet. The self-hosted MVP passes 25/25 tests on all three platforms. That coverage is the guarantee that the runtime and the INTERCAL language features used by `compiler.i` are already rock solid.
 
-## Phase 4 — The evolving compiler
+## Phase 4. The evolving compiler
 
 `src/compiler/stage3.i` is where the template dispatcher is being replaced, incrementally, by a real compiler. As of substage 3.2.a, the file has grown to ~110 lines and can:
 
@@ -48,7 +48,7 @@ The template-dispatch shape matters for one additional reason: it lets us run th
 - Combine the first two probes into a 2-character keyword detector for `"DO"` (`.29`).
 - Print all of these (count, first byte, last byte, four probes, is_DO) as Roman numerals.
 
-The branchless-equality pattern is documented in `docs/intercal_patterns.md` as "conditional ADD without a branch": subtract via 1010, pack any set bit to LSB via select-from-self, flip via mingle+XOR+select. About fifteen statements per equality test, but no abstain dance, no unwind, no branch. The approach was chosen after three attempts to use loops with conditional break ran into a structural blocker — see the next paragraph.
+The branchless-equality pattern is documented in `docs/intercal_patterns.md` as "conditional ADD without a branch": subtract via 1010, pack any set bit to LSB via select-from-self, flip via mingle+XOR+select. About fifteen statements per equality test, but no abstain dance, no unwind, no branch. The approach was chosen after three attempts to use loops with conditional break ran into a structural blocker, see the next paragraph.
 
 The roadmap from here, matching the stages in `AGENTS.md`, is:
 
@@ -112,13 +112,13 @@ In our case we care about self-hosting for the same reason every historical lang
 
 ## Trusting Trust
 
-Ken Thompson's 1984 Turing Award lecture, *Reflections on Trusting Trust*, set out a class of attack that is unique to self-hosting compilers. Roughly: a malicious compiler can be modified to recognise when it is compiling its own source, reinsert a backdoor into the new compiler binary, and propagate that backdoor through every future generation — even after the malicious code has been removed from the source. The attack is invisible to source-level inspection because the malicious behaviour lives only in the binary that compiles the next binary.
+Ken Thompson's 1984 Turing Award lecture, *Reflections on Trusting Trust*, set out a class of attack that is unique to self-hosting compilers. Roughly: a malicious compiler can be modified to recognise when it is compiling its own source, reinsert a backdoor into the new compiler binary, and propagate that backdoor through every future generation, even after the malicious code has been removed from the source. The attack is invisible to source-level inspection because the malicious behaviour lives only in the binary that compiles the next binary.
 
 Our compiler is a tiny, hand-readable program with no production users; a serious Trusting Trust attack on it would not be worth anyone's effort. The lesson is conceptual rather than operational: once a compiler can compile itself, the source is no longer the only thing you have to trust. You also have to trust the binary that compiled the source, and the binary that compiled *that*, and so on back to the chispa primigenea.
 
 The standard countermeasure, *Diverse Double-Compiling* (DDC) by David A. Wheeler (2005, formalised in his 2009 PhD), is to compile the same source with two independent compilers and verify that their outputs agree. If two unrelated compilers produce byte-equivalent binaries from the same INTERCAL source, both would have to share the backdoor for the attack to survive. For us, the practical analogue is the differential test we already run: pure-INTERCAL syslib compiled by `intercalc.sh` versus native syslib hand-written in assembly. The two paths are independent enough that a Trusting Trust attack on one would have to be replicated by a hand attacker on the other.
 
-This is also why we keep the bootstrap compiler readable and small. A two-thousand-line zsh script is not malice-proof, but it is auditable in an afternoon — which is the most defensible position a small language implementation can occupy.
+This is also why we keep the bootstrap compiler readable and small. A two-thousand-line zsh script is not malice-proof, but it is auditable in an afternoon, which is the most defensible position a small language implementation can occupy.
 
 ## Exercises
 
@@ -130,6 +130,6 @@ This is also why we keep the bootstrap compiler readable and small. A two-thousa
 
 ## Next reading
 
-- [map-of-the-compiler.md](map-of-the-compiler.md) — the exact layout of `src/compiler/` and how the MVP and stage3 files relate.
-- [testing-and-workflow.md](testing-and-workflow.md) — the four test suites, differential testing, and the TDD contract that keeps stage3 on the rails.
-- [platforms.md](platforms.md) — why self-hosting has to work identically on three platforms and what enforces that.
+- [map-of-the-compiler.md](map-of-the-compiler.md): the exact layout of `src/compiler/` and how the MVP and stage3 files relate.
+- [testing-and-workflow.md](testing-and-workflow.md): the four test suites, differential testing, and the TDD contract that keeps stage3 on the rails.
+- [platforms.md](platforms.md): why self-hosting has to work identically on three platforms and what enforces that.

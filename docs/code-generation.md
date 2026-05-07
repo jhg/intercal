@@ -9,7 +9,7 @@ This chapter explains why the direct approach works for INTERCAL, what the emitt
 An IR pays off when you want to share optimisations across source languages or backends, or when you want to apply classical optimisations (constant folding, dead-code elimination, register allocation). We have none of those needs:
 
 - One source language, INTERCAL, whose programs are seldom hot paths and for which optimisation is, by design, a non-goal.
-- Two backends — ARM64 and x86-64 — handled by two codegen modules. Three if you count the macOS/Linux ARM64 split, but that is just a `sed` pass at the end.
+- Two backends. ARM64 and x86-64, handled by two codegen modules. Three if you count the macOS/Linux ARM64 split, but that is just a `sed` pass at the end.
 - A runtime that already encapsulates the complicated bits (Roman numerals, the Turing tape, mingle/select, error exits) as callable routines. Each INTERCAL statement degenerates to a handful of moves plus a call.
 
 Without an IR, every codegen function is a string template that interpolates the variable numbers and the expression tree's root node. That keeps the compiler well under 2000 lines of zsh and makes each emitted fragment trivially inspectable with `INTERCAL_ASM_ONLY=1`.
@@ -191,7 +191,7 @@ Here is what each `codegen_<type>` emits, in condensed form:
 | `REMEMBER var-list` | Same but store zero. |
 | `STASH var-list` | For each var, push current value onto the per-variable stash stack. Overflow guarded. |
 | `RETRIEVE var-list` | Pop from the per-variable stash stack; underflow fires ICL436I. |
-| `COME FROM (N)` | No body is emitted — the previous statement's body already jumps here. |
+| `COME FROM (N)` | No body is emitted, the previous statement's body already jumps here. |
 | `GIVE UP` | Exit 0. |
 | `UNKNOWN` | `bl _rt_error_E000`. |
 
@@ -201,8 +201,8 @@ Each one lives in its own `codegen_<type>` function, lines 853–1621.
 
 A statement is abstained at the *statement* level; a variable is ignored at the *variable* level. Both are per-entity bitmaps in BSS:
 
-- `_stmt_flags[i]` — one byte per statement.
-- `_<type>_<n>_ign` — one byte per used variable.
+- `_stmt_flags[i]`: one byte per statement.
+- `_<type>_<n>_ign`: one byte per used variable.
 
 The codegen checks both. The statement-level flag is checked once at the top of the block (by the dispatcher). The variable-level flag is checked inside the store sequence for that variable, so a write is discarded silently but an expression that reads an ignored variable still reads the last value written.
 
@@ -233,11 +233,11 @@ The first gives you the generated assembly *after* the Linux ARM64 `sed` convers
 1. The dispatcher emits the same abstain-flag check for every statement. Estimate the per-statement instruction overhead. On a 1000-statement program, what fraction of the emitted instructions is dedicated to abstain checks?
 2. Compile `DO .1 <- '#5 $ #3'` with `INTERCAL_ASM_ONLY=1` and read the generated code. How many `bl` calls into the runtime does the single statement produce? How many of those would a constant-folding pass eliminate?
 3. The codegen for scalar assignment emits an ignore-flag check before every store. The codegen for array element assignment does not. Find the discrepancy in `intercalc.sh` and explain whether it is a bug.
-4. `codegen_array_dim` calls `_rt_mmap` to allocate the array. What happens if the same array is dimensioned twice in a program — once to size N, once to size M? Where does the previous M-sized allocation go?
+4. `codegen_array_dim` calls `_rt_mmap` to allocate the array. What happens if the same array is dimensioned twice in a program, once to size N, once to size M? Where does the previous M-sized allocation go?
 5. The ARM64 codegen and the x86-64 codegen share zero source code (the latter overrides every emit function). What would it take to refactor a small overlap (say, the abstain-flag check) into a platform-neutral helper?
 
 ## Next reading
 
-- [runtime.md](runtime.md) — every `_rt_*` routine the emitted code calls.
-- [syslib.md](syslib.md) — how NEXT to labels 1000–1999 fits into the codegen model.
-- [platforms.md](platforms.md) — the full list of emitted-assembly differences per target.
+- [runtime.md](runtime.md): every `_rt_*` routine the emitted code calls.
+- [syslib.md](syslib.md): how NEXT to labels 1000–1999 fits into the codegen model.
+- [platforms.md](platforms.md): the full list of emitted-assembly differences per target.

@@ -1,12 +1,12 @@
 # Your first contribution
 
-This chapter walks a new collaborator through landing their first change on this project. It assumes you have cloned the repository and can build and test it (see [getting-started.md](getting-started.md)). The target is a small, well-scoped change that exercises the entire workflow — branch, write a test, implement, run tests locally, commit, push — without requiring deep understanding of any single component.
+This chapter walks a new collaborator through landing their first change on this project. It assumes you have cloned the repository and can build and test it (see [getting-started.md](getting-started.md)). The target is a small, well-scoped change that exercises the entire workflow, branch, write a test, implement, run tests locally, commit, push, without requiring deep understanding of any single component.
 
 We will pick one specific example: adding a new error message to the runtime. This change is realistic, touches both the runtime assembly and the test suite, and produces something useful that the project would actually want.
 
 ## The change, in plain English
 
-The runtime today fires errors for many conditions: `ICL275I` for assigning a 32-bit value to a 16-bit slot, `ICL123I` for a NEXT stack overflow, and so on. Suppose we want to add a new error for a hypothetical condition that is not yet detected — say, `ICL888I` for "PROGRAM CONTAINS A FIXME THAT SHOULD HAVE BEEN ADDRESSED BY NOW". This is a deliberately fictitious error; the point is to practise the mechanics.
+The runtime today fires errors for many conditions: `ICL275I` for assigning a 32-bit value to a 16-bit slot, `ICL123I` for a NEXT stack overflow, and so on. Suppose we want to add a new error for a hypothetical condition that is not yet detected, say, `ICL888I` for "PROGRAM CONTAINS A FIXME THAT SHOULD HAVE BEEN ADDRESSED BY NOW". This is a deliberately fictitious error; the point is to practise the mechanics.
 
 The steps:
 
@@ -103,7 +103,7 @@ Then find `codegen_statement` and add a case for `FIXME`:
 
     FIXME) emit "  bl _rt_error_E888" ;;
 
-The x86-64 backend in `src/bootstrap/codegen_x86_64.sh` does not need changes for this particular case because the `bl` instruction is architecture-specific — but the x86-64 backend does need to emit `call _rt_error_E888` instead. Find `codegen_x86_64.sh`'s equivalent dispatch and add the override.
+The x86-64 backend in `src/bootstrap/codegen_x86_64.sh` does not need changes for this particular case because the `bl` instruction is architecture-specific, but the x86-64 backend does need to emit `call _rt_error_E888` instead. Find `codegen_x86_64.sh`'s equivalent dispatch and add the override.
 
 ## Step 5: Run the tests locally
 
@@ -156,7 +156,7 @@ You touched every layer of the project:
 - The compiler's tokeniser and codegen.
 - The test runner registration.
 
-That pattern — test first, touch every affected file, iterate until green — is the workflow the project expects for any non-trivial change. Smaller changes follow the same pattern with fewer files.
+That pattern, test first, touch every affected file, iterate until green, is the workflow the project expects for any non-trivial change. Smaller changes follow the same pattern with fewer files.
 
 ## Common stumbling blocks
 

@@ -1,4 +1,4 @@
-# Design rationale — an FAQ
+# Design rationale, an FAQ
 
 This chapter answers, in plain language, the questions that anybody seeing this compiler for the first time will reasonably ask. Each answer is short, self-contained, and points at the deeper chapters for readers who want more.
 
@@ -22,7 +22,7 @@ See [self-hosting.md](self-hosting.md).
 
 ## Why not transpile to C like C-INTERCAL does?
 
-Transpiling to C trades one complexity (emitting assembly) for another (matching INTERCAL semantics to C semantics). Some mismatches are awkward — signed overflow is undefined in C but must wrap in INTERCAL — and the dependency on a C compiler adds a hidden layer where bugs can hide. Direct-to-assembly removes that layer and lets us see exactly what runs.
+Transpiling to C trades one complexity (emitting assembly) for another (matching INTERCAL semantics to C semantics). Some mismatches are awkward, signed overflow is undefined in C but must wrap in INTERCAL, and the dependency on a C compiler adds a hidden layer where bugs can hide. Direct-to-assembly removes that layer and lets us see exactly what runs.
 
 See [code-generation.md](code-generation.md).
 
@@ -34,7 +34,7 @@ See [parser-theory.md](parser-theory.md).
 
 ## Why maintain two syslibs (pure INTERCAL and native assembly)?
 
-The pure-INTERCAL syslib (9065 lines) is slow but is the authoritative specification of what each arithmetic routine does. The native assembly syslib (~300 lines per platform) is fast but translation-dependent. Running both implementations on the same inputs and diffing is a strong correctness test — it catches any bug that exists in only one of them.
+The pure-INTERCAL syslib (9065 lines) is slow but is the authoritative specification of what each arithmetic routine does. The native assembly syslib (~300 lines per platform) is fast but translation-dependent. Running both implementations on the same inputs and diffing is a strong correctness test, it catches any bug that exists in only one of them.
 
 A third path bridges the two: `INTERCAL_SYSLIB=cache` pre-compiles the pure-INTERCAL syslib once per content hash and reuses the resulting `.s` artifact, giving native-like compile time with pure-syslib semantics. `tools/build_syslib.sh` warms the cache on first use.
 
@@ -72,7 +72,7 @@ See [testing-and-workflow.md](testing-and-workflow.md).
 
 ## Why TDD instead of writing code and then adding tests?
 
-Because the cost of a miscompilation is high and often invisible. A bug that passes the existing tests but miscompiles one real-world INTERCAL construct might not surface until somebody writes a program using that construct. TDD — writing the test first — forces us to articulate what the new behaviour should be before writing code, which in turn catches wrong specifications at design time rather than at runtime.
+Because the cost of a miscompilation is high and often invisible. A bug that passes the existing tests but miscompiles one real-world INTERCAL construct might not surface until somebody writes a program using that construct. TDD, writing the test first, forces us to articulate what the new behaviour should be before writing code, which in turn catches wrong specifications at design time rather than at runtime.
 
 See `AGENTS.md`, "TDD workflow".
 
@@ -112,13 +112,13 @@ See [self-hosting.md](self-hosting.md).
 
 ## Why not merge the bootstrap and the self-hosted compilers?
 
-The bootstrap compiler (`intercalc.sh`, zsh) and the self-hosted compiler (`stage3.i`, INTERCAL) are two different programs because they are written in two different languages. They are expected to produce the same outputs for the same inputs once `stage3.i` is complete. Until then, they are parallel, and the bootstrap remains the reference. After the fixpoint is reached, `intercalc.sh` becomes mostly historical — a primordial spark that is no longer used except when somebody bootstraps from scratch.
+The bootstrap compiler (`intercalc.sh`, zsh) and the self-hosted compiler (`stage3.i`, INTERCAL) are two different programs because they are written in two different languages. They are expected to produce the same outputs for the same inputs once `stage3.i` is complete. Until then, they are parallel, and the bootstrap remains the reference. After the fixpoint is reached, `intercalc.sh` becomes mostly historical, a primordial spark that is no longer used except when somebody bootstraps from scratch.
 
 See [self-hosting.md](self-hosting.md).
 
 ## Why enforce the politeness rule?
 
-Because the language specification requires it. The politeness rule — between 1/5 and 1/3 of statements must use `PLEASE` — is INTERCAL's signature compile-time check. A compiler that silently ignores it is not really compiling INTERCAL.
+Because the language specification requires it. The politeness rule, between 1/5 and 1/3 of statements must use `PLEASE`: is INTERCAL's signature compile-time check. A compiler that silently ignores it is not really compiling INTERCAL.
 
 Practically, the rule is also our only opportunity to fire a compile-time error. Every other check in the INTERCAL error catalogue is a runtime condition.
 
@@ -132,13 +132,13 @@ See [middle-end-and-optimisation.md](middle-end-and-optimisation.md).
 
 ## Why put so much content in `docs/` instead of in the code comments?
 
-Because the audience for this project includes readers who want to understand how compilers work without necessarily modifying this one. Those readers should be able to read connected prose. Inline comments serve a different purpose — quick tips for somebody modifying the code — and cannot substitute for a narrative explanation of why the code is shaped the way it is.
+Because the audience for this project includes readers who want to understand how compilers work without necessarily modifying this one. Those readers should be able to read connected prose. Inline comments serve a different purpose, quick tips for somebody modifying the code, and cannot substitute for a narrative explanation of why the code is shaped the way it is.
 
 See the root [README.md](README.md) of `docs/` for the three reading paths.
 
 ## Why keep `AGENTS.md` in the repo root instead of under `docs/`?
 
-Because `AGENTS.md` is the authoritative contributor contract — not narrative documentation. It is symlinked to `CLAUDE.md` because AI tools look for `CLAUDE.md`. Moving it under `docs/` would break the convention and add indirection for both human and AI readers.
+Because `AGENTS.md` is the authoritative contributor contract, not narrative documentation. It is symlinked to `CLAUDE.md` because AI tools look for `CLAUDE.md`. Moving it under `docs/` would break the convention and add indirection for both human and AI readers.
 
 See [ai-collaboration.md](ai-collaboration.md).
 
@@ -152,6 +152,6 @@ If you have a question the docs do not answer, open an issue or a PR. Answers ad
 
 ## Next reading
 
-- [overview.md](overview.md) — the technical overview.
-- [what-is-intercal.md](what-is-intercal.md) — the plain-English introduction to the language.
-- [further-reading.md](further-reading.md) — external resources.
+- [overview.md](overview.md): the technical overview.
+- [what-is-intercal.md](what-is-intercal.md): the plain-English introduction to the language.
+- [further-reading.md](further-reading.md): external resources.

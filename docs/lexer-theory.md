@@ -4,7 +4,7 @@ The lexer in `src/bootstrap/intercalc.sh` is 194 lines of ad-hoc zsh. It works b
 
 ## Regular languages, in one paragraph
 
-A regular language is a set of strings that can be recognised by a finite-state automaton. Given an alphabet (the characters the language uses) and a finite set of states with transitions between them on each character, an FSA either lands in an accepting state at the end of the input or it does not. Regular languages are the simplest class in the Chomsky hierarchy — simpler than context-free (which needs a stack) or context-sensitive (which needs a tape).
+A regular language is a set of strings that can be recognised by a finite-state automaton. Given an alphabet (the characters the language uses) and a finite set of states with transitions between them on each character, an FSA either lands in an accepting state at the end of the input or it does not. Regular languages are the simplest class in the Chomsky hierarchy, simpler than context-free (which needs a stack) or context-sensitive (which needs a tape).
 
 Every sane programming language's token structure is regular. Identifiers, numbers, keywords, punctuation: each can be recognised by a small FSA. A lexer is, at its theoretical core, a collection of FSAs run in parallel or union.
 
@@ -28,7 +28,7 @@ Each of these is recognisable by a small FSA. The union of all such FSAs is stil
 What distinguishes INTERCAL's token language from C's or Python's is essentially two quirks:
 
 1. `DON'T` must be one token, not `DO` + `N'T`. This is a direct consequence of the language specification: `DON'T` is a contraction of `DO` + `NOT`, and the contracted form has no compositional interpretation.
-2. Keywords are whole words surrounded by whitespace. `READOUT` is not `READ OUT`. This is unusual — most languages accept both forms of composite keywords — and forces the lexer to check for the space between.
+2. Keywords are whole words surrounded by whitespace. `READOUT` is not `READ OUT`. This is unusual, most languages accept both forms of composite keywords, and forces the lexer to check for the space between.
 
 Both quirks are handled with trivial special-case code in our lexer. Neither requires departing from the regular-language model.
 
@@ -50,11 +50,11 @@ The tradeoff is loose: a bug in hand-written code is fixed by editing the code; 
 
 When a lexer can match multiple token classes at the same position, the standard disambiguation rule is *longest match* (also called *maximal munch*): pick the token that consumes the longest prefix. A C lexer reading `++` should produce one `++` token, not two `+` tokens, because the longer match wins.
 
-This rule is so universal that most lexer literature assumes it implicitly. It is what lets `DON'T` win over `DO` in our lexer: when the scanner sees `D O N ' T`, two interpretations are possible — emit `DO` and stop, or emit `DON'T` and stop. Maximal munch picks `DON'T`. Our hand-written code implements the rule by structuring the keyword check as a longest-prefix peek: try `DON'T` first, then `DO`.
+This rule is so universal that most lexer literature assumes it implicitly. It is what lets `DON'T` win over `DO` in our lexer: when the scanner sees `D O N ' T`, two interpretations are possible, emit `DO` and stop, or emit `DON'T` and stop. Maximal munch picks `DON'T`. Our hand-written code implements the rule by structuring the keyword check as a longest-prefix peek: try `DON'T` first, then `DO`.
 
 Implementing maximal munch in a generator-built DFA is more elaborate. The DFA must continue past every accepting state and remember the most recent one, then on a transition failure backtrack to that remembered state. This is the standard approach in Flex and re2c.
 
-There are corner cases. C++'s `>>` is sometimes a right-shift and sometimes a closing pair of template brackets; the maximal-munch rule alone cannot disambiguate. C++ resolves it by parsing context, breaking the lexer–parser separation. INTERCAL has no such corner — its tokens are unambiguously distinguished at the lexer level.
+There are corner cases. C++'s `>>` is sometimes a right-shift and sometimes a closing pair of template brackets; the maximal-munch rule alone cannot disambiguate. C++ resolves it by parsing context, breaking the lexer–parser separation. INTERCAL has no such corner, its tokens are unambiguously distinguished at the lexer level.
 
 ## Why we get away without a full DFA
 
@@ -74,7 +74,7 @@ One of the earliest compiler regressions in this project was a `DON'T NOTE` bug.
 2. A user program included `DON'T NOTE foo bar baz`. The lexer produced `DO`, `N'T`, `NOTE`, `foo`, `bar`, `baz`.
 3. The statement scanner recognised `DO N'T` as a verb with negation and started consuming a statement body.
 4. `NOTE foo bar baz` was not a recognised statement keyword, so the whole thing was classified as `UNKNOWN`.
-5. The next verb token — whatever came after the `DON'T NOTE` line — was not immediately found, because the lexer kept consuming "body" until it hit a verb.
+5. The next verb token, whatever came after the `DON'T NOTE` line, was not immediately found, because the lexer kept consuming "body" until it hit a verb.
 6. The previous statement's body grew to include the intended next statement. Chaos followed.
 
 The fix was to treat `DON'T` as a single atomic token. The lexer, after seeing `DO`, checks whether `N'T` immediately follows (no space, still part of the same word). If so, emit `DON'T` as one token. If not, emit `DO` alone.
@@ -120,7 +120,7 @@ We do have one protection against ad-hoc bugs: the test suite. Every INTERCAL fe
 - A state variable `.50` tracking what kind of token is being accumulated.
 - Output: parallel arrays `,11–,18` holding the same tuples our bootstrap lexer builds (`stmt_label`, `stmt_polite`, ..., `stmt_body`).
 
-The INTERCAL-level lexer will look significantly uglier than the zsh version — INTERCAL has no string type, no dictionaries, no associative arrays — but the underlying algorithm is the same. A stream of input characters, a state machine that accumulates tokens, a boundary detector that emits statements when a verb keyword appears.
+The INTERCAL-level lexer will look significantly uglier than the zsh version. INTERCAL has no string type, no dictionaries, no associative arrays, but the underlying algorithm is the same. A stream of input characters, a state machine that accumulates tokens, a boundary detector that emits statements when a verb keyword appears.
 
 ## Exercises
 
@@ -132,6 +132,6 @@ The INTERCAL-level lexer will look significantly uglier than the zsh version —
 
 ## Next reading
 
-- [lexing-and-parsing.md](lexing-and-parsing.md) — the concrete shape of our lexer and parser.
-- [appendix-grammar.md](appendix-grammar.md) — the context-free grammar that parsing targets.
-- [self-hosting.md](self-hosting.md) — the INTERCAL-level lexer coming in stage3.
+- [lexing-and-parsing.md](lexing-and-parsing.md): the concrete shape of our lexer and parser.
+- [appendix-grammar.md](appendix-grammar.md): the context-free grammar that parsing targets.
+- [self-hosting.md](self-hosting.md): the INTERCAL-level lexer coming in stage3.

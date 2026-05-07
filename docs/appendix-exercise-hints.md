@@ -1,6 +1,6 @@
 # Appendix: exercise hints
 
-Hints — not full solutions — for the exercises that close most chapters. The hints are deliberately short. They unblock a stuck reader without short-circuiting the act of working through the problem.
+Hints, not full solutions, for the exercises that close most chapters. The hints are deliberately short. They unblock a stuck reader without short-circuiting the act of working through the problem.
 
 If a chapter's exercises are not listed below, the exercises are direct enough that hints would be redundant.
 
@@ -15,10 +15,10 @@ If a chapter's exercises are not listed below, the exercises are direct enough t
 ## pipeline.md
 
 1. The codegen prologue is everything before `_stmt_0_start`. `codegen_give_up` produces the exit syscall sequence (`mov x0, #0; mov x16, #1; svc #0x80`). Everything else is runtime.
-2. `SOURCE` is materialised once. The lexer splits it incrementally without making copies — the `stmt_body` entries are slices.
+2. `SOURCE` is materialised once. The lexer splits it incrementally without making copies, the `stmt_body` entries are slices.
 3. Swapping politeness and label checks would mean a duplicate-label program might silently fail the politeness check first. Functional difference: zero, because both are fatal.
 4. `DO (1000) NEXT` flips `needs_syslib` to 1. Any label in [1000, 1999] does.
-5. Putting the program first means its `_main` entry is followed by the runtime symbols. The linker accepts this — symbols are resolved by name, not order — but a sharper symbol search misses for the entry point. In practice the binary still works.
+5. Putting the program first means its `_main` entry is followed by the runtime symbols. The linker accepts this, symbols are resolved by name, not order, but a sharper symbol search misses for the entry point. In practice the binary still works.
 
 ## lexing-and-parsing.md
 
@@ -31,16 +31,16 @@ If a chapter's exercises are not listed below, the exercises are direct enough t
 ## semantic-analysis.md
 
 1. For 7 statements: 2 ≤ PLEASE ≤ 2. For 12: 3 ≤ PLEASE ≤ 4. For 100: 20 ≤ PLEASE ≤ 33.
-2. The compiler's `label_to_stmt` is bounded by the labels actually in source, so it would not need to change. The runtime's per-label tables (none, currently — labels are resolved at compile time) similarly would not change. The reduction would only affect the compile-time bounds check on label values.
+2. The compiler's `label_to_stmt` is bounded by the labels actually in source, so it would not need to change. The runtime's per-label tables (none, currently, labels are resolved at compile time) similarly would not change. The reduction would only affect the compile-time bounds check on label values.
 3. Two `COME FROM (100)` statements in the same program. The current behaviour is that the second silently overwrites the first; the spec says `ICL555I MULTIPLE COME FROMS`.
-4. Reading an unwritten variable yields 0 (the BSS initial value). If we only recorded written variables, the codegen would not emit a BSS slot, and the read would dereference an undefined symbol — link error.
+4. Reading an unwritten variable yields 0 (the BSS initial value). If we only recorded written variables, the codegen would not emit a BSS slot, and the read would dereference an undefined symbol, link error.
 5. For: catches a class of bugs at compile time. Against: `RESUME` takes an expression that may not be statically computable. The compile-time check would flag `RESUME #0` but not `RESUME .1` where `.1` happens to be 0.
 
 ## code-generation.md
 
 1. The abstain check is 4 instructions per statement (`adrp`, `add`, `ldrb`, `cbnz`). On 1000 statements that is 4000 instructions. If the average statement body is 10 instructions, the overhead is ~30%.
 2. `DO .1 <- '#5 $ #3'` produces one `bl _rt_mingle`. A constant-folding pass would compute the result at compile time and emit `mov w0, #N` where N is the precomputed mingle of 5 and 3.
-3. Array element assignment skips the ignore check because arrays do not have an ignore flag in the current implementation. This is a feature gap, not a bug — the spec allows IGNORE on arrays but our compiler does not yet.
+3. Array element assignment skips the ignore check because arrays do not have an ignore flag in the current implementation. This is a feature gap, not a bug, the spec allows IGNORE on arrays but our compiler does not yet.
 4. The previous allocation is leaked. The runtime never calls `munmap`. The OS reclaims at process exit.
 5. Refactoring would require either a base-architecture-agnostic emit primitive or a templating layer that fills in per-architecture instruction names. Neither is large; the question is whether the duplication is bothersome enough to justify the abstraction.
 
@@ -50,7 +50,7 @@ If a chapter's exercises are not listed below, the exercises are direct enough t
 2. With 128 entries, every character would map to two possible ASCII codes. The bit-reversal scheme requires a power-of-two tape size that is at least 256 to round-trip every byte.
 3. Yes. `,1` is dimensioned to 3, then element 1 is 72 (ASCII H). `READ OUT ,1` walks the array; the first delta moves the head from 0 to 248 (= -72 mod 256), bit-reversed to ASCII H = 72. Print "H".
 4. The runtime BSS reservation `_next_stack` would change from 80×8 to 1024×8. The codegen's overflow check `cmp w0, #79` would change to `cmp w0, #1023`. The error message would still fire ICL123I.
-5. The C program has to use the same ABI: AAPCS64 on ARM64, System V AMD64 on x86-64. Calling our `_rt_*` functions from C is straightforward — the runtime functions follow the standard ABI.
+5. The C program has to use the same ABI: AAPCS64 on ARM64, System V AMD64 on x86-64. Calling our `_rt_*` functions from C is straightforward, the runtime functions follow the standard ABI.
 6. A program that dimensions an array repeatedly inside a loop would leak memory faster than the OS reclaims it (until the program ends).
 
 ## syslib.md
@@ -59,21 +59,21 @@ If a chapter's exercises are not listed below, the exercises are direct enough t
 2. Three statements: STASH the variables, NEXT to label 1010 (subtract), then NEXT to label 1000 (add) and compare to `.1`.
 3. The 330× factor matches what you measure: a program that takes 0.09s with native takes ~30s with pure.
 4. Label 1900 invokes Label 666 syscall 9. Native: one syscall. Pure: ~10 INTERCAL statements that ultimately invoke the same syscall.
-5. The pure syslib needs the routine added in INTERCAL. The native syslib needs the matching assembly per platform. The compiler's `detect_syslib` does not need changes — it already triggers on any 1000-1999 label.
+5. The pure syslib needs the routine added in INTERCAL. The native syslib needs the matching assembly per platform. The compiler's `detect_syslib` does not need changes, it already triggers on any 1000-1999 label.
 
 ## self-hosting.md
 
 1. `bootstrap.sh` greps `compiler.i` for `codegen|_stmt_|.section`. If none of those appear, it skips. The MVP `compiler.i` does not include them, so `bootstrap.sh` exits cleanly without doing the bootstrap.
-2. gen1 and gen2 can differ in (e.g.) register allocation; gen2 and gen3 cannot, because the compiler is now its own input and any compiler-determined difference would have shown up at gen2. Example where gen1 = gen2 = gen3: a compiler that generates byte-identical output regardless of which compiler compiled it. Possible only if the bootstrap and the self-hosted are byte-equivalent — which is exceptional.
+2. gen1 and gen2 can differ in (e.g.) register allocation; gen2 and gen3 cannot, because the compiler is now its own input and any compiler-determined difference would have shown up at gen2. Example where gen1 = gen2 = gen3: a compiler that generates byte-identical output regardless of which compiler compiled it. Possible only if the bootstrap and the self-hosted are byte-equivalent, which is exceptional.
 3. To distinguish DO from PLEASE DO, stage3 needs to read the verb word and branch. Smallest extension: ~30 lines of INTERCAL to scan past whitespace and compare the next 6 characters.
-4. Yes — Python is on every CI runner. The bootstrap would become Python instead of zsh; CI matrix and dependencies remain identical.
+4. Yes. Python is on every CI runner. The bootstrap would become Python instead of zsh; CI matrix and dependencies remain identical.
 5. No. The fixpoint test cares about the compiler reproducing itself, not about which syslib it links. Adding `--pure-syslib` would multiply compile time by 330× without gaining anything.
 
 ## platforms.md
 
 1. macOS uses carry-flag conditionals because the underlying syscall ABI sets the carry on error. Linux returns negative values directly. Both predate AAPCS standardisation.
 2. `0x1002` appears in the `mmap` syscall flags. The `sed` is conservative; it would not match inside a comment because the pattern is anchored on the operand position.
-3. Windows ARM64 should use a fresh codegen backend — the COFF format and Windows calling convention are too different for a `sed` translation.
+3. Windows ARM64 should use a fresh codegen backend, the COFF format and Windows calling convention are too different for a `sed` translation.
 4. Yes. AT&T syntax requires every operand prefixed with `%` and source-first ordering; the codegen output would have to be rewritten line by line.
 5. About 60% slowdown is x86-64 emulation on ARM64; about 40% is Docker overhead. Measure independently by running the tests inside an x86-64 container on a real x86-64 machine.
 
@@ -97,13 +97,13 @@ If a chapter's exercises are not listed below, the exercises are direct enough t
 
 1. ICL079I tests fail because the bound moved. Reproduce: change bounds, run tests, check `politeness_*` failures.
 2. 80 NEXTs without intervening RESUMEs trigger ICL123I (the 80th attempt fails).
-3. Multiplication tests fail first — `_rt_mingle` is on every multiplication's hot path. Roughly half of the bootstrap suite exercises mingle directly or transitively through arithmetic syslib labels.
+3. Multiplication tests fail first, `_rt_mingle` is on every multiplication's hot path. Roughly half of the bootstrap suite exercises mingle directly or transitively through arithmetic syslib labels.
 4. Use `git log --oneline | grep -i 'open\|write'` to find candidate commits. Test each with `git bisect run`.
-5. Yes — `stage3.i` may have a politeness or label issue caught by the linter.
+5. Yes, `stage3.i` may have a politeness or label issue caught by the linter.
 
 ## anatomy-of-a-binary.md
 
-1. The diff appears in a single `.data` byte — the constant value at the changed offset.
+1. The diff appears in a single `.data` byte, the constant value at the changed offset.
 2. Hello world calls `_rt_write_roman` zero times (it uses `_rt_read_out_array` for character output). `tests/test_read_out_num.i` calls it once per `READ OUT` of a scalar.
 3. 1000-statement program: ~50 KB code, 1 KB BSS for stmt_flags, 500 bytes per scalar. Roughly 60 KB total.
 4. `strip` removes the symbol table, saving roughly half the size for small binaries. The remaining content is the actual code and data.
@@ -122,7 +122,7 @@ If a chapter's exercises are not listed below, the exercises are direct enough t
 1. Two states: a "start" state and a "consuming digits" state. The transition between them is the `#` character; the transition out is whitespace or a non-digit.
 2. Adding NOT and N'T as separate tokens after DO requires three more states: one for "after DO", one for "consuming N", one for emitting either NOT (after `OT`) or N'T (after `'T`).
 3. The lexer already uppercases everything, so a lowercase variant requires zero changes.
-4. SUB is a body-level keyword. Detecting it during expression parsing rather than lexing means the parser can resolve subscripts in their grammatical context. Moving it to the lexer would force the lexer to know which surrounding tokens make `SUB` a keyword vs an identifier — which it cannot, since INTERCAL has no identifiers.
+4. SUB is a body-level keyword. Detecting it during expression parsing rather than lexing means the parser can resolve subscripts in their grammatical context. Moving it to the lexer would force the lexer to know which surrounding tokens make `SUB` a keyword vs an identifier, which it cannot, since INTERCAL has no identifiers.
 5. Collapsing the DO/DON'T branch into a single state machine is straightforward: read the verb-token, then check for `'T` immediately after.
 
 ## parser-theory.md
@@ -147,7 +147,7 @@ If a chapter's exercises are not listed below, the exercises are direct enough t
 2. Mach-O hello world: ~25 `_rt_*` symbols, 17 `_stmt_N_*` pairs (34 symbols).
 3. On-disk size is smaller than the section table sums because BSS is not stored on disk.
 4. Without ICL633I, the program executes past the last instruction into uninitialised memory. SIGILL or similar.
-5. The implicit default section is `.text` for instructions and `.data` for `.ascii`. A program with neither directive would land in whatever section the assembler defaults to at the start of the file — usually `.text`.
+5. The implicit default section is `.text` for instructions and `.data` for `.ascii`. A program with neither directive would land in whatever section the assembler defaults to at the start of the file, usually `.text`.
 
 ## middle-end-and-optimisation.md
 

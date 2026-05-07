@@ -15,51 +15,51 @@ The target audiences are four:
 
 You have never touched this before. Follow these in order.
 
-1. [what-is-intercal.md](what-is-intercal.md) — what INTERCAL is and why anyone still writes it.
-2. [getting-started.md](getting-started.md) — install, build, compile hello world in thirty minutes.
-3. [intercal-primer.md](intercal-primer.md) — the language tour.
-4. [label-666-intro.md](label-666-intro.md) — the friendly explanation of our syscall extension.
+1. [what-is-intercal.md](what-is-intercal.md): what INTERCAL is and why anyone still writes it.
+2. [getting-started.md](getting-started.md): install, build, compile hello world in thirty minutes.
+3. [intercal-primer.md](intercal-primer.md): the language tour.
+4. [label-666-intro.md](label-666-intro.md): the friendly explanation of our syscall extension.
 
 ### Compiler-construction student path
 
 You want to learn how compilers work. Use this repository as the running example.
 
-1. [overview.md](overview.md) — what this compiler is.
-2. [map-of-the-compiler.md](map-of-the-compiler.md) — source layout mapped to compiler phases.
-3. [pipeline.md](pipeline.md) — the end-to-end trip from source to binary.
-4. [lexer-theory.md](lexer-theory.md) and [lexing-and-parsing.md](lexing-and-parsing.md) — scanning.
-5. [parser-theory.md](parser-theory.md) — recursive descent and the LL(1) grammar.
-6. [semantic-analysis.md](semantic-analysis.md) — politeness, labels, COME FROM.
-7. [code-generation.md](code-generation.md) — direct-to-assembly codegen.
-8. [runtime.md](runtime.md) — what the emitted assembly calls into.
-9. [syslib.md](syslib.md) — arithmetic labels 1000–1999.
-10. [calling-conventions.md](calling-conventions.md) — AAPCS64 and System V AMD64 in our code.
-11. [executables-and-linking.md](executables-and-linking.md) — Mach-O, ELF, and `cc` as driver.
-12. [middle-end-and-optimisation.md](middle-end-and-optimisation.md) — the middle end we don't have.
-13. [self-hosting.md](self-hosting.md) — the 3-generation bootstrap strategy.
-14. [walkthrough-hello.md](walkthrough-hello.md) — the capstone: hello world through every phase.
-15. [appendix-grammar.md](appendix-grammar.md) — the formal grammar.
+1. [overview.md](overview.md): what this compiler is.
+2. [map-of-the-compiler.md](map-of-the-compiler.md): source layout mapped to compiler phases.
+3. [pipeline.md](pipeline.md): the end-to-end trip from source to binary.
+4. [lexer-theory.md](lexer-theory.md) and [lexing-and-parsing.md](lexing-and-parsing.md): scanning.
+5. [parser-theory.md](parser-theory.md): recursive descent and the LL(1) grammar.
+6. [semantic-analysis.md](semantic-analysis.md): politeness, labels, COME FROM.
+7. [code-generation.md](code-generation.md): direct-to-assembly codegen.
+8. [runtime.md](runtime.md): what the emitted assembly calls into.
+9. [syslib.md](syslib.md): arithmetic labels 1000–1999.
+10. [calling-conventions.md](calling-conventions.md): AAPCS64 and System V AMD64 in our code.
+11. [executables-and-linking.md](executables-and-linking.md): Mach-O, ELF, and `cc` as driver.
+12. [middle-end-and-optimisation.md](middle-end-and-optimisation.md): the middle end we don't have.
+13. [self-hosting.md](self-hosting.md): the 3-generation bootstrap strategy.
+14. [walkthrough-hello.md](walkthrough-hello.md): the capstone: hello world through every phase.
+15. [appendix-grammar.md](appendix-grammar.md): the formal grammar.
 
 ### Contributor / maintainer path
 
 You want to change a phase or fix a bug.
 
-1. [map-of-the-compiler.md](map-of-the-compiler.md) — find the right file.
-2. [your-first-contribution.md](your-first-contribution.md) — if you are new, this is the shortest concrete walkthrough.
-3. The phase chapter for the area you are touching — see the table below.
-4. [debugging.md](debugging.md) — symptom-to-phase debugging taxonomy.
-5. [testing-and-workflow.md](testing-and-workflow.md) — the four test suites and the TDD contract.
-6. [platforms.md](platforms.md) — the per-platform syntactic and syscall differences.
-7. [AGENTS.md](../AGENTS.md) — authoritative contributor rules.
+1. [map-of-the-compiler.md](map-of-the-compiler.md): find the right file.
+2. [your-first-contribution.md](your-first-contribution.md): if you are new, this is the shortest concrete walkthrough.
+3. The phase chapter for the area you are touching, see the table below.
+4. [debugging.md](debugging.md): symptom-to-phase debugging taxonomy.
+5. [testing-and-workflow.md](testing-and-workflow.md): the four test suites and the TDD contract.
+6. [platforms.md](platforms.md): the per-platform syntactic and syscall differences.
+7. [AGENTS.md](../AGENTS.md): authoritative contributor rules.
 
 ### Design-rationale / quick-answer path
 
 You want to know *why* something is the way it is.
 
-1. [design-rationale.md](design-rationale.md) — the FAQ covering every major decision.
-2. [history-and-context.md](history-and-context.md) — INTERCAL's history and how this compiler relates to the existing implementations.
-3. [666.md](666.md) — the deep rationale for Label 666.
-4. [further-reading.md](further-reading.md) — external resources for deeper study.
+1. [design-rationale.md](design-rationale.md): the FAQ covering every major decision.
+2. [history-and-context.md](history-and-context.md): INTERCAL's history and how this compiler relates to the existing implementations.
+3. [666.md](666.md): the deep rationale for Label 666.
+4. [further-reading.md](further-reading.md): external resources for deeper study.
 
 ## Full chapter index
 
@@ -158,13 +158,13 @@ The exercises at the end of most chapters are optional. They are not graded and 
 
 ## Maintenance
 
-These docs track the code. When a phase changes — a new statement type, a new runtime routine, a new platform — the affected chapters are updated. The maintenance contract is documented in [ai-collaboration.md](ai-collaboration.md) and enforced by convention rather than by tooling.
+These docs track the code. When a phase changes, a new statement type, a new runtime routine, a new platform, the affected chapters are updated. The maintenance contract is documented in [ai-collaboration.md](ai-collaboration.md) and enforced by convention rather than by tooling.
 
 A docs-only commit skips the test suite in the pre-commit hook. This keeps the barrier to docs updates low and encourages keeping them current.
 
 ## Reading the book locally with mdBook
 
-Every chapter in this directory is plain GitHub-flavoured markdown — readable as-is on github.com or in any editor. The same content also forms a single navigable book via [mdBook](https://rust-lang.github.io/mdBook/), the static-site generator built by the Rust project.
+Every chapter in this directory is plain GitHub-flavoured markdown, readable as-is on github.com or in any editor. The same content also forms a single navigable book via [mdBook](https://rust-lang.github.io/mdBook/), the static-site generator built by the Rust project.
 
 The repository ships the configuration to render that book without any additional editing. If you have mdBook installed:
 

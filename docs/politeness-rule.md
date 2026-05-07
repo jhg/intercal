@@ -13,7 +13,7 @@ From the 1972 reference manual, the rule is a property of the whole program:
 
 The bounds are inclusive at the lower end, exclusive at the upper end. A program where exactly one in five statements is polite passes; a program where exactly one in three is polite passes; a program where more than one in three is polite fails.
 
-The specification does not explicitly carve out a tiny-program exception, but every implementation we know of (C-INTERCAL, CLC-INTERCAL, ours) bypasses the check for programs of fewer than five statements. The pragmatic reason is that the bounds are mathematically infeasible at small sizes. With three statements, you would need 0.6 to 1 polite statements — which means exactly 1, which is also above the upper bound (1/3 = 33.3%, but 1/3 = 33.3% so 1 is exactly at the boundary). The corner cases for tiny N are unintuitive enough that all implementations punt.
+The specification does not explicitly carve out a tiny-program exception, but every implementation we know of (C-INTERCAL, CLC-INTERCAL, ours) bypasses the check for programs of fewer than five statements. The pragmatic reason is that the bounds are mathematically infeasible at small sizes. With three statements, you would need 0.6 to 1 polite statements, which means exactly 1, which is also above the upper bound (1/3 = 33.3%, but 1/3 = 33.3% so 1 is exactly at the boundary). The corner cases for tiny N are unintuitive enough that all implementations punt.
 
 ## Our implementation
 
@@ -67,7 +67,7 @@ The pass/fail boundaries for representative program sizes:
 
 Reading the table: at 17 statements (the size of `tests/test_hello.i`), you need between 4 and 5 inclusive `PLEASE`s. The actual program has 4. One more `PLEASE` would still pass (5 = 5/17 ≈ 29.4% ≤ 33.3%); two more would fail with `ICL099I` (6/17 ≈ 35.3% > 33.3%).
 
-For programs at multiples of 15, the bounds widen smoothly — at 30 statements you have between 6 and 10 `PLEASE`s, a range of 4. At 1500, the range would be 200.
+For programs at multiples of 15, the bounds widen smoothly, at 30 statements you have between 6 and 10 `PLEASE`s, a range of 4. At 1500, the range would be 200.
 
 ## Boundary cases at exactly 1/5 and 1/3
 
@@ -79,7 +79,7 @@ Off-by-one sensitivity is real here. Adding one statement (any kind, polite or n
 
 ## Why the rule exists
 
-INTERCAL was written as a parody. The politeness rule is its single best joke: a feature that takes a real concept (politeness in programming) and turns it into a hard compile-time constraint. The deeper joke is that the rule is internally consistent — the compiler has a precise definition of "polite enough" and "too polite", and it enforces that definition rigorously. The 1972 manual states the rule as a serious specification; the parody is in the reader's reaction, not in the rule itself.
+INTERCAL was written as a parody. The politeness rule is its single best joke: a feature that takes a real concept (politeness in programming) and turns it into a hard compile-time constraint. The deeper joke is that the rule is internally consistent, the compiler has a precise definition of "polite enough" and "too polite", and it enforces that definition rigorously. The 1972 manual states the rule as a serious specification; the parody is in the reader's reaction, not in the rule itself.
 
 A second-order benefit of the rule, which the manual does not advertise, is that it forces the programmer to space out `PLEASE`s through the program. A reader of an INTERCAL program sees `PLEASE` distributed roughly every fourth statement, and that visual rhythm is part of why INTERCAL programs feel different to read.
 
@@ -112,6 +112,6 @@ The lint tool `tools/lint_intercal.sh` reports the politeness ratio as a hint, b
 
 ## Next reading
 
-- [semantic-analysis.md](semantic-analysis.md) — the broader context of compile-time checks.
-- [intercal-primer.md](intercal-primer.md) — the language tour, including a shorter politeness summary.
-- [design-rationale.md](design-rationale.md) — why we chose to enforce the rule rather than warn.
+- [semantic-analysis.md](semantic-analysis.md): the broader context of compile-time checks.
+- [intercal-primer.md](intercal-primer.md): the language tour, including a shorter politeness summary.
+- [design-rationale.md](design-rationale.md): why we chose to enforce the rule rather than warn.

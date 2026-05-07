@@ -8,14 +8,14 @@ At the point `tokenize()` starts, `SOURCE` is a single string with every newline
 
 One statement, expressed as the tuple that will live in the parallel `stmt_*` arrays:
 
-    stmt_label[i]       — e.g. "(1000)" or ""
-    stmt_polite[i]      — 1 if PLEASE was present, 0 otherwise
-    stmt_negated[i]     — 1 if NOT / N'T / DON'T was present, 0 otherwise
-    stmt_prob[i]        — 100 by default, otherwise the %N value
-    stmt_type[i]        — ASSIGN, NEXT, RESUME, FORGET, ABSTAIN, REINSTATE,
-                          IGNORE, REMEMBER, STASH, RETRIEVE, READ_OUT, WRITE_IN,
-                          COME_FROM, GIVE_UP, or UNKNOWN
-    stmt_body[i]        — the raw body text after modifiers have been consumed
+    stmt_label[i]    e.g. "(1000)" or ""
+    stmt_polite[i]   1 if PLEASE was present, 0 otherwise
+    stmt_negated[i]  1 if NOT / N'T / DON'T was present, 0 otherwise
+    stmt_prob[i]     100 by default, otherwise the %N value
+    stmt_type[i]     ASSIGN, NEXT, RESUME, FORGET, ABSTAIN, REINSTATE,
+                     IGNORE, REMEMBER, STASH, RETRIEVE, READ_OUT, WRITE_IN,
+                     COME_FROM, GIVE_UP, or UNKNOWN
+    stmt_body[i]     the raw body text after modifiers have been consumed
 
 The lexer does not tokenize the body's expressions. That is deferred to codegen time, when `codegen_<type>` calls `parse_expr()` on the body. Deferring is cheap and makes the lexer simpler: the statement-level lexer only needs to know where one statement ends and the next begins.
 
@@ -27,13 +27,13 @@ Each iteration:
 
 1. Skip whitespace.
 2. Try to match an optional label `(N)`. If present, consume it and save for the next statement.
-3. Try to match one of the verb tokens above. If none, abort — a program whose first non-whitespace content isn't a verb is malformed.
+3. Try to match one of the verb tokens above. If none, abort, a program whose first non-whitespace content isn't a verb is malformed.
 4. Record whether PLEASE was seen (`polite=1`) and whether a negation was seen (`negated=1`). `DON'T` counts as `DO` + negation.
 5. Optionally match `%N` for probability.
 6. Look at the next keyword to classify the statement type:
    - `.` / `:` / `,` / `;` prefix → `ASSIGN`
    - `(` followed by a number and `)` followed by `NEXT` → `NEXT`
-   - `RESUME` / `FORGET` / `ABSTAIN` / `REINSTATE` / `IGNORE` / `REMEMBER` / `STASH` / `RETRIEVE` / `READ OUT` / `WRITE IN` / `COME FROM` / `GIVE UP` — each maps to the obvious type.
+   - `RESUME` / `FORGET` / `ABSTAIN` / `REINSTATE` / `IGNORE` / `REMEMBER` / `STASH` / `RETRIEVE` / `READ OUT` / `WRITE IN` / `COME FROM` / `GIVE UP`: each maps to the obvious type.
    - Anything else → `UNKNOWN`.
 7. Scan forward up to the next verb token or end-of-string. Everything in between is the body.
 
@@ -75,13 +75,13 @@ Expressions are stored as a tree of nodes in parallel arrays:
     expr_left[i]      left child (binary ops); subscript count (array refs)
     expr_right[i]     right child (binary ops); space-separated subscript node ids (array refs)
     expr_child[i]     single child (unary ops)
-    expr_width[i]     16 or 32 — the width hint used during codegen
+    expr_width[i]     16 or 32, the width hint used during codegen
 
 Building a new node is a matter of `(( expr_next_id++ ))`, then writing into slot `expr_next_id - 1`. The parser returns the slot index of the root of the sub-expression it just parsed. This style (parallel arrays instead of heap-allocated structs) is a concession to zsh: it is much faster than associative arrays, and the parallel-array pattern carries over directly to the INTERCAL version of the parser in `stage3.i`.
 
 ### Why defer expression parsing
 
-Parsing expressions during codegen, not during lexing, has one clear benefit: it keeps the statement-level representation tiny and makes it easy to reason about the statement list as a whole (count politeness, build the label map, resolve COME FROM). When we start generating code for a statement, we already know the statement's type — and only then does it matter how its body is structured.
+Parsing expressions during codegen, not during lexing, has one clear benefit: it keeps the statement-level representation tiny and makes it easy to reason about the statement list as a whole (count politeness, build the label map, resolve COME FROM). When we start generating code for a statement, we already know the statement's type, and only then does it matter how its body is structured.
 
 The cost is that a program with syntactically invalid expressions will compile fine until we try to codegen the offending statement. Since we codegen every statement in order, that delay is invisible in practice.
 

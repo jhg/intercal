@@ -1,6 +1,6 @@
 # Executables and linking
 
-When we say "the compiler produces a binary", the sequence of events behind that claim is: generate assembly text; feed it to an assembler; the assembler produces relocatable object code; a linker resolves symbols and arranges the object into an executable file in the format the operating system's loader understands. Our compiler does not perform these last steps itself — it shells out to `cc -x assembler -`, which invokes the system assembler and linker as a pipeline.
+When we say "the compiler produces a binary", the sequence of events behind that claim is: generate assembly text; feed it to an assembler; the assembler produces relocatable object code; a linker resolves symbols and arranges the object into an executable file in the format the operating system's loader understands. Our compiler does not perform these last steps itself, it shells out to `cc -x assembler -`, which invokes the system assembler and linker as a pipeline.
 
 This chapter explains what that pipeline produces, what the resulting file looks like, and what it means for a program to be linked against our runtime.
 
@@ -35,9 +35,9 @@ Our `.data` is small. The error messages are the bulk; they total roughly 1 KB a
 
 ### `.bss`
 
-Block Started by Symbol: zero-initialised data. The critical property of `.bss` is that it takes no on-disk space — the file only records how many bytes of zeroed memory the loader should allocate. For a program with 1000 statements and 100 used variables, `.bss` might be 5 KB in memory but cost only a few dozen bytes of metadata on disk.
+Block Started by Symbol: zero-initialised data. The critical property of `.bss` is that it takes no on-disk space, the file only records how many bytes of zeroed memory the loader should allocate. For a program with 1000 statements and 100 used variables, `.bss` might be 5 KB in memory but cost only a few dozen bytes of metadata on disk.
 
-Every one of our per-statement `_stmt_flags` bytes and per-variable slot lives in `.bss`. The NEXT stack (80 × 8 = 640 bytes), the stash stacks, the TTM tape positions, the reserved `,65535` buffer — all of them are `.bss`. This is why the compiled binaries are small despite the runtime reserving many kilobytes of working memory.
+Every one of our per-statement `_stmt_flags` bytes and per-variable slot lives in `.bss`. The NEXT stack (80 × 8 = 640 bytes), the stash stacks, the TTM tape positions, the reserved `,65535` buffer, all of them are `.bss`. This is why the compiled binaries are small despite the runtime reserving many kilobytes of working memory.
 
 See [runtime.md](runtime.md) for the full BSS layout and the reason each symbol exists.
 
@@ -86,13 +86,13 @@ Writing an assembler is also hard, but less so, and projects like `sheerass` and
 
 We punt on both by invoking `cc`. The system C compiler driver handles assembly and linking through well-tested pipelines (`as` plus `ld` on most Unix-likes). Our only contribution is the assembly source; the driver and linker handle everything after that.
 
-The cost of this choice is a dependency: we need a working `cc` on every machine that compiles INTERCAL programs. In practice this is rarely an issue — every platform we target ships with `gcc` or `clang`. The `.deb` and `.rpm` release artifacts declare `gcc` as a runtime dependency, so installers can rely on it being present.
+The cost of this choice is a dependency: we need a working `cc` on every machine that compiles INTERCAL programs. In practice this is rarely an issue, every platform we target ships with `gcc` or `clang`. The `.deb` and `.rpm` release artifacts declare `gcc` as a runtime dependency, so installers can rely on it being present.
 
 ## Static vs dynamic linking
 
 A program can be statically linked (every library's code is copied into the final binary) or dynamically linked (libraries are loaded from disk at program startup). Our compiled programs are mostly statically linked: the runtime assembly is concatenated with the program assembly before `cc` sees them, so there is no "runtime library" the loader has to find at startup.
 
-But the programs are not fully static: they depend on the host's C runtime (`libSystem.dylib` on macOS, `libc.so.6` on Linux) for the actual system calls. Our runtime issues syscalls directly in most cases (`svc #0x80`, `svc #0`, `syscall`), so the dependency is small — typically only the C startup file `crt1.o` that arranges `main` to be called with `argc` and `argv`.
+But the programs are not fully static: they depend on the host's C runtime (`libSystem.dylib` on macOS, `libc.so.6` on Linux) for the actual system calls. Our runtime issues syscalls directly in most cases (`svc #0x80`, `svc #0`, `syscall`), so the dependency is small, typically only the C startup file `crt1.o` that arranges `main` to be called with `argc` and `argv`.
 
 A truly static build (no C runtime dependency) would require writing our own `_start` routine and convincing the linker not to pull in `libc`. We have not needed this. The C runtime dependency is small enough that it does not affect portability meaningfully.
 
@@ -103,7 +103,7 @@ When a program with dynamic dependencies starts, a small loader (`dyld` on macOS
 Two structures handle the symbol resolution at runtime: the **Global Offset Table (GOT)** and the **Procedure Linkage Table (PLT)**.
 
 - The GOT is a table of pointers, one per imported function or data symbol. The dynamic linker fills these in.
-- The PLT is a table of small stubs, one per imported function, that load the corresponding GOT entry and jump through it. Calls to imported functions in the user's code go through the PLT — they branch to the stub, which redirects through the GOT.
+- The PLT is a table of small stubs, one per imported function, that load the corresponding GOT entry and jump through it. Calls to imported functions in the user's code go through the PLT, they branch to the stub, which redirects through the GOT.
 
 ELF supports **lazy binding**: the GOT entries start as pointers back into the linker, so that the first call to each imported function triggers a resolution rather than paying the cost up front. After the first call, the GOT is updated with the real address and subsequent calls go directly. The environment variable `LD_BIND_NOW=1` forces eager resolution at startup, which is the secure default for security-sensitive programs.
 
@@ -113,7 +113,7 @@ For our compiled INTERCAL programs, the PLT is small. We import only `_start` (t
 
 ## Position-Independent Executables (PIE)
 
-Modern toolchains produce position-independent executables by default. PIE means the executable's `.text` is loaded at a randomised base address (ASLR), making certain classes of memory-corruption exploits harder. Our compiled binaries are PIE by default — `file ./binary` reports `pie executable` on Linux.
+Modern toolchains produce position-independent executables by default. PIE means the executable's `.text` is loaded at a randomised base address (ASLR), making certain classes of memory-corruption exploits harder. Our compiled binaries are PIE by default, `file ./binary` reports `pie executable` on Linux.
 
 The cost of PIE is one extra level of indirection on global accesses (every reference must go through the GOT or use RIP-relative addressing). For x86-64 the cost is negligible thanks to RIP-relative addressing being the default. For ARM64 the `adrp`/`add` pair handles position independence efficiently.
 
@@ -134,11 +134,11 @@ The exit syscall is what terminates the process. The kernel reclaims every alloc
 
 Several tools come with the platform's developer toolchain and are useful for understanding what we actually produced:
 
-- `file ./program` — prints the file format and architecture.
-- `otool -h ./program` (macOS) or `readelf -h ./program` (Linux) — prints the header, showing the target architecture and entry point.
-- `otool -l ./program` or `readelf -S ./program` — prints the section table.
-- `nm ./program` — lists the symbols. Our binaries typically have 100–300 symbols: one per `_rt_*` routine, one per `_stmt_N_start`/`_end`, one per used variable's BSS slot.
-- `otool -tv ./program` or `objdump -d ./program` — disassembles the `.text` section.
+- `file ./program`: prints the file format and architecture.
+- `otool -h ./program` (macOS) or `readelf -h ./program` (Linux): prints the header, showing the target architecture and entry point.
+- `otool -l ./program` or `readelf -S ./program`: prints the section table.
+- `nm ./program`: lists the symbols. Our binaries typically have 100–300 symbols: one per `_rt_*` routine, one per `_stmt_N_start`/`_end`, one per used variable's BSS slot.
+- `otool -tv ./program` or `objdump -d ./program`: disassembles the `.text` section.
 
 These tools are what you reach for when a binary misbehaves and the source-level story does not account for it. See [debugging.md](debugging.md).
 
@@ -152,6 +152,6 @@ These tools are what you reach for when a binary misbehaves and the source-level
 
 ## Next reading
 
-- [calling-conventions.md](calling-conventions.md) — the per-architecture rules that the assembler and linker assume.
-- [platforms.md](platforms.md) — the table of per-platform syntactic and syscall differences that show up in the emitted assembly.
-- [runtime.md](runtime.md) — the `.bss` layout that this chapter describes at the file-format level.
+- [calling-conventions.md](calling-conventions.md): the per-architecture rules that the assembler and linker assume.
+- [platforms.md](platforms.md): the table of per-platform syntactic and syscall differences that show up in the emitted assembly.
+- [runtime.md](runtime.md): the `.bss` layout that this chapter describes at the file-format level.

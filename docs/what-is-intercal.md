@@ -26,7 +26,7 @@ Some highlights of the original specification:
 - Input of a number is read one digit at a time, each spelled out in English (`ONE TWO THREE` for 123).
 - Punctuation characters have their own names: `.` is "spot", `:` is "two-spot", `,` is "tail", `$` is "big money", and so on.
 
-The humour is that every one of these choices is internally consistent. The language works. You can solve problems in it. You can read and write it. It is, in a technical sense, not broken — it is, in a design sense, perfectly wrong.
+The humour is that every one of these choices is internally consistent. The language works. You can solve problems in it. You can read and write it. It is, in a technical sense, not broken. It is, in a design sense, perfectly wrong.
 
 ## The `COME FROM` statement
 
@@ -44,15 +44,16 @@ A small community of programmers has maintained INTERCAL implementations continu
 - **CLC-INTERCAL** by Claudio Calvelli (1999 onwards), written in Perl, with extensions including quantum computing primitives.
 - **This implementation**, written in zsh + INTERCAL, targeting native ARM64 and x86-64 binaries without a C intermediate step.
 
-Why? Three reasons, in decreasing order of seriousness:
+Why? Four reasons, in decreasing order of seriousness:
 
 - **Because it is a clean test case for compiler construction.** INTERCAL is small enough that a full implementation fits in a single person's head, but weird enough that writing the compiler forces you to engage with every classical compiler-theory topic. It is a good teaching language precisely because it is bad.
 - **Because self-hosting INTERCAL is a feat in its own right.** Writing a compiler for a language in that same language is a rite of passage; doing it for INTERCAL is particularly absurd. As of this writing, nobody has ever produced a self-hosted INTERCAL compiler whose own source is written in INTERCAL. This repository is trying.
+- **Because the language is, in itself, a useful proving ground for AI-driven software development.** Most of the code in this repository was written by a large language model working with a single human collaborator. The collaborator set the goals, made the first commits, supplied reference material, and reviewed the result; the day-to-day implementation work, including the compiler, the runtime, the syslib, the tests, and most of this documentation, was produced by the model. INTERCAL turns out to be a good fit for that kind of experiment: the language is small enough that the model can hold the whole thing in context, weird enough that off-the-shelf code patterns rarely apply, and well-specified enough that any divergence from the spec is detectable. A more conventional language would have given the model too much room to default to memorised idioms; a language with a much smaller spec would not have exercised enough of the work involved in building a compiler.
 - **Because it is funny.** Some of the most influential programming languages (Lisp, Smalltalk, Forth) were invented partly as jokes and partly as serious experiments in language design. INTERCAL sits squarely in that tradition. Reading a long INTERCAL program is a kind of performance art.
 
 ## What INTERCAL is not
 
-It is not a golf language (like J or APL). It is not a brain-teaser language (like Brainfuck). It is not obfuscated to be hard to read — most INTERCAL is actually legible once you learn the conventions.
+It is not a golf language (like J or APL). It is not a brain-teaser language (like Brainfuck). It is not obfuscated to be hard to read; most INTERCAL is actually legible once you learn the conventions.
 
 It is also not, despite appearances, an exercise in contrarianism for its own sake. The language's design has internal logic: once you accept the premise that conventional features are suspect, every decision follows from that premise.
 
@@ -80,11 +81,11 @@ Here is the hello-world program from this repository:
 
 This prints `Hello, World!`. Each `,1 SUB #N <- #V` assigns the value V to the Nth element of the array `,1`. The constants 238, 108, 112, 0, and so on encode the letters H, e, l, l, o, and the rest, through a scheme called the Turing Text Model which we explain in [runtime.md](runtime.md). The first statement dimensions the array to 14 elements, and `READ OUT ,1` walks the array and prints the encoded text.
 
-That program has 17 statements total and 4 of them start with `PLEASE`, giving a politeness ratio of about 24% — comfortably in the required [20%, 33.3%] range.
+That program has 17 statements total and 4 of them start with `PLEASE`, giving a politeness ratio of about 24%, comfortably in the required [20%, 33.3%] range.
 
 ## What to read next
 
-- [getting-started.md](getting-started.md) — install the compiler and run this program.
-- [intercal-primer.md](intercal-primer.md) — a programmer-focused language tour.
-- [design-rationale.md](design-rationale.md) — a FAQ on why this compiler is shaped the way it is.
-- [history-and-context.md](history-and-context.md) — the longer historical treatment.
+- [getting-started.md](getting-started.md): install the compiler and run this program.
+- [intercal-primer.md](intercal-primer.md): a programmer-focused language tour.
+- [design-rationale.md](design-rationale.md): a FAQ on why this compiler is shaped the way it is.
+- [history-and-context.md](history-and-context.md): the longer historical treatment.

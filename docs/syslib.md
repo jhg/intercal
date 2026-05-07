@@ -33,8 +33,8 @@ The full table:
 | 1540 | `:3 = :1 * :2` (32-bit) | Error ICL533I | Silent wrap (see note) |
 | 1549 | `:3 = :1 * :2`, `:4` overflow flag | Flag in `:4` | As documented |
 | 1550 | `:3 = :1 / :2` (32-bit) | `:3 = 0` if `:2 = 0` | As documented |
-| 1900 | `.1 = uniform random 0..65535` | — | As documented |
-| 1910 | `.2 = gaussian-ish random 0..`.1 | — | As documented |
+| 1900 | `.1 = uniform random 0..65535` | (no overflow) | As documented |
+| 1910 | `.2 = gaussian-ish random 0..`.1 | (no overflow) | As documented |
 
 Two internal labels exist but should not be called directly: 1525 (a shift helper) and 1999 (the overflow error exit). They are not part of the public interface.
 
@@ -50,8 +50,8 @@ This is a real divergence from the 1972 spec and the C-INTERCAL convention. It i
 
 This repository keeps two complete copies of the syslib:
 
-- `src/syslib/syslib.i` — 9065 lines of pure INTERCAL, demonstrating that every arithmetic primitive is in fact implementable in a Turing-complete language with only bitwise operators.
-- `src/syslib/native/<platform>.s` — the same 20 labels written in ~300 lines of platform-specific assembly, executing in microseconds rather than seconds.
+- `src/syslib/syslib.i`: 9065 lines of pure INTERCAL, demonstrating that every arithmetic primitive is in fact implementable in a Turing-complete language with only bitwise operators.
+- `src/syslib/native/<platform>.s`: the same 20 labels written in ~300 lines of platform-specific assembly, executing in microseconds rather than seconds.
 
 The existence of both is not redundancy. It is a correctness and a pedagogy decision.
 
@@ -61,7 +61,7 @@ Each native routine is a direct translation of the bit-level pseudocode that `sy
 
 That is what `tests/test_syslib_pure.sh` exercises. It compiles three programs twice, once with each syslib, and asserts the outputs match byte for byte. Any divergence is a fail.
 
-This pattern — two independent implementations crosschecked against each other — is a standard technique in compiler testing. The Dafny, GraalVM and LLVM projects all use variants of it. Our version is small, cheap, and catches drift whenever somebody modifies the native syslib without updating the pure one (or vice versa).
+This pattern, two independent implementations crosschecked against each other, is a standard technique in compiler testing. The Dafny, GraalVM and LLVM projects all use variants of it. Our version is small, cheap, and catches drift whenever somebody modifies the native syslib without updating the pure one (or vice versa).
 
 ### Pedagogy: the pure syslib is the specification
 
@@ -95,7 +95,7 @@ The cache path is what makes pure-INTERCAL syslib *practical*. Run `tools/build_
 
 Nine thousand lines to express twenty arithmetic routines is a lot. The size is not accidental.
 
-Consider addition. Without `+`, you add two 16-bit integers a and b by repeating, for each bit position i, "if a_i and b_i, the carry propagates; if a_i xor b_i, the result bit is 1 unless the carry was 1 from below; ..." expressed entirely through `$`, `~`, `&`, `V`, `?`. The book-standard INTERCAL idiom for bitwise AND of two separate values goes via mingle followed by a unary `&` followed by a select — three statements and two temporaries just for "a AND b". Addition built atop that is twenty-plus statements for each of sixteen bit positions.
+Consider addition. Without `+`, you add two 16-bit integers a and b by repeating, for each bit position i, "if a_i and b_i, the carry propagates; if a_i xor b_i, the result bit is 1 unless the carry was 1 from below; ..." expressed entirely through `$`, `~`, `&`, `V`, `?`. The book-standard INTERCAL idiom for bitwise AND of two separate values goes via mingle followed by a unary `&` followed by a select, three statements and two temporaries just for "a AND b". Addition built atop that is twenty-plus statements for each of sixteen bit positions.
 
 Once you have addition, subtraction is "add the two's complement", multiplication is repeated shift-and-add, division is repeated compare-and-subtract. Each step inherits the verbosity of the one below it.
 
@@ -126,6 +126,6 @@ This is the single point where the pure syslib cannot pretend the runtime does n
 
 ## Next reading
 
-- [runtime.md](runtime.md) — the native assembly that the native syslib links against for I/O and random.
-- [666.md](666.md) — Label 666, which is what label 1900 uses to reach the OS.
-- [self-hosting.md](self-hosting.md) — how the syslib factors into the 3-generation bootstrap.
+- [runtime.md](runtime.md): the native assembly that the native syslib links against for I/O and random.
+- [666.md](666.md): Label 666, which is what label 1900 uses to reach the OS.
+- [self-hosting.md](self-hosting.md): how the syslib factors into the 3-generation bootstrap.

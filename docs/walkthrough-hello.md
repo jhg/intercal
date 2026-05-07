@@ -1,6 +1,6 @@
 # Walkthrough: Hello, World!
 
-This chapter takes one specific INTERCAL program — `tests/test_hello.i` — and follows it through every phase of the compiler, capturing the state at each step. If the per-phase chapters are the reference material, this is the capstone worked example.
+This chapter takes one specific INTERCAL program, `tests/test_hello.i`: and follows it through every phase of the compiler, capturing the state at each step. If the per-phase chapters are the reference material, this is the capstone worked example.
 
 The source, `tests/test_hello.i`:
 
@@ -26,7 +26,7 @@ Seventeen statements. The program dimensions the array `,1` to 14 elements, assi
 
 ## What the source is actually saying
 
-Each constant on the right-hand side is the distance on a 256-entry tape that the tape head has to move, starting from the previous head position, such that the new head position — after all eight bits are reversed — equals the ASCII code of the character to print.
+Each constant on the right-hand side is the distance on a 256-entry tape that the tape head has to move, starting from the previous head position, such that the new head position, after all eight bits are reversed, equals the ASCII code of the character to print.
 
 The sequence 238, 108, 112, 0, 64, 194, 48, 26, 244, 168, 24, 16, 162, 52 decodes to the letters H-e-l-l-o-comma-space-W-o-r-l-d-exclamation-newline. The bit-reversal is what makes the numbers look unpredictable: `238` is `0b11101110`, which reverses to `0b01110111` = 119, and `0 - 119 mod 256 = 137`; then `137 - 238 mod 256 = 155`... no, the arithmetic is the other direction, see [intercal-primer.md](intercal-primer.md) for the precise formula. The point is that every element is a tape-distance, not a character.
 
@@ -172,7 +172,7 @@ What actually happens at runtime, step by step:
 2. Statement 0 executes. `mmap` allocates 28 bytes; pointer stored in `_tail_1_ptr`.
 3. Statements 1–14 execute. Each stores a halfword into the allocated buffer.
 4. Statement 15 executes. `_rt_read_out_array` is called with the pointer, count=14, size=2.
-5. Inside `_rt_read_out_array`: for each of 14 elements, subtract from `_ttm_out_pos`, bit-reverse, emit the resulting ASCII code via the `write` syscall. One character at a time, or batched — the current implementation batches into a 256-byte stack buffer and flushes on boundaries.
+5. Inside `_rt_read_out_array`: for each of 14 elements, subtract from `_ttm_out_pos`, bit-reverse, emit the resulting ASCII code via the `write` syscall. One character at a time, or batched, the current implementation batches into a 256-byte stack buffer and flushes on boundaries.
 6. Statement 16 executes. `exit(0)` via `svc #0x80` with `x16 = 1`.
 
 The whole execution takes microseconds.
@@ -190,7 +190,7 @@ The runtime file `src/runtime/linux_arm64.s` was pre-translated the same way and
 
 ## On Linux x86-64, the same program
 
-`codegen_x86_64.sh` overrides every codegen function. The emitted assembly is entirely different — Intel syntax, different register conventions, different syscall numbers — but the behaviour of the compiled binary is identical.
+`codegen_x86_64.sh` overrides every codegen function. The emitted assembly is entirely different. Intel syntax, different register conventions, different syscall numbers, but the behaviour of the compiled binary is identical.
 
 The array dimensioning statement 0, for instance, becomes:
 
@@ -243,6 +243,6 @@ Each of those is exercised by one or more of the 33 tests in `tests/run_tests.sh
 
 ## Next reading
 
-- [pipeline.md](pipeline.md) — the general pipeline, now with one concrete traversal behind you.
-- [runtime.md](runtime.md) — `_rt_read_out_array` and the Turing Text Model in depth.
-- [code-generation.md](code-generation.md) — all the other statement types we did not see here.
+- [pipeline.md](pipeline.md): the general pipeline, now with one concrete traversal behind you.
+- [runtime.md](runtime.md): `_rt_read_out_array` and the Turing Text Model in depth.
+- [code-generation.md](code-generation.md): all the other statement types we did not see here.

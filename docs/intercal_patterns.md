@@ -108,7 +108,7 @@ To make the loop terminate: abstain `(200)`. Once `(200)` is abstained, the COME
 
 Important caveat observed empirically: `(X)` and `(Y)` both execute sequentially if they use `RESUME #1` to return normally. The branching happens only when the targets do NOT return normally (typical: `DO FORGET #1` to drop the NEXT push, then `DO RESUME #1` to unwind the caller's stack instead). See `src/syslib/syslib.i` label 1000 for the canonical usage.
 
-This pattern cannot select one of two code branches in the same scope — it unwinds to an ancestor. For same-scope conditional execution, use the ABSTAIN pattern below.
+This pattern cannot select one of two code branches in the same scope, it unwinds to an ancestor. For same-scope conditional execution, use the ABSTAIN pattern below.
 
 ## Conditional ABSTAIN (same-scope if-then)
 
@@ -116,11 +116,11 @@ To run statement `S` only when `.COND == 1`:
 
 1. Place `S` with a label `(S_LABEL)`.
 2. Place a companion `(GUARD) DON'T ABSTAIN FROM (S_LABEL)` that starts abstained (`DON'T` makes a statement initially inactive).
-3. When you want `S` to fire on the NEXT iteration, `DO REINSTATE (GUARD)`. On the next visit, `(GUARD)` runs and abstains `S_LABEL`, preventing `S` from firing THAT iteration — wait, that's backwards.
+3. When you want `S` to fire on the NEXT iteration, `DO REINSTATE (GUARD)`. On the next visit, `(GUARD)` runs and abstains `S_LABEL`, preventing `S` from firing THAT iteration, wait, that's backwards.
 
 The cleaner shape (inverse logic):
 
-- `(S_LABEL) DO STATEMENT` — runs every iteration by default.
+- `(S_LABEL) DO STATEMENT`: runs every iteration by default.
 - To prevent it running: `DO ABSTAIN FROM (S_LABEL)`.
 - To let it run again: `DO REINSTATE (S_LABEL)`.
 
@@ -148,13 +148,13 @@ For stage3.i, prefer:
 - Calling syslib routines that already encapsulate loops internally (arithmetic, bit operations).
 - Avoiding loops entirely until a dedicated "loop intrinsic" can be added as a compiler feature and implemented once in assembly.
 
-When an actual loop is unavoidable (e.g., scanning 60000-byte source), the expected cost is ~30 statements of scaffolding around a small body — still feasible but worth factoring into the compiler structure.
+When an actual loop is unavoidable (e.g., scanning 60000-byte source), the expected cost is ~30 statements of scaffolding around a small body, still feasible but worth factoring into the compiler structure.
 
 ### Empirically: the unwind dance fails at top level
 
 Several attempts at the standard `(NEXT_A) (NEXT_B) (RESUME .sel)` pattern revealed that it ONLY works when there are at least N pending NEXT-stack entries, where N is the maximum value of `.sel`. At top level of `_main`, the NEXT stack is empty, so any `RESUME N` (N >= 1) immediately fires `ICL632I PROGRAM ENDED VIA RESUME INSTEAD OF GIVE UP`.
 
-Even inside a function, the pattern is fragile: `(801)` at the first `NEXT` always wins because it FORGETs its own push and unwinds. The second `NEXT` and the `RESUME .sel` line are unreachable in the normal flow. Empirically verified by testing syslib label 1000 with `.1=#65535, .2=#1` — it should error on overflow per the spec but actually returns silently, exit 0, no ICL code. The (1801) "no overflow" path always wins; the (1802) error path is dead code.
+Even inside a function, the pattern is fragile: `(801)` at the first `NEXT` always wins because it FORGETs its own push and unwinds. The second `NEXT` and the `RESUME .sel` line are unreachable in the normal flow. Empirically verified by testing syslib label 1000 with `.1=#65535, .2=#1`: it should error on overflow per the spec but actually returns silently, exit 0, no ICL code. The (1801) "no overflow" path always wins; the (1802) error path is dead code.
 
 So the syslib's promised "error on overflow" for 1000 is documentation-only. Behavior matches 1009 (silent wrap).
 
@@ -217,7 +217,7 @@ This is strict; the bootstrap rejects bad nesting at parse time.
 
 ## STASH/RETRIEVE discipline
 
-Before calling a syslib routine, STASH every `.1`-`.4` / `:1`-`:4` that you need to preserve. After the call, RETRIEVE them immediately. Do not STASH inside a loop without a matching RETRIEVE — the stash stacks grow without bound.
+Before calling a syslib routine, STASH every `.1`-`.4` / `:1`-`:4` that you need to preserve. After the call, RETRIEVE them immediately. Do not STASH inside a loop without a matching RETRIEVE, the stash stacks grow without bound.
 
 ```intercal
 DO STASH .1 .2 .3 .4

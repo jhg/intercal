@@ -117,7 +117,7 @@ Random:
 
 | Label | Operation | Inputs | Outputs |
 |-------|-----------|--------|---------|
-| 1900 | uniform random | — | `.1` in [0, 65535] |
+| 1900 | uniform random | (none) | `.1` in [0, 65535] |
 | 1910 | bounded random | `.1` | `.2` in [0, `.1`] |
 
 Internal (do not call): 1525 (shift helper), 1999 (overflow exit).
@@ -133,8 +133,8 @@ Invoke with `.1` set to the syscall number, then `DO (666) NEXT`. See [label-666
 | 1 | open | `.2` mode (0=read, 1=write), filename in `,65535` | `.3` fd |
 | 2 | read | `.2` fd, `.3` max bytes | `.4` bytes read, data in `,65535` |
 | 3 | write | `.2` fd, `.3` count, data in `,65535` | `.4` bytes written |
-| 4 | close | `.2` fd | — |
-| 5 | argc | — | `.3` count |
+| 4 | close | `.2` fd | (none) |
+| 5 | argc | (none) | `.3` count |
 | 6 | argv | `.2` index (0-based) | `.3` length, arg in `,65535` |
 | 8 | exit | `.2` status code | no return |
 | 9 | getrand | `.2` 0 = uniform / >0 = range [0, `.2`] | `.3` random |
@@ -159,7 +159,7 @@ This is a probabilistic assignment with a nested expression. The parser handles 
 
 ## Next reading
 
-- [intercal-primer.md](intercal-primer.md) — the narrative introduction for each group of statements.
-- [code-generation.md](code-generation.md) — how each `codegen_*` function produces assembly.
-- [runtime.md](runtime.md) — the `_rt_*` routines the codegen calls.
-- [appendix-grammar.md](appendix-grammar.md) — the formal grammar.
+- [intercal-primer.md](intercal-primer.md): the narrative introduction for each group of statements.
+- [code-generation.md](code-generation.md): how each `codegen_*` function produces assembly.
+- [runtime.md](runtime.md): the `_rt_*` routines the codegen calls.
+- [appendix-grammar.md](appendix-grammar.md): the formal grammar.

@@ -1,6 +1,6 @@
 # INTERCAL primer
 
-This is a minimal introduction to INTERCAL aimed at two audiences: a programmer who wants to read the test programs under `tests/`, and a compiler reader who needs the language vocabulary before approaching the per-phase chapters. The goal is not to teach you to write INTERCAL programs from scratch — for that, follow the resources in [further-reading.md](further-reading.md). For the complete language reference, see `AGENTS.md`, section "INTERCAL language reference".
+This is a minimal introduction to INTERCAL aimed at two audiences: a programmer who wants to read the test programs under `tests/`, and a compiler reader who needs the language vocabulary before approaching the per-phase chapters. The goal is not to teach you to write INTERCAL programs from scratch, for that, follow the resources in [further-reading.md](further-reading.md). For the complete language reference, see `AGENTS.md`, section "INTERCAL language reference".
 
 If you have not yet built the compiler, start with [getting-started.md](getting-started.md). If you want a non-technical introduction first, read [what-is-intercal.md](what-is-intercal.md).
 
@@ -45,18 +45,18 @@ Each variable starts at zero. Assigning a value larger than 65535 to a onespot v
 
 ## Operators and grouping
 
-There is no operator precedence. Every subexpression that could be ambiguous must be grouped, and the grouping alternates between two kinds of brackets: sparks `'` and rabbit-ears `"`. Where a C programmer would write `(a + (b * c))`, an INTERCAL programmer writes `'a op "b op c"'` — same-kind nesting is not allowed.
+There is no operator precedence. Every subexpression that could be ambiguous must be grouped, and the grouping alternates between two kinds of brackets: sparks `'` and rabbit-ears `"`. Where a C programmer would write `(a + (b * c))`, an INTERCAL programmer writes `'a op "b op c"'`: same-kind nesting is not allowed.
 
 Two binary operators:
 
-- `$` (big money) — mingle. Takes two 16-bit values and interleaves their bits into a 32-bit result. Left operand to odd bit positions, right operand to even positions.
-- `~` (sqiggle) — select. Given a value and a mask, extract the bits of the value where the mask has a 1 and pack them into a right-justified result.
+- `$` (big money): mingle. Takes two 16-bit values and interleaves their bits into a 32-bit result. Left operand to odd bit positions, right operand to even positions.
+- `~` (sqiggle): select. Given a value and a mask, extract the bits of the value where the mask has a 1 and pack them into a right-justified result.
 
 Three unary operators, placed between the prefix and the number (`&.1`, `V:2`, `?,1 SUB #3`):
 
-- `&` — AND each bit with its right neighbour (wrapping).
-- `V` (uppercase V, not ∨) — OR each bit with its right neighbour (wrapping).
-- `?` — XOR each bit with its right neighbour (wrapping).
+- `&`: AND each bit with its right neighbour (wrapping).
+- `V` (uppercase V, not ∨): OR each bit with its right neighbour (wrapping).
+- `?`: XOR each bit with its right neighbour (wrapping).
 
 The unary operators work on the bits of *one* value, not between two values. A common trick used throughout the compiler is: to AND two 16-bit values A and B, first mingle them into a single 32-bit value `A$B`, then apply unary `&`, then select the even-position bits out. That pattern appears many times in `syslib.i`.
 
@@ -66,17 +66,17 @@ The unary operators work on the bits of *one* value, not between two values. A c
 
 The `<-` is called angle-worm. Left-hand side is always a variable or an array element; right-hand side is an expression. The compiler generates code that evaluates the RHS, possibly checks for the 32-bit-into-16-bit overflow, and stores into the target.
 
-For array elements the syntax is `,1 SUB #3 <- #42` — `SUB` is the subscript operator, space-separated from the expressions.
+For array elements the syntax is `,1 SUB #3 <- #42`: `SUB` is the subscript operator, space-separated from the expressions.
 
 ## Control flow
 
 There is no `if`, `while`, `for`, or `goto`. The only transfer-of-control primitives are:
 
-- `DO (N) NEXT` — push the current position onto the NEXT stack (max depth 79, else ICL123I) and jump to label `N`.
-- `DO RESUME #K` — pop K entries from the NEXT stack and jump to the last one popped. `RESUME #1` is a clean subroutine return. `RESUME #0` is a runtime error.
-- `DO FORGET #K` — pop K entries without transferring.
-- `DO COME FROM (N)` — after the statement at label `N` executes, control transfers here. This is resolved statically at compile time, not at runtime.
-- `DO GIVE UP` — exit.
+- `DO (N) NEXT`: push the current position onto the NEXT stack (max depth 79, else ICL123I) and jump to label `N`.
+- `DO RESUME #K`: pop K entries from the NEXT stack and jump to the last one popped. `RESUME #1` is a clean subroutine return. `RESUME #0` is a runtime error.
+- `DO FORGET #K`: pop K entries without transferring.
+- `DO COME FROM (N)`: after the statement at label `N` executes, control transfers here. This is resolved statically at compile time, not at runtime.
+- `DO GIVE UP`: exit.
 
 The absence of `if` is not a problem in practice. You convert a truthy value into "1 or 2", push two NEXT targets for the two branches, and `RESUME` with the 1-or-2 value. See the idioms chapter in `AGENTS.md` ("Essential idioms").
 
@@ -84,11 +84,11 @@ The absence of `if` is not a problem in practice. You convert a truthy value int
 
 Four statement modifiers control what is live at runtime:
 
-- `DO ABSTAIN FROM (N)` — make statement `N` skipped from now on.
-- `DO ABSTAIN FROM gerund-list` — same, but by category: `CALCULATING` abstains all assignments, `NEXTING` all NEXTs, etc.
-- `DO REINSTATE ...` — reverse an ABSTAIN.
-- `DO IGNORE var-list` — make variables read-only (writes silently discarded).
-- `DO REMEMBER var-list` — reverse an IGNORE.
+- `DO ABSTAIN FROM (N)`: make statement `N` skipped from now on.
+- `DO ABSTAIN FROM gerund-list`: same, but by category: `CALCULATING` abstains all assignments, `NEXTING` all NEXTs, etc.
+- `DO REINSTATE ...`: reverse an ABSTAIN.
+- `DO IGNORE var-list`: make variables read-only (writes silently discarded).
+- `DO REMEMBER var-list`: reverse an IGNORE.
 
 The compiler tracks abstention state as a bit-per-statement in a region of zero-initialised memory (BSS) called `_stmt_flags`. Each statement starts by checking its flag and jumping over itself if abstained.
 
@@ -104,15 +104,15 @@ Pushes and pops per-variable stacks. Used whenever you call a syslib routine tha
 
 Numeric:
 
-- `DO READ OUT .1` — print the value of `.1` in Roman numerals.
-- `DO WRITE IN .1` — read a number whose digits are spelled in English (`ONE TWO THREE` = 123).
+- `DO READ OUT .1`: print the value of `.1` in Roman numerals.
+- `DO WRITE IN .1`: read a number whose digits are spelled in English (`ONE TWO THREE` = 123).
 
 Character (Turing Text Model):
 
-- `DO READ OUT ,1` — walk the tape forwards/backwards, printing characters.
-- `DO WRITE IN ,1` — the inverse, reading characters and converting to tape-offset deltas.
+- `DO READ OUT ,1`: walk the tape forwards/backwards, printing characters.
+- `DO WRITE IN ,1`: the inverse, reading characters and converting to tape-offset deltas.
 
-The Turing Text Model (TTM) encoding is what makes the `tests/test_hello.i` program look the way it does. You cannot simply place `H e l l o` in the source; you have to precompute each character as a tape-offset delta that, after the tape head's bit-reversed position, leaves you at the ASCII code you want. The compiler does not care about any of this — it just emits calls to `_rt_read_out_array` — but it is worth knowing when you read the test programs. See [runtime.md](runtime.md) for the algorithm in full.
+The Turing Text Model (TTM) encoding is what makes the `tests/test_hello.i` program look the way it does. You cannot simply place `H e l l o` in the source; you have to precompute each character as a tape-offset delta that, after the tape head's bit-reversed position, leaves you at the ASCII code you want. The compiler does not care about any of this, it just emits calls to `_rt_read_out_array`: but it is worth knowing when you read the test programs. See [runtime.md](runtime.md) for the algorithm in full.
 
 ## Politeness
 
@@ -127,9 +127,9 @@ This is a static whole-program property. You can't decide politeness per stateme
 
 INTERCAL has a number of features that the language specification treats as important but that our compiler handles uniformly enough to not warrant their own chapter:
 
-- Statement probabilities (`%50`) — the compiler emits a call to the random routine and skips the statement if the roll fails.
-- Gerunds (`CALCULATING`, `NEXTING`, etc.) — `ABSTAIN FROM CALCULATING` maps to "flip the abstain bit on every statement of type assignment". Just a loop in the codegen.
-- Comments — there are none in standard INTERCAL. `DON'T NOTE ...` is the idiomatic fake-comment: it's a negated statement that would parse as unknown, so it is skipped at runtime and never executes. The compiler sees it, classifies it as `UNKNOWN_NEGATED`, and emits nothing for it.
+- Statement probabilities (`%50`): the compiler emits a call to the random routine and skips the statement if the roll fails.
+- Gerunds (`CALCULATING`, `NEXTING`, etc.): `ABSTAIN FROM CALCULATING` maps to "flip the abstain bit on every statement of type assignment". Just a loop in the codegen.
+- Comments, there are none in standard INTERCAL. `DON'T NOTE ...` is the idiomatic fake-comment: it's a negated statement that would parse as unknown, so it is skipped at runtime and never executes. The compiler sees it, classifies it as `UNKNOWN_NEGATED`, and emits nothing for it.
 
 That is enough to read the test programs and the source. Go to [pipeline.md](pipeline.md) next.
 

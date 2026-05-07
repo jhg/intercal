@@ -2,17 +2,17 @@
 
 A calling convention is the contract that governs how a caller and a callee transfer control and data. Which registers hold arguments, which registers survive a call, who cleans the stack, where the return value lands. Every platform we target specifies one, and our generated code has to respect it at every `bl` or `call` boundary.
 
-This chapter describes the conventions for the three targets — AAPCS64 on macOS and Linux ARM64, System V AMD64 on Linux x86-64 — and shows where each one surfaces in our code.
+This chapter describes the conventions for the three targets. AAPCS64 on macOS and Linux ARM64, System V AMD64 on Linux x86-64, and shows where each one surfaces in our code.
 
 ## Why calling conventions matter to this compiler
 
-The emitted code for an INTERCAL statement usually ends with one or more subroutine calls into the runtime: `bl _rt_mingle`, `bl _rt_write_roman`, `bl _rt_read_out_array`. Every one of those is a place where the calling convention applies. A codegen mistake that violates the convention — passing the wrong argument in the wrong register, clobbering a callee-saved register, imbalancing the stack — produces a runtime crash whose cause is not visible in the source program.
+The emitted code for an INTERCAL statement usually ends with one or more subroutine calls into the runtime: `bl _rt_mingle`, `bl _rt_write_roman`, `bl _rt_read_out_array`. Every one of those is a place where the calling convention applies. A codegen mistake that violates the convention, passing the wrong argument in the wrong register, clobbering a callee-saved register, imbalancing the stack, produces a runtime crash whose cause is not visible in the source program.
 
 The runtime itself is also a collection of callees. Each `_rt_*` routine has to preserve the registers the convention says it must preserve, restore the stack pointer on exit, and return values in the right place.
 
 Finally, the `main` entry point of a compiled program is itself a callee of the C runtime startup code that calls it. Getting main's prologue and epilogue wrong breaks every program.
 
-## AAPCS64 — ARM64 on macOS and Linux
+## AAPCS64. ARM64 on macOS and Linux
 
 AAPCS64 is the ARM Architecture Procedure Call Standard for 64-bit. Both macOS and Linux follow it, with small platform-specific addenda.
 
@@ -30,7 +30,7 @@ AAPCS64 is the ARM Architecture Procedure Call Standard for 64-bit. Both macOS a
 | `x30` | Link register. `bl` writes the return address here. `ret` reads it. |
 | `sp` | Stack pointer. Must be 16-byte aligned at every call site. |
 
-On macOS, our generated `_main` follows the convention: at entry, `argc` is in `x0` and `argv` is in `x1`. On Linux, the `_start` / `main` contract is slightly different — `libc` wraps `main` — but we observe the same register contents.
+On macOS, our generated `_main` follows the convention: at entry, `argc` is in `x0` and `argv` is in `x1`. On Linux, the `_start` / `main` contract is slightly different, `libc` wraps `main`: but we observe the same register contents.
 
 ### What the codegen has to respect
 
@@ -82,7 +82,7 @@ Or, more compactly with a wider initial allocation:
 
 Our `_rt_write_roman` uses the second form because it has a small stack-local buffer for the roman-numeral string. Most other `_rt_*` routines use the first form with `N=0`.
 
-## System V AMD64 — Linux x86-64
+## System V AMD64. Linux x86-64
 
 The System V AMD64 ABI governs Linux, FreeBSD, macOS (for user code), and essentially every x86-64 Unix. We target it directly for Linux x86-64; macOS on x86-64 is not a platform we support today.
 
@@ -104,7 +104,7 @@ The alignment rule is a frequent source of bugs. The idiomatic prologue is `push
 - `codegen_x86_64.sh` places the first integer argument in `rdi`, not `rax`. This is the most common source of bugs when translating from ARM64 codegen (where the first argument is `x0`): the direct register correspondence is `rdi` ↔ `x0`.
 - Call sites must align the stack. The `codegen_*` functions in the x86-64 backend allocate 16-byte frames for every statement that makes a call, to be safe.
 - `r12`–`r15` are callee-saved. The runtime's `_rt_sys666_open` and `_rt_sys666_write` use `r14` to hold a buffer size across a syscall, because a caller-saved register would not survive the syscall's internal register clobbering.
-- Syscalls on Linux x86-64 use the `syscall` instruction, with the syscall number in `rax` and arguments in `rdi`, `rsi`, `rdx`, `r10`, `r8`, `r9` (note: `r10` replaces `rcx`, because `syscall` clobbers `rcx`). This is almost the System V AMD64 convention but not identical — `rcx` is replaced by `r10` for syscalls specifically.
+- Syscalls on Linux x86-64 use the `syscall` instruction, with the syscall number in `rax` and arguments in `rdi`, `rsi`, `rdx`, `r10`, `r8`, `r9` (note: `r10` replaces `rcx`, because `syscall` clobbers `rcx`). This is almost the System V AMD64 convention but not identical, `rcx` is replaced by `r10` for syscalls specifically.
 
 ### Small System V AMD64 traps
 
@@ -114,7 +114,7 @@ The alignment rule is a frequent source of bugs. The idiomatic prologue is `push
 
 ### Variadic functions
 
-The System V AMD64 ABI requires that, when calling a variadic function (e.g. `printf`), the caller load `%al` (the low byte of `%rax`) with the number of vector registers used to pass arguments — typically zero for our generated code, since INTERCAL has no floating-point. The value need not be exact, only an upper bound. We never emit calls to variadic functions in our compiled output; the runtime calls libc `write` and `read`, which are not variadic. So `%al` is never set explicitly, and the convention does not bite us today.
+The System V AMD64 ABI requires that, when calling a variadic function (e.g. `printf`), the caller load `%al` (the low byte of `%rax`) with the number of vector registers used to pass arguments, typically zero for our generated code, since INTERCAL has no floating-point. The value need not be exact, only an upper bound. We never emit calls to variadic functions in our compiled output; the runtime calls libc `write` and `read`, which are not variadic. So `%al` is never set explicitly, and the convention does not bite us today.
 
 ### Vector registers
 
@@ -187,7 +187,7 @@ The x86-64 equivalent looks similar structurally, with different mnemonics:
       pop rbp
       ret
 
-The same structure — save frame pointer, allocate local frame, restore, return — with different instruction names.
+The same structure, save frame pointer, allocate local frame, restore, return, with different instruction names.
 
 ## Why we do not reinvent the wheel
 

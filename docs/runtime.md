@@ -8,7 +8,7 @@ The three supported platforms each get their own file:
     src/runtime/linux_arm64.s      1016 lines
     src/runtime/linux_x86_64.s     1023 lines
 
-They implement the same interface with platform-specific assembly. The INTERCAL compiler is unaware of which one will be linked in — it emits symbolic calls like `bl _rt_write_roman`, and the platform decides at link time.
+They implement the same interface with platform-specific assembly. The INTERCAL compiler is unaware of which one will be linked in, it emits symbolic calls like `bl _rt_write_roman`, and the platform decides at link time.
 
 ## Naming conventions
 
@@ -120,7 +120,7 @@ For input (`_rt_write_in_array`), the symmetric process: read a character, bit-r
 
 The two heads do not share state. Reads and writes are independent. The tape's role is not to buffer text but to make text-as-arithmetic: writing "H" is expressed as the tape-distance from the previous head position to the bit-reversed value of `H`'s ASCII code.
 
-This is the reason the hello-world test file starts with constants like `#238`, `#108`, `#112`. Each is the delta from the previous head position (starting at 0) to the bit-reversed ASCII code of a character. The compiler does not compute these deltas — the programmer must.
+This is the reason the hello-world test file starts with constants like `#238`, `#108`, `#112`. Each is the delta from the previous head position (starting at 0) to the bit-reversed ASCII code of a character. The compiler does not compute these deltas, the programmer must.
 
 ## Memory allocation
 
@@ -163,7 +163,7 @@ The full table is:
 
 | Code | Meaning | Where it fires |
 |------|---------|----------------|
-| E000 | UNDECODABLE STATEMENT | runtime — codegen emits a call for `UNKNOWN` statement bodies |
+| E000 | UNDECODABLE STATEMENT | runtime, codegen emits a call for `UNKNOWN` statement bodies |
 | E017 | DO YOU EXPECT ME TO FIGURE THIS OUT? | parser (compile-time) on same-in-same nesting of sparks/rabbit-ears; also reserved at runtime |
 | E079 | INSUFFICIENTLY POLITE | compile-time; politeness ratio < 1/5 |
 | E099 | OVERLY POLITE | compile-time; politeness ratio > 1/3 |
@@ -177,7 +177,7 @@ The full table is:
 | E241 | BAD SUBSCRIPT | runtime; per-access bounds check |
 | E275 | 32-BIT VALUE TO 16-BIT SLOT | runtime; scalar assign guards range |
 | E436 | RETRIEVE WITHOUT STASH | runtime; RETRIEVE codegen guards stash-stack depth |
-| E533 | ARITHMETIC OVERFLOW | reserved; the syslib labels documented as raising it (1000, 1030, 1050, 1500, 1540) actually wrap silently — see syslib.md for the structural reason. The error path exists in the runtime but no syslib path currently reaches it. |
+| E533 | ARITHMETIC OVERFLOW | reserved; the syslib labels documented as raising it (1000, 1030, 1050, 1500, 1540) actually wrap silently, see syslib.md for the structural reason. The error path exists in the runtime but no syslib path currently reaches it. |
 | E555 | MULTIPLE COME FROM TARGETING SAME LABEL | compile-time; `resolve_come_from` |
 | E562 | END OF INPUT | runtime; numeric input |
 | E579 | BAD INPUT | runtime; numeric input |
@@ -204,6 +204,6 @@ At a high level: `bl _rt_syscall_666` reads the syscall number from `.1`, dispat
 
 ## Next reading
 
-- [syslib.md](syslib.md) — arithmetic labels 1000–1999 and the pure-vs-native split.
-- [666.md](666.md) — the Label 666 syscall extension in depth.
-- [platforms.md](platforms.md) — how the three runtime files differ mechanically.
+- [syslib.md](syslib.md): arithmetic labels 1000–1999 and the pure-vs-native split.
+- [666.md](666.md): the Label 666 syscall extension in depth.
+- [platforms.md](platforms.md): how the three runtime files differ mechanically.
