@@ -12,6 +12,20 @@ codegen_expr() {
   local id=$1
   local type="${expr_type[$id]}"
 
+  # Constant folding: same as ARM64 backend, see eval_const() in
+  # intercalc.sh. Both backends share the expr_* tables, so the
+  # ARM64-side helper is reusable.
+  case "$type" in
+    OP_AND|OP_OR|OP_XOR|OP_MINGLE)
+      local cval
+      cval=$(eval_const "$id")
+      if [[ -n "$cval" ]]; then
+        emit "  mov eax, ${cval}"
+        return
+      fi
+      ;;
+  esac
+
   case "$type" in
     CONST)
       local val=${expr_val[$id]}

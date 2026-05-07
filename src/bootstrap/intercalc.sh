@@ -662,9 +662,75 @@ parse_expr() {
 # SECTION 6: Expression codegen
 # ============================================================
 
+# eval_const(id) - if the expression at $id is a pure constant (no
+# variables, no array refs), echo its value; else echo "". 16-bit
+# unary AND/OR/XOR and 16-bit mingle are folded; select is not folded
+# because it depends on dynamic operand widths.
+eval_const() {
+  local id=$1
+  local t="${expr_type[$id]}"
+  case "$t" in
+    CONST)
+      echo "${expr_val[$id]}"
+      ;;
+    OP_AND|OP_OR|OP_XOR)
+      local cv
+      cv=$(eval_const "${expr_child[$id]}")
+      [[ -z "$cv" ]] && return
+      local w=${expr_width[$id]}
+      local mask rot
+      if (( w == 32 )); then
+        mask=$((0xFFFFFFFF))
+        # rotate right 1 bit in 32-bit
+        rot=$(( ((cv >> 1) | ((cv & 1) << 31)) & mask ))
+      else
+        mask=$((0xFFFF))
+        rot=$(( ((cv >> 1) | ((cv & 1) << 15)) & mask ))
+      fi
+      case "$t" in
+        OP_AND) echo $(( (cv & rot) & mask )) ;;
+        OP_OR)  echo $(( (cv | rot) & mask )) ;;
+        OP_XOR) echo $(( (cv ^ rot) & mask )) ;;
+      esac
+      ;;
+    OP_MINGLE)
+      local lv rv
+      lv=$(eval_const "${expr_left[$id]}")
+      [[ -z "$lv" ]] && return
+      rv=$(eval_const "${expr_right[$id]}")
+      [[ -z "$rv" ]] && return
+      local result=0 i
+      for (( i=0; i<16; i++ )); do
+        local bit_l=$(( (lv >> i) & 1 ))
+        local bit_r=$(( (rv >> i) & 1 ))
+        result=$(( result | (bit_l << (2*i + 1)) | (bit_r << (2*i)) ))
+      done
+      echo "$result"
+      ;;
+  esac
+}
+
 codegen_expr() {
   local id=$1
   local type="${expr_type[$id]}"
+
+  # Constant folding: if the whole subtree evaluates to a literal,
+  # emit a single mov instead of recursing into runtime calls.
+  case "$type" in
+    OP_AND|OP_OR|OP_XOR|OP_MINGLE)
+      local cval
+      cval=$(eval_const "$id")
+      if [[ -n "$cval" ]]; then
+        if (( cval <= 65535 )); then
+          emit "  mov w0, #${cval}"
+        else
+          emit "  movz w0, #$((cval & 0xFFFF))"
+          emit "  movk w0, #$((cval >> 16)), lsl #16"
+        fi
+        return
+      fi
+      ;;
+  esac
 
   case "$type" in
     CONST)
