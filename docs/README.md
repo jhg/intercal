@@ -112,6 +112,8 @@ You want to know *why* something is the way it is.
 |------|---------|
 | [self-hosting.md](self-hosting.md) | 3-generation bootstrap, fixpoint, stage3 roadmap |
 | [testing-and-workflow.md](testing-and-workflow.md) | The four test suites, TDD, CI |
+| [tests-tour.md](tests-tour.md) | One-paragraph reference for every `tests/test_*.i` |
+| [tools-tour.md](tools-tour.md) | One-paragraph reference for every `tools/*.sh|*.py` |
 | [debugging.md](debugging.md) | Symptom-to-phase debugging guide |
 
 ### Worked examples and contribution

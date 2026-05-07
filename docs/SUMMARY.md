@@ -45,6 +45,8 @@
 - [Platforms](platforms.md)
 - [Self-hosting](self-hosting.md)
 - [Testing and workflow](testing-and-workflow.md)
+- [Tests directory tour](tests-tour.md)
+- [Tools tour](tools-tour.md)
 - [Debugging the compiler](debugging.md)
 
 # Part VI: Context and contribution
