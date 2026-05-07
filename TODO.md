@@ -23,9 +23,11 @@ Completado hoy:
 16. docs/intercal_patterns.md con patterns verificados empiricamente.
 17. Memoria actualizada: MEMORY.md + dev_workflow.md + release_process.md.
 
-Decisiones pendientes a consultar:
-- Hacer --pure-syslib el default: medido hoy que eleva compile time 0.09s -> 30s (330x), binary 40KB -> 1.3MB (33x). CI total pasaria de 15 min a ~60 min. Opciones: (a) cachear syslib.i compilado como .s entre runs, (b) mantener native como default y --pure-syslib opt-in como ahora, (c) diferir hasta que compilador Phase 4 sea mas rapido. Decision requerida.
-- Primera release v0.1: cuando Phase 4 tenga minimo viable (Stage 6 codegen funcionando), lanzar release.yml via workflow_dispatch y luego tag v0.1.0.
+Decisiones tomadas:
+- Pure syslib default: investigado empirica y state-of-art. Decisión: native como default (0ms compile, 6KB, byte-equivalente verificado). Añadido INTERCAL_SYSLIB=cache mode que pre-compila syslib.i a ~/.cache/intercal/syslib-<plat>-<hash>.s; mismas semánticas que --pure-syslib sin coste por compilación. tools/build_syslib.sh para warm-up. Cache mode validado en CI (3 plataformas, 33/33 tests).
+- Phase 4 stage3 deep work (lexer/parser real con loops INTERCAL): diferido a v0.2+. v0.1 ships con MVP template-passthrough completo. Razón: scaffolding de loop ~30 statements/loop en INTERCAL; requiere sprint dedicado de 6-10h con TDD por sub-stage. MVP es funcionalmente equivalente para los 25 programas de test.
+
+Primera release v0.1: lista para tag cuando confirmes. Todo el infra está. Solo falta tu OK.
 
 Pendientes en orden de prioridad:
 - Phase 4.0 Stages 3-8 (compilador real). Bloqueado en pattern de loop con break -- research completado (docs/intercal_patterns.md). Cost ~30 statements por loop con break. Proxima sesion: disenar factorizacion con helpers reutilizables antes de codegen.

@@ -84,6 +84,15 @@ jobs:
       - name: Stage 3 (evolving compiler) test suite
         run: zsh tests/run_stage3_tests.sh
 
+      - name: Cache compiled syslib
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/intercal
+          key: syslib-${{ matrix.name }}-${{ hashFiles('src/syslib/syslib.i') }}
+
+      - name: Bootstrap test suite (INTERCAL_SYSLIB=cache mode)
+        run: INTERCAL_SYSLIB=cache zsh tests/run_tests.sh
+
       - name: Three-generation fixpoint (if compiler complete)
         if: matrix.fixpoint && hashFiles('src/compiler/compiler.i') != ''
         run: zsh bootstrap.sh
