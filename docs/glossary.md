@@ -52,6 +52,16 @@ This glossary collects the vocabulary a reader needs to move between the INTERCA
 - System library (syslib) — arithmetic routines at labels 1000–1999. See [syslib.md](syslib.md).
 - Turing Text Model (TTM) — the 256-position tape used for array-based text I/O. Character code is encoded as the tape-head displacement after a bit-reversal.
 
+## Host, target, and runtime
+
+The three words describe different machines or environments involved in producing and running a compiled program. Confusing them is a common source of misunderstanding.
+
+- *Host* — the machine the compiler itself runs on. When you invoke `zsh src/bootstrap/intercalc.sh < program.i` on your laptop, the host is your laptop.
+- *Target* — the machine the compiled program will run on. For our compiler, the target is always the same as the host: we are a *native compiler*, not a cross-compiler. A Mac compiling INTERCAL produces a binary that runs on a Mac; it cannot today produce a binary that runs on a Raspberry Pi.
+- *Runtime* — the collection of library code and services the target needs in order to execute the compiled program. Our runtime is the hand-written assembly under `src/runtime/<platform>.s` plus the syslib under `src/syslib/`. Every compiled INTERCAL binary links against it.
+
+A *cross-compiler* is a compiler whose host and target are different machines. We are not one today. A *self-hosting compiler* is a compiler whose source language is the same as the language it compiles. Our bootstrap (`intercalc.sh`) is not self-hosting (it is zsh, not INTERCAL). Our goal is that `src/compiler/stage3.i` eventually will be self-hosting.
+
 ## Compiler-theory vocabulary
 
 - Abstract syntax tree (AST) — a tree representation of a program's syntax, with operator nodes and leaves for literals and identifiers. Our expression parser produces an AST in parallel arrays; the statement-level representation is a flat list rather than a tree.

@@ -54,6 +54,37 @@ The per-program memory layout is composed by the codegen (see [code-generation.m
                     │                     the ,65535 data buffer) │
                     └─────────────────────────────────────────────┘
 
+The NEXT stack, in detail:
+
+      _next_sp
+         │
+         ▼
+    ┌───┬───┬───┬───┬───┬──────┬───┐
+    │ 0 │ 1 │ 2 │ 3 │ 4 │ .... │79 │      ← slot indices
+    ├───┼───┼───┼───┼───┼──────┼───┤
+    │adr│adr│adr│   │   │      │   │      ← 8-byte return addresses
+    └───┴───┴───┴───┴───┴──────┴───┘
+         ▲
+         sp=3  (next push goes into slot 3)
+
+    push:  store addr at _next_stack[sp]; sp += 1; sp == 80 → ICL123I
+    pop:   sp -= 1; sp < 0 → ICL632I; branch to _next_stack[sp]
+
+The Turing Text Model tape, conceptually:
+
+          _ttm_out_pos = 42
+             │
+             ▼
+       position 0  1  2  .. 41 42 43 .. 254 255 0  1 ...   (wraps)
+                ┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬
+    code stored │  │  │  │  │ p│ p│  │  │  │  │  │  │...
+                └──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴
+
+    Output: subtract array[i] from pos, mod 256, bit-reverse → ASCII
+    Input:  read char, bit-reverse its ASCII, (prev_pos - new_pos) mod 256
+
+    _ttm_in_pos is a separate head. Reads and writes do not interfere.
+
 A 16-bit onespot occupies four bytes because ARM64 zero-extends `ldr w`; using a 32-bit slot simplifies loads. A twospot already is 32-bit, so one slot suffices. An array has three pieces: an 8-byte pointer set by `_rt_mmap`, a 64-byte dimensions table supporting up to 16 dimensions, and a one-byte ignore flag.
 
 Arrays are heap-allocated lazily. The first `DO ,N <- #K` calls `_rt_mmap` to reserve K×2 bytes (or K×4 for a hybrid `;N`), stores the returned pointer in `_tail_N_ptr`, and writes the dimensions table. Redimensioning re-mmaps and drops the previous allocation. The previous contents are discarded, as specified.

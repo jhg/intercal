@@ -7,23 +7,54 @@ This chapter is a single end-to-end walkthrough of what happens when you run:
 
 The script is `src/bootstrap/intercalc.sh`. It runs seven phases, all inside one zsh process, and ends by shelling out to `cc` to link the result. The per-phase chapters that follow this one zoom in on each phase in turn; read this first to see the whole shape.
 
-## The seven phases
+## The seven phases at a glance
 
-                                                            +-------------------+
-    .i source  ───►  read_source  ───►  tokenize  ───►  ... │  check_politeness │
-                                                            │  check_labels     │
-                                                            │  resolve_come_from│
-                                                            │  detect_syslib    │
-                                                            +---------┬---------+
-                                                                      │
-                                                                      ▼
-                                                             codegen_program
-                                                                      │
-                                                                      ▼
-                                              cat runtime.s syslib.s program.s | cc
-                                                                      │
-                                                                      ▼
-                                                              binary on stdout
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │  program.i (INTERCAL source on stdin)                                │
+    └───────────────────────────┬──────────────────────────────────────────┘
+                                │
+                                ▼
+             ┌──────────────────────────────────┐
+             │  read_source()                    │   whitespace-fold,
+             │  SOURCE = uppercased single line  │   uppercase
+             └──────────────────┬────────────────┘
+                                │
+                                ▼
+             ┌──────────────────────────────────┐
+             │  tokenize()                       │   split into statements,
+             │  stmt_* parallel arrays populated │   classify each
+             └──────────────────┬────────────────┘
+                                │
+                                ▼
+             ┌──────────────────────────────────┐
+             │  scan_variables()                 │   used_spot/used_twospot/
+             │  used_* maps populated            │   used_tail/used_hybrid
+             └──────────────────┬────────────────┘
+                                │
+                                ▼
+             ┌──────────────────────────────────┐
+             │  check_politeness()               │   PLEASE ratio ∈ [1/5, 1/3]
+             │  check_labels()                   │   unique, 1..65535
+             │  resolve_come_from()              │   build come_from_target
+             │  detect_syslib()                  │   needs_syslib = 0 or 1
+             └──────────────────┬────────────────┘
+                                │
+                                ▼
+             ┌──────────────────────────────────┐
+             │  codegen_program()                │   emit assembly
+             │  asm string grows to final form   │   statement by statement
+             └──────────────────┬────────────────┘
+                                │
+                                ▼
+             ┌──────────────────────────────────┐
+             │  cat runtime.s syslib.s program.s │   linker invocation
+             │    | cc -x assembler - -o binary  │   via system cc
+             └──────────────────┬────────────────┘
+                                │
+                                ▼
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │  native binary on stdout (Mach-O or ELF)                             │
+    └──────────────────────────────────────────────────────────────────────┘
 
 The list, with their entry points in `intercalc.sh`:
 
