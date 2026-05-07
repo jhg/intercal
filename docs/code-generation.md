@@ -152,14 +152,17 @@ That is all three statements compiled. The only thing left is `emit_data`, which
 
 ## Expressions: `codegen_expr`
 
-Expressions are tree-walked by `codegen_expr`, which takes the index of a tree node and emits code that leaves the value in `w0` (or `x0` for 32-bit-wide values). The recursion:
+Expressions are tree-walked by `codegen_expr`, which takes the index of a tree node and emits code that leaves the value in `w0` (or `x0` for 32-bit-wide values). The dispatch:
 
-- `NODE_CONST` → `mov w0, #VAL`.
-- `NODE_VAR` → load the variable into `w0`, checking bounds where applicable.
-- `NODE_MINGLE` → codegen left into `w0`, push `w0`, codegen right into `w0`, pop into `w1`, swap, call `_rt_mingle`. Result in `x0` (32-bit).
-- `NODE_SELECT` → similar, call `_rt_select`.
-- `NODE_UNARY_AND/OR/XOR` → codegen child, call `_rt_unary_and_16` etc.
-- `NODE_ARRAY_REF` → codegen each subscript onto the stack, call the array-index helper, load the element.
+- `CONST` → `mov w0, #VAL`. If the value is wider than 16 bits, two `movz` / `movk` instructions assemble the 32-bit word.
+- `VAR_SPOT` and `VAR_TWOSPOT` → load the variable into `w0`. The address is reached through `adrp` + `add` + `ldr`.
+- `OP_MINGLE` → codegen left into `w0`, push `w0`, codegen right into `w0`, pop into `w1`, swap, call `_rt_mingle`. Result in `x0` (32-bit).
+- `OP_SELECT` → similar, call `_rt_select` with the operand width in `w2`.
+- `OP_AND` / `OP_OR` / `OP_XOR` → codegen child, call `_rt_unary_and_16` (or 32-bit variant) etc., dispatched on the node's `expr_width`.
+- `ARRAY_TAIL_REF` and `ARRAY_HYBRID_REF` → codegen each subscript, compute the linear index (with a per-axis bounds check that fires `ICL241I`), load the element with `ldrh` (16-bit) or `ldr` (32-bit).
+- `ARRAY_TAIL` and `ARRAY_HYBRID` (whole-array reference, no SUB) → not legal in expression context; placeholder code emits `mov w0, #0`. These node types appear only in `READ OUT` and `WRITE IN` statements, where the codegen handles them directly without going through `codegen_expr`.
+
+Constant folding intercepts the operator dispatch: when `eval_const` reduces an `OP_*` subtree to a literal, the codegen emits a single `mov` (or `movz`/`movk` for 32-bit) instead of recursing into runtime calls.
 
 All operator evaluation is delegated to the runtime. The codegen doesn't try to inline mingle or select. This keeps the emitted code short and means that bug-fixing or optimising `_rt_mingle` affects every compiled program without re-running the compiler.
 

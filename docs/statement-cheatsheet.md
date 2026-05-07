@@ -27,10 +27,10 @@ Every statement can optionally be prefixed with a label and the verb can be `DO`
 
 | Statement | Example | Codegen function | Errors |
 |-----------|---------|-----------------|--------|
-| `<label> NEXT` | `DO (100) NEXT` | `codegen_next` | ICL123I (stack overflow), ICL129I (unknown label) |
-| `RESUME <expr>` | `DO RESUME #1` | `codegen_resume` | ICL621I (RESUME 0), ICL632I (stack underflow) |
+| `<label> NEXT` | `DO (100) NEXT` | `codegen_next` | ICL123I (stack overflow, runtime), ICL129I (unknown label, compile-time) |
+| `RESUME <expr>` | `DO RESUME #1` | `codegen_resume` | ICL621I (RESUME 0, runtime), ICL632I (stack underflow, runtime) |
 | `FORGET <expr>` | `DO FORGET #1` | `codegen_forget` | none |
-| `COME FROM <label>` | `DO COME FROM (100)` | implicit in target statement | ICL555I (duplicate, not yet enforced) |
+| `COME FROM <label>` | `DO COME FROM (100)` | implicit in target statement | ICL555I (duplicate target, compile-time), ICL129I (unknown target, compile-time) |
 | `GIVE UP` | `DO GIVE UP` | `codegen_give_up` | none |
 
 ## Modifiers
@@ -64,10 +64,14 @@ Every statement can optionally be prefixed with a label and the verb can be `DO`
 
 | Statement type | Example | Codegen function | Errors |
 |---------------|---------|-----------------|--------|
-| Any unknown form | `DO WOT A HULLABALOO` | dispatcher fallthrough | ICL000I (executed unknown statement) |
-| Fallthrough past last statement | (missing `GIVE UP`) | implicit epilogue | ICL633I (fell off the end) |
-| Politeness out of range | (whole program) | `check_politeness` at compile time | ICL079I (rude), ICL099I (polite) |
+| Any unknown form | `DO WOT A HULLABALOO` | dispatcher fallthrough | ICL000I (executed unknown statement, runtime) |
+| Bad spark/rabbit-ears nesting | `DO .1 <- 'a $ 'b''` | `parse_expr` | ICL017I (compile-time) |
+| Fallthrough past last statement | (missing `GIVE UP`) | implicit epilogue | ICL633I (fell off the end, runtime) |
+| Politeness out of range | (whole program, ≥5 statements) | `check_politeness` at compile time | ICL079I (rude), ICL099I (polite) |
 | Duplicate label | (whole program) | `check_labels` at compile time | ICL182I |
+| Label outside 1–65535 | `DO (0) NEXT` | `check_labels` at compile time | ICL197I |
+| Multiple COME FROMs to same label | (whole program) | `resolve_come_from` at compile time | ICL555I |
+| Unknown gerund in ABSTAIN/REINSTATE | `DO ABSTAIN FROM PROCRASTINATING` | `codegen_gerund_modify` at compile time | (named diagnostic, not a numeric ICL) |
 
 ## Expression operators
 

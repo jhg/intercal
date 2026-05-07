@@ -2,9 +2,9 @@
 
 By the time the lexer finishes, the compiler knows enough about every statement to start checking program-wide properties. Three checks run in `src/bootstrap/intercalc.sh` between tokenisation and codegen:
 
-- `check_politeness` — the PLEASE ratio must be in [1/5, 1/3].
-- `check_labels` — no duplicate labels; build the label → statement-index map.
-- `resolve_come_from` — match every `COME FROM (N)` to the labelled statement it targets.
+- `check_politeness` — the PLEASE ratio must be in [1/5, 1/3] (programs of fewer than five statements bypass the rule).
+- `check_labels` — labels must be in the range 1–65535 and unique; build the label → statement-index map.
+- `resolve_come_from` — match every `COME FROM (N)` to the labelled statement it targets, rejecting duplicate targets.
 
 These are almost the entirety of the static analysis the compiler performs. Everything else in the INTERCAL error catalogue (undefined variable, dimension zero, bad subscript, overflow, ...) fires at runtime, because INTERCAL's statement-level activation model makes most conditions undecidable at compile time.
 
@@ -12,7 +12,9 @@ These are almost the entirety of the static analysis the compiler performs. Ever
 
 The politeness rule is, in compiler-theory terms, a whole-program static check. It is also the only way for the compiler to reject a syntactically well-formed program. Because it is the only compile-time check, the test suites spend real effort on it: `tests/test_errors_rude.i` exercises the "too rude" branch and `tests/test_errors_polite.i` the "too polite" branch. Both fail deliberately with ICL079I and ICL099I respectively, and the harness grep-checks stderr for the code.
 
-The implementation in `check_politeness` is four lines: count the number of statements whose `stmt_polite` is 1, compare `polite*5 >= total` and `polite*3 <= total`, fire `die_compile 079` or `die_compile 099` otherwise.
+The implementation in `check_politeness` is short: count the number of statements whose `stmt_polite` is 1, compare `polite*5 >= total` and `polite*3 <= total`, fire `die_compile 079` or `die_compile 099` otherwise.
+
+The check is bypassed entirely when the program has fewer than five statements. The 1972 manual is silent on this corner; we follow the C-INTERCAL precedent of letting tiny programs through. This is why `tests/test_give_up.i`, a single-statement program with no `PLEASE`, compiles cleanly even though 0/1 = 0% is well below the 20% lower bound.
 
 ### Why the bounds are asymmetric
 
@@ -31,7 +33,10 @@ Comments do not exist in INTERCAL, so there is no debate about whether a comment
 
 ## Label uniqueness and the label map
 
-`check_labels` walks `stmt_label` and registers each non-empty label in the associative array `label_to_stmt`. A duplicate fires `die_compile 182`.
+`check_labels` walks `stmt_label` and registers each non-empty label in the associative array `label_to_stmt`. Two failure modes:
+
+- A label outside the 1–65535 range fires `ICL197I LABEL VALUE OUTSIDE PERMITTED RANGE`. This catches typos like `(0)` or `(70000)`.
+- A duplicate label (the same number on two statements) fires `ICL182I DUPLICATE LINE LABEL DETECTED`.
 
 The map is essential for the phases that follow:
 
@@ -56,7 +61,7 @@ The asymmetry is what makes `COME FROM` interesting from a compiler standpoint. 
 
 ### What about multiple COME FROMs to the same label
 
-The INTERCAL spec says this is ICL555I. Our `resolve_come_from` overwrites silently: the last COME FROM in source order wins. That is a bug. A fix is one line (check `[[ -n "$come_from_target[target]" ]]` before writing), but the test harness does not yet cover it, and adding the check without a test would violate the TDD rule in `AGENTS.md`.
+The INTERCAL spec says this is `ICL555I`. Our `resolve_come_from` enforces it: the second COME FROM that registers the same target label fires `ICL555I MULTIPLE COME FROM TARGETING SAME LABEL` and the compile aborts. This was a latent bug in earlier versions of the compiler (the second registration overwrote the first silently); the check is now in place and exercised by the test suite.
 
 ### COME FROM and probabilities
 

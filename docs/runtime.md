@@ -161,24 +161,29 @@ The preformatted messages live in the data section. For example:
 
 The full table is:
 
-| Code | Meaning | Emitted by |
-|------|---------|------------|
-| E000 | UNDECODABLE STATEMENT | codegen for UNKNOWN statements |
-| E017 | BAD EXPRESSION | parser (compile-time on bad spark/rabbit-ears nesting); also reserved at runtime |
-| E123 | NEXT STACK OVERFLOW | NEXT codegen |
-| E129 | NEXT TO UNKNOWN LABEL | NEXT codegen — now fired at compile time when the target label does not exist |
-| E139 | ABSTAIN/REINSTATE OF UNKNOWN LABEL | ABSTAIN/REINSTATE codegen — now fired at compile time when the target label does not exist |
-| E200 | UNDEFINED VARIABLE | latent; reserved for future checks |
-| E240 | ZERO-DIM ARRAY | dimension codegen |
-| E241 | BAD SUBSCRIPT | array-access codegen |
-| E275 | 32-BIT VALUE TO 16-BIT SLOT | scalar assign codegen |
-| E436 | RETRIEVE WITHOUT STASH | RETRIEVE codegen |
-| E533 | ARITHMETIC OVERFLOW | reserved for syslib |
-| E562 | END OF INPUT | numeric input |
-| E579 | BAD INPUT | numeric input |
-| E621 | RESUME ZERO | RESUME codegen |
-| E632 | PROGRAM ENDED WITHOUT GIVE UP | RESUME helper |
-| E633 | FELL OFF THE END | fallthrough past the last statement |
+| Code | Meaning | Where it fires |
+|------|---------|----------------|
+| E000 | UNDECODABLE STATEMENT | runtime — codegen emits a call for `UNKNOWN` statement bodies |
+| E017 | DO YOU EXPECT ME TO FIGURE THIS OUT? | parser (compile-time) on same-in-same nesting of sparks/rabbit-ears; also reserved at runtime |
+| E079 | INSUFFICIENTLY POLITE | compile-time; politeness ratio < 1/5 |
+| E099 | OVERLY POLITE | compile-time; politeness ratio > 1/3 |
+| E123 | NEXT STACK OVERFLOW | runtime; NEXT codegen guards depth against 79 |
+| E129 | NEXT TO UNKNOWN LABEL | compile-time; the label set is known at compile time |
+| E139 | ABSTAIN/REINSTATE OF UNKNOWN LABEL | compile-time; same reason as E129 |
+| E182 | DUPLICATE LINE LABEL | compile-time; `check_labels` |
+| E197 | LABEL VALUE OUTSIDE PERMITTED RANGE | compile-time; labels must be in 1–65535 |
+| E200 | UNDEFINED VARIABLE | latent; reserved for future static checks |
+| E240 | ZERO-DIM ARRAY | runtime; dimension codegen guards a zero RHS |
+| E241 | BAD SUBSCRIPT | runtime; per-access bounds check |
+| E275 | 32-BIT VALUE TO 16-BIT SLOT | runtime; scalar assign guards range |
+| E436 | RETRIEVE WITHOUT STASH | runtime; RETRIEVE codegen guards stash-stack depth |
+| E533 | ARITHMETIC OVERFLOW | runtime; raised by syslib labels 1000, 1030, 1040, 1050, 1500, 1540, 1550 |
+| E555 | MULTIPLE COME FROM TARGETING SAME LABEL | compile-time; `resolve_come_from` |
+| E562 | END OF INPUT | runtime; numeric input |
+| E579 | BAD INPUT | runtime; numeric input |
+| E621 | RESUME ZERO | runtime; RESUME codegen forbids count zero |
+| E632 | PROGRAM ENDED WITHOUT GIVE UP | runtime; RESUME helper detects empty NEXT stack |
+| E633 | FELL OFF THE END | runtime; fallthrough past the last statement |
 
 E000, E017, E200 and a few others are runtime endpoints for static conditions that the compiler does not yet flag. The reserved-but-unused codes remain because upgrading the compiler to catch them at compile time requires a proper type/flow analysis, which we have not built.
 

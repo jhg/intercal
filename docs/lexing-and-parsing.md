@@ -68,13 +68,13 @@ Plus the rule that nested grouping must alternate spark ↔ rabbit-ears. The par
 
 Expressions are stored as a tree of nodes in parallel arrays:
 
-    expr_type[i]      NODE_CONST, NODE_VAR, NODE_MINGLE, NODE_SELECT,
-                      NODE_UNARY_AND, NODE_UNARY_OR, NODE_UNARY_XOR,
-                      NODE_ARRAY_REF
-    expr_val[i]       constant value, or the variable number
-    expr_left[i]      left child (for binary ops)
-    expr_right[i]     right child (for binary ops)
-    expr_child[i]     single child (for unary ops)
+    expr_type[i]      CONST, VAR_SPOT, VAR_TWOSPOT, ARRAY_TAIL_REF,
+                      ARRAY_HYBRID_REF, ARRAY_TAIL, ARRAY_HYBRID,
+                      OP_MINGLE, OP_SELECT, OP_AND, OP_OR, OP_XOR
+    expr_val[i]       constant value, or the variable / array number
+    expr_left[i]      left child (binary ops); subscript count (array refs)
+    expr_right[i]     right child (binary ops); space-separated subscript node ids (array refs)
+    expr_child[i]     single child (unary ops)
     expr_width[i]     16 or 32 — the width hint used during codegen
 
 Building a new node is a matter of `(( expr_next_id++ ))`, then writing into slot `expr_next_id - 1`. The parser returns the slot index of the root of the sub-expression it just parsed. This style (parallel arrays instead of heap-allocated structs) is a concession to zsh: it is much faster than associative arrays, and the parallel-array pattern carries over directly to the INTERCAL version of the parser in `stage3.i`.

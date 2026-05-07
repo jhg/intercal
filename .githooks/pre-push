@@ -24,4 +24,4 @@ echo "pre-push: run_stage3_tests.sh"
 rm -f stage3_bin
 zsh tests/run_stage3_tests.sh
 
-echo "pre-push: OK (56 tests passed across 4 suites)"
+echo "pre-push: OK (all suites green)"

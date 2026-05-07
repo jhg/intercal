@@ -39,7 +39,9 @@ Every compiled statement used to begin with a three-instruction sequence that lo
 
 ### Peephole pass (implemented)
 
-A post-codegen pass walks the emitted assembly looking for short patterns that cancel out — for example, a `str` immediately followed by an `ldr` from the same address. The current pass is small but catches the most common per-statement redundancies. Lives in `peephole_optimize`.
+A post-codegen pass walks the emitted assembly looking for one specific pattern: an unconditional branch (`b LABEL` on ARM64, `jmp LABEL` on x86-64) immediately followed by the label it targets. The branch is dead — fall-through reaches the label anyway — so the pass drops it. Lives in `peephole_optimize`. The pattern arises naturally from the way the dispatcher used to emit a trampoline label after every statement; eliminating the trampoline plus this peephole keeps the emitted code compact.
+
+More elaborate peephole rules (load-after-store cancellation, redundant `mov`, jump-to-jump short-circuiting) are within reach but not yet implemented.
 
 ## What we still leave on the table
 
