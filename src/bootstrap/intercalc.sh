@@ -43,7 +43,23 @@ emit() { asm+="$1"$'\n' }
 die_compile() {
   local code=$1
   local msg=$2
+  # Optional third arg is a statement index for context. Many call sites pass
+  # $3 as the current statement index; codegen sites can also rely on $i in
+  # scope by passing nothing -- we attempt to detect.
+  local ctx_idx="${3:-}"
+  if [[ -z "$ctx_idx" && -n "${i:-}" && "$i" =~ '^[0-9]+$' ]]; then
+    ctx_idx="$i"
+  fi
   echo "ICL${code}I ${msg}" >&2
+  if [[ -n "$ctx_idx" && -n "${stmt_type[$ctx_idx]:-}" ]]; then
+    local lbl="${stmt_label[$ctx_idx]:-}"
+    local line="${stmt_source_line[$ctx_idx]:-?}"
+    if [[ -n "$lbl" ]]; then
+      echo "    ON THE WAY TO STATEMENT $ctx_idx (LABEL ($lbl), SOURCE LINE $line)" >&2
+    else
+      echo "    ON THE WAY TO STATEMENT $ctx_idx (SOURCE LINE $line)" >&2
+    fi
+  fi
   exit 1
 }
 
@@ -1270,8 +1286,7 @@ codegen_next() {
   local target_ref="${label_to_stmt[$target_label]:-}"
 
   if [[ -z "$target_ref" ]]; then
-    emit "  b _rt_error_E129"
-    return
+    die_compile "129" "PROGRAM HAS GOTTEN LOST (NEXT to undefined label ($target_label))"
   fi
 
   # Check NEXT stack depth
@@ -1352,9 +1367,8 @@ codegen_abstain() {
   if [[ "$arg" =~ '^\(([0-9]+)\)$' ]]; then
     local target_label="${match[1]}"
     local target_stmt="${label_to_stmt[$target_label]:-}"
-    if [[ -z "$target_stmt" || "$target_stmt" == syslib_* ]]; then
-      emit "  b _rt_error_E139"
-      return
+    if [[ -z "$target_stmt" || "$target_stmt" == syslib_* || "$target_stmt" == syscall_666 ]]; then
+      die_compile "139" "ABSTAIN FROM nonexistent or reserved label ($target_label)"
     fi
     local abs_offset=$((target_stmt-1))
     emit "  adrp x0, _stmt_flags@PAGE"
@@ -1381,9 +1395,8 @@ codegen_reinstate() {
   if [[ "$arg" =~ '^\(([0-9]+)\)$' ]]; then
     local target_label="${match[1]}"
     local target_stmt="${label_to_stmt[$target_label]:-}"
-    if [[ -z "$target_stmt" || "$target_stmt" == syslib_* ]]; then
-      emit "  b _rt_error_E139"
-      return
+    if [[ -z "$target_stmt" || "$target_stmt" == syslib_* || "$target_stmt" == syscall_666 ]]; then
+      die_compile "139" "REINSTATE of nonexistent or reserved label ($target_label)"
     fi
     local rei_offset=$((target_stmt-1))
     emit "  adrp x0, _stmt_flags@PAGE"

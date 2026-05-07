@@ -588,8 +588,7 @@ codegen_next() {
   local target_ref="${label_to_stmt[$target_label]:-}"
 
   if [[ -z "$target_ref" ]]; then
-    emit "  jmp _rt_error_E129"
-    return
+    die_compile "129" "PROGRAM HAS GOTTEN LOST (NEXT to undefined label ($target_label))"
   fi
 
   # Check NEXT stack depth
@@ -667,9 +666,8 @@ codegen_abstain() {
   if [[ "$arg" =~ '^\(([0-9]+)\)$' ]]; then
     local target_label="${match[1]}"
     local target_stmt="${label_to_stmt[$target_label]:-}"
-    if [[ -z "$target_stmt" || "$target_stmt" == syslib_* ]]; then
-      emit "  jmp _rt_error_E139"
-      return
+    if [[ -z "$target_stmt" || "$target_stmt" == syslib_* || "$target_stmt" == syscall_666 ]]; then
+      die_compile "139" "ABSTAIN FROM nonexistent or reserved label ($target_label)"
     fi
     local abs_offset=$((target_stmt-1))
     emit "  lea rax, [rip + _stmt_flags]"
@@ -689,9 +687,8 @@ codegen_reinstate() {
   if [[ "$arg" =~ '^\(([0-9]+)\)$' ]]; then
     local target_label="${match[1]}"
     local target_stmt="${label_to_stmt[$target_label]:-}"
-    if [[ -z "$target_stmt" || "$target_stmt" == syslib_* ]]; then
-      emit "  jmp _rt_error_E139"
-      return
+    if [[ -z "$target_stmt" || "$target_stmt" == syslib_* || "$target_stmt" == syscall_666 ]]; then
+      die_compile "139" "REINSTATE of nonexistent or reserved label ($target_label)"
     fi
     local rei_offset=$((target_stmt-1))
     emit "  lea rax, [rip + _stmt_flags]"
