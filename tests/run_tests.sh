@@ -208,6 +208,7 @@ run_test_with_args "syscall_readself" test_syscall_readself.i "$(cat test_syscal
 # Compile-time error tests
 run_test_error "politeness_rude" test_errors_rude.i "079"
 run_test_error "politeness_polite" test_errors_polite.i "099"
+run_test_error "duplicate_label" test_error_e182.i "182"
 
 # Runtime error tests
 run_test_runtime_error "error_e123" test_error_e123.i "123"
