@@ -40,6 +40,41 @@ SOURCE=""
 
 emit() { asm+="$1"$'\n' }
 
+# Peephole optimizer: simple line-level redundancy removal on $asm.
+# Currently catches: unconditional branch immediately followed by its
+# target label (the branch is dead -- fall-through reaches the label
+# anyway). Both `b LABEL` (ARM64) and `jmp LABEL` (x86_64) handled.
+peephole_optimize() {
+  local -a lines result
+  lines=("${(@f)asm}")
+  local n=${#lines[@]}
+  result=()
+  local i=1
+  while (( i <= n )); do
+    local cur="${lines[$i]}"
+    # Look ahead past blank lines for a matching label.
+    local j=$((i+1))
+    while (( j <= n )) && [[ -z "${lines[$j]// /}" ]]; do
+      (( j++ ))
+    done
+    local lookahead=""
+    (( j <= n )) && lookahead="${lines[$j]}"
+    local skip=0
+    if [[ "$cur" =~ '^[[:space:]]+b[[:space:]]+(_[a-zA-Z0-9_]+)[[:space:]]*$' ]]; then
+      local target="${match[1]}"
+      [[ "$lookahead" == "${target}:"* ]] && skip=1
+    elif [[ "$cur" =~ '^[[:space:]]+jmp[[:space:]]+(_[a-zA-Z0-9_]+)[[:space:]]*$' ]]; then
+      local target="${match[1]}"
+      [[ "$lookahead" == "${target}:"* ]] && skip=1
+    fi
+    if (( ! skip )); then
+      result+=("$cur")
+    fi
+    (( i++ ))
+  done
+  asm=$(printf "%s\n" "${result[@]}")
+}
+
 diagnose() {
   local polite=0 not_count=0
   local -A type_count
@@ -1410,11 +1445,11 @@ codegen_array_elem_assign() {
   else
     emit "  str w2, [x1, x0, lsl #2]"
   fi
-  next_uid; local uid=$REPLY
-  emit "  b _stmt_${i}_aedone"
+  # Target the existing _stmt_N_end label directly; the aedone trampoline
+  # added a label that was always at the same address as _end.
+  emit "  b _stmt_${i}_end"
   emit "_stmt_${i}_aeskip:"
   emit "  add sp, sp, #16"  # discard value
-  emit "_stmt_${i}_aedone:"
 }
 
 codegen_array_dim() {
@@ -1983,6 +2018,7 @@ main() {
   fi
 
   codegen_program
+  peephole_optimize
 
   # Assemble: concatenate runtime + syslib (if needed) + program assembly
   local rt_file="$ROOT_DIR/src/runtime/${_INTERCAL_PLATFORM}.s"

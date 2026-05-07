@@ -520,10 +520,9 @@ codegen_array_elem_assign() {
   else
     emit "  mov [rcx + rax*4], edx"
   fi
-  emit "  jmp _stmt_${i}_aedone"
+  emit "  jmp _stmt_${i}_end"
   emit "_stmt_${i}_aeskip:"
   emit "  add rsp, 8"  # discard value
-  emit "_stmt_${i}_aedone:"
 }
 
 codegen_array_dim() {
