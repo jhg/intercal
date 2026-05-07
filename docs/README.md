@@ -147,3 +147,15 @@ The exercises at the end of most chapters are optional. They are not graded and 
 These docs track the code. When a phase changes — a new statement type, a new runtime routine, a new platform — the affected chapters are updated. The maintenance contract is documented in [ai-collaboration.md](ai-collaboration.md) and enforced by convention rather than by tooling.
 
 A docs-only commit skips the test suite in the pre-commit hook. This keeps the barrier to docs updates low and encourages keeping them current.
+
+## Reading the book locally with mdBook
+
+Every chapter in this directory is plain GitHub-flavoured markdown — readable as-is on github.com or in any editor. The same content also forms a single navigable book via [mdBook](https://rust-lang.github.io/mdBook/), the static-site generator built by the Rust project.
+
+The repository ships the configuration to render that book without any additional editing. If you have mdBook installed:
+
+    mdbook serve --open       # build and open in browser, watching for changes
+
+The configuration lives in `book.toml` at the repository root; the table of contents lives in `docs/SUMMARY.md`. The build output goes to `book/` (gitignored).
+
+The published version is built by the `docs` GitHub Actions workflow on every push to `main` and deployed to GitHub Pages. The workflow definition is at `.github/workflows/docs.yml` — adjust the `site-url` in `book.toml` if you fork the repository to a different name.

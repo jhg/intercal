@@ -27,6 +27,9 @@ Thumbs.db
 *.tar.lzma
 __pycache__/
 
+# mdBook build output
+/book/
+
 # Bootstrap intermediates and compiled binaries
 intercal_core
 intercal_v1
