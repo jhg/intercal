@@ -2054,7 +2054,17 @@ main() {
     return 0
   fi
 
-  print -r -- "$asm_combined" | $CC -x assembler - -o "$TMPBIN" 2>&2
+  # Reproducible-build flags: strip build-IDs on Linux and the temp
+  # object name that cc embeds in symbol tables when reading stdin.
+  # macOS dyld currently requires LC_UUID, so a UUID survives there.
+  local repro_flags=()
+  case "$_INTERCAL_PLATFORM" in
+    linux_arm64|linux_x86_64)
+      repro_flags=(-Wl,--build-id=none -Wl,-s)
+      ;;
+  esac
+
+  print -r -- "$asm_combined" | $CC "${repro_flags[@]}" -x assembler - -o "$TMPBIN" 2>&2
   local cc_exit=$?
   if [[ $cc_exit -ne 0 ]]; then
     exit 1
