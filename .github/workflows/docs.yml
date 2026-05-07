@@ -41,21 +41,24 @@ jobs:
 
       - name: Verify internal links
         run: |
-          set -euo pipefail
+          set -uo pipefail
           fail=0
           for f in docs/*.md; do
-            grep -oE '\]\(([a-zA-Z][^)#]*\.md)' "$f" 2>/dev/null \
-              | sed 's|^]( *||' \
-              | while read -r target; do
-                  if [ ! -f "docs/$target" ]; then
-                    echo "::error file=$f::link to docs/$target does not resolve"
-                    fail=1
-                  fi
-                done
+            # grep returns 1 on no matches; treat that as "this file has no .md links" (fine).
+            targets=$(grep -oE '\]\(([a-zA-Z][^)#]*\.md)' "$f" 2>/dev/null | sed 's|^]( *||' || true)
+            [ -z "$targets" ] && continue
+            while IFS= read -r target; do
+              [ -z "$target" ] && continue
+              if [ ! -f "docs/$target" ]; then
+                echo "::error file=$f::link to docs/$target does not resolve"
+                fail=1
+              fi
+            done <<< "$targets"
           done
-          # Verify every doc is reachable from SUMMARY.md
-          ls docs/*.md | sed 's|^docs/||' | sort > /tmp/files.txt
-          grep -oE '\(([^)]*\.md)\)' docs/SUMMARY.md | sed 's/^(//;s/)$//' | sort -u > /tmp/summary.txt
+          # Verify every doc is reachable from SUMMARY.md (warning only, not error).
+          ls docs/*.md 2>/dev/null | sed 's|^docs/||' | sort > /tmp/files.txt
+          grep -oE '\(([^)]*\.md)\)' docs/SUMMARY.md 2>/dev/null \
+            | sed 's/^(//;s/)$//' | sort -u > /tmp/summary.txt
           missing=$(comm -23 /tmp/files.txt /tmp/summary.txt | grep -v '^SUMMARY\.md$' || true)
           if [ -n "$missing" ]; then
             echo "::warning::docs/*.md not referenced in SUMMARY.md:"
