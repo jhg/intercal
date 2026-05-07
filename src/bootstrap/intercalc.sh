@@ -40,6 +40,34 @@ SOURCE=""
 
 emit() { asm+="$1"$'\n' }
 
+# Compile the pure-INTERCAL syslib (src/syslib/syslib.i) once per
+# platform+content-hash and cache the resulting .s under
+# ${XDG_CACHE_HOME:-$HOME/.cache}/intercal/. Echoes the cached path
+# on stdout so the caller can splice it into the link line.
+# Re-uses the cache as long as syslib.i bytes haven't changed.
+ensure_syslib_cache() {
+  local syslib_src="$ROOT_DIR/src/syslib/syslib.i"
+  [[ -f "$syslib_src" ]] || return 1
+  local cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/intercal"
+  mkdir -p "$cache_root" 2>/dev/null || return 1
+  local h=""
+  if command -v shasum >/dev/null 2>&1; then
+    h=$(shasum -a 256 "$syslib_src" | awk '{print $1}')
+  elif command -v sha256sum >/dev/null 2>&1; then
+    h=$(sha256sum "$syslib_src" | awk '{print $1}')
+  else
+    return 1
+  fi
+  local cache_file="${cache_root}/syslib-${_INTERCAL_PLATFORM}-${h:0:16}.s"
+  if [[ ! -f "$cache_file" ]]; then
+    # Build cache. Use a fresh shell so our globals don't leak.
+    zsh "$SCRIPT_DIR/intercalc.sh" --emit-syslib < "$syslib_src" > "$cache_file" 2>/dev/null \
+      || { rm -f "$cache_file"; return 1; }
+  fi
+  echo "$cache_file"
+  return 0
+}
+
 # Peephole optimizer: simple line-level redundancy removal on $asm.
 # Currently catches: unconditional branch immediately followed by its
 # target label (the branch is dead -- fall-through reaches the label
@@ -441,9 +469,14 @@ detect_syslib() {
       local target="${stmt_next_target[$i]}"
       if (( target >= 1000 && target <= 1999 )); then
         needs_syslib=1
-        # With --pure-syslib, syslib labels come from syslib.i (regular INTERCAL)
-        # Without it, they map to native assembly routines
-        if (( ! USE_PURE_SYSLIB )); then
+        # With --pure-syslib, syslib labels come from syslib.i appended
+        # to the source (regular INTERCAL statement numbering applies).
+        # With --emit-syslib, we ARE compiling syslib.i, so its self-
+        # references should resolve to its own internal _stmt_K labels
+        # rather than the external _rt_syslib_NNNN entry-point alias.
+        # Otherwise (default user build): map syslib labels to the
+        # external _rt_syslib_NNNN symbols provided by the syslib lib.
+        if (( ! USE_PURE_SYSLIB && ! EMIT_SYSLIB_MODE )); then
           label_to_stmt[$target]="syslib_${target}"
         fi
       fi
@@ -1022,30 +1055,43 @@ codegen_array_ref() {
 
 codegen_program() {
   emit ".section __TEXT,__text"
-  emit ".global _main"
+  if (( ! EMIT_SYSLIB_MODE )); then
+    emit ".global _main"
+  fi
   emit ".align 2"
   emit ""
-  emit "_main:"
-  emit "  stp x29, x30, [sp, #-16]!"
-  emit "  mov x29, sp"
-  emit "  // Save argc/argv for Label 666"
-  emit "  adrp x2, _rt_argc@PAGE"
-  emit "  add x2, x2, _rt_argc@PAGEOFF"
-  emit "  str w0, [x2]"
-  emit "  adrp x2, _rt_argv@PAGE"
-  emit "  add x2, x2, _rt_argv@PAGEOFF"
-  emit "  str x1, [x2]"
-  emit ""
+  if (( ! EMIT_SYSLIB_MODE )); then
+    emit "_main:"
+    emit "  stp x29, x30, [sp, #-16]!"
+    emit "  mov x29, sp"
+    emit "  // Save argc/argv for Label 666"
+    emit "  adrp x2, _rt_argc@PAGE"
+    emit "  add x2, x2, _rt_argc@PAGEOFF"
+    emit "  str w0, [x2]"
+    emit "  adrp x2, _rt_argv@PAGE"
+    emit "  add x2, x2, _rt_argv@PAGEOFF"
+    emit "  str x1, [x2]"
+    emit ""
+  fi
 
   local i
   for (( i=1; i<=stmt_count; i++ )); do
     codegen_statement $i
   done
 
-  emit "  b _rt_error_E633"
+  if (( ! EMIT_SYSLIB_MODE )); then
+    emit "  b _rt_error_E633"
+  fi
   emit ""
 
-  emit_data
+  if (( EMIT_SYSLIB_MODE )); then
+    # Emit only the per-statement abstain-flag array, renamed to syslib
+    # namespace by the post-process pass. Variable BSS is shared with
+    # user code and must NOT be emitted here (would conflict at link).
+    emit_stmt_flags_only
+  else
+    emit_data
+  fi
 }
 
 codegen_statement() {
@@ -1886,6 +1932,59 @@ codegen_retrieve_var() {
 # Runtime routines, error handlers, syslib, and their data/BSS
 # are in external files: runtime.s and syslib_native.s
 
+# Emit per-statement flag bytes (renamed _syslib_stmt_flags by post-
+# process) and variables-used-by-syslib as common symbols (.comm) so
+# that the user binary's regular BSS declarations merge with them at
+# link time. Used by --emit-syslib mode.
+emit_stmt_flags_only() {
+  emit ""
+  emit "// ========== Syslib Data =========="
+  emit ".section __DATA,__data"
+  emit "_stmt_flags:"
+  local i
+  for (( i=1; i<=stmt_count; i++ )); do
+    if (( stmt_negated[$i] )); then
+      emit "  .byte 1"
+    else
+      emit "  .byte 0"
+    fi
+  done
+  emit ""
+
+  # Variables: emit as common symbols so the linker merges with user
+  # code's BSS declarations of the same names. Uninitialised; size
+  # matches the regular `.space N` allocations from emit_data.
+  local var=""
+  for var in ${(k)used_spot}; do
+    emit ".comm _spot_${var}, 4, 2"
+    emit ".comm _spot_${var}_ign, 1, 0"
+    emit ".comm _spot_${var}_stash_ptr, 8, 3"
+    emit ".comm _spot_${var}_stash_sp, 4, 2"
+  done
+  for var in ${(k)used_twospot}; do
+    emit ".comm _twospot_${var}, 4, 2"
+    emit ".comm _twospot_${var}_ign, 1, 0"
+    emit ".comm _twospot_${var}_stash_ptr, 8, 3"
+    emit ".comm _twospot_${var}_stash_sp, 4, 2"
+  done
+  for var in ${(k)used_tail}; do
+    emit ".comm _tail_${var}_ptr, 8, 3"
+    emit ".comm _tail_${var}_ndim, 4, 2"
+    emit ".comm _tail_${var}_dims, 32, 3"
+    emit ".comm _tail_${var}_ign, 1, 0"
+    emit ".comm _tail_${var}_stash_ptr, 8, 3"
+    emit ".comm _tail_${var}_stash_sp, 4, 2"
+  done
+  for var in ${(k)used_hybrid}; do
+    emit ".comm _hybrid_${var}_ptr, 8, 3"
+    emit ".comm _hybrid_${var}_ndim, 4, 2"
+    emit ".comm _hybrid_${var}_dims, 32, 3"
+    emit ".comm _hybrid_${var}_ign, 1, 0"
+    emit ".comm _hybrid_${var}_stash_ptr, 8, 3"
+    emit ".comm _hybrid_${var}_stash_sp, 4, 2"
+  done
+}
+
 emit_data() {
   emit ""
   emit "// ========== Program Data =========="
@@ -1969,11 +2068,18 @@ else
 fi
 
 DIAGNOSE_MODE=0
+# --emit-syslib: compile a standalone syslib to assembly with global
+# _rt_syslib_NNNN aliases at each labeled statement and all internal
+# _stmt_* labels prefixed with _syslib_. Used by tools/build_syslib.sh
+# to produce src/syslib/syslib_compiled/{platform}.s, which the normal
+# user build then concatenates instead of the hand-written native one.
+EMIT_SYSLIB_MODE=0
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
-    --pure-syslib) USE_PURE_SYSLIB=1; shift ;;
-    --diagnose)    DIAGNOSE_MODE=1; shift ;;
+    --pure-syslib)  USE_PURE_SYSLIB=1; shift ;;
+    --diagnose)     DIAGNOSE_MODE=1; shift ;;
+    --emit-syslib)  EMIT_SYSLIB_MODE=1; INTERCAL_ASM_ONLY=1; shift ;;
     *) shift ;;
   esac
 done
@@ -2020,6 +2126,28 @@ main() {
   codegen_program
   peephole_optimize
 
+  # If we are emitting a standalone syslib library, rewrite all internal
+  # _stmt_* references to _syslib_stmt_* (so they don't collide with
+  # user code's _stmt_*) and inject .global _rt_syslib_NNNN aliases for
+  # every statement that has an INTERCAL label in the syslib range.
+  if (( EMIT_SYSLIB_MODE )); then
+    asm=$(print -r -- "$asm" | sed -E 's/_stmt_/_syslib_stmt_/g')
+    # Build the alias header. label_to_stmt[NNNN] is the syslib's own
+    # internal statement number for the labeled statement; rewritten to
+    # _syslib_stmt_K above.
+    local aliases=""
+    local lbl=""
+    for lbl in "${(@k)label_to_stmt}"; do
+      [[ "$lbl" =~ ^[0-9]+$ ]] || continue
+      (( lbl >= 1000 && lbl <= 1999 )) || continue
+      local target="${label_to_stmt[$lbl]}"
+      [[ "$target" =~ ^[0-9]+$ ]] || continue
+      aliases+=".global _rt_syslib_${lbl}"$'\n'
+      aliases+="_rt_syslib_${lbl} = _syslib_stmt_${target}"$'\n'
+    done
+    asm="${aliases}${asm}"
+  fi
+
   # Assemble: concatenate runtime + syslib (if needed) + program assembly
   local rt_file="$ROOT_DIR/src/runtime/${_INTERCAL_PLATFORM}.s"
   if [[ ! -f "$rt_file" ]]; then
@@ -2027,9 +2155,18 @@ main() {
   fi
   local runtime_files=("$rt_file")
   if (( needs_syslib && ! USE_PURE_SYSLIB )); then
-    local sn_file="$ROOT_DIR/src/syslib/native/${_INTERCAL_PLATFORM}.s"
-    if [[ ! -f "$sn_file" ]]; then
-      sn_file="$ROOT_DIR/src/syslib/native/macos_arm64.s"
+    local sn_file=""
+    # INTERCAL_SYSLIB=cache: use a content-cached pre-compilation of
+    # the pure-INTERCAL syslib.i. Same semantics as --pure-syslib but
+    # without the 30s parse cost on every build.
+    if [[ "${INTERCAL_SYSLIB:-native}" == cache ]]; then
+      sn_file=$(ensure_syslib_cache)
+    fi
+    if [[ -z "$sn_file" || ! -f "$sn_file" ]]; then
+      sn_file="$ROOT_DIR/src/syslib/native/${_INTERCAL_PLATFORM}.s"
+      if [[ ! -f "$sn_file" ]]; then
+        sn_file="$ROOT_DIR/src/syslib/native/macos_arm64.s"
+      fi
     fi
     runtime_files+=("$sn_file")
   fi

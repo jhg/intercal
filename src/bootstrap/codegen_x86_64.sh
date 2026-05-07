@@ -169,28 +169,38 @@ codegen_array_ref() {
 codegen_program() {
   emit ".intel_syntax noprefix"
   emit ".section .text"
-  emit ".global main"
+  if (( ! EMIT_SYSLIB_MODE )); then
+    emit ".global main"
+  fi
   emit ".align 16"
   emit ""
-  emit "main:"
-  emit "  push rbp"
-  emit "  mov rbp, rsp"
-  emit "  # Save argc/argv for Label 666"
-  emit "  lea rcx, [rip + _rt_argc]"
-  emit "  mov [rcx], edi"
-  emit "  lea rcx, [rip + _rt_argv]"
-  emit "  mov [rcx], rsi"
-  emit ""
+  if (( ! EMIT_SYSLIB_MODE )); then
+    emit "main:"
+    emit "  push rbp"
+    emit "  mov rbp, rsp"
+    emit "  # Save argc/argv for Label 666"
+    emit "  lea rcx, [rip + _rt_argc]"
+    emit "  mov [rcx], edi"
+    emit "  lea rcx, [rip + _rt_argv]"
+    emit "  mov [rcx], rsi"
+    emit ""
+  fi
 
   local i
   for (( i=1; i<=stmt_count; i++ )); do
     codegen_statement $i
   done
 
-  emit "  jmp _rt_error_E633"
+  if (( ! EMIT_SYSLIB_MODE )); then
+    emit "  jmp _rt_error_E633"
+  fi
   emit ""
 
-  emit_data
+  if (( EMIT_SYSLIB_MODE )); then
+    emit_stmt_flags_only_x86
+  else
+    emit_data
+  fi
 }
 
 codegen_statement() {
@@ -911,6 +921,54 @@ codegen_retrieve_var() {
 # ============================================================
 # SECTION 8 override: Data section (x86_64)
 # ============================================================
+
+emit_stmt_flags_only_x86() {
+  emit ""
+  emit "# ========== Syslib Data =========="
+  emit ".section .data"
+  emit "_stmt_flags:"
+  local i
+  for (( i=1; i<=stmt_count; i++ )); do
+    if (( stmt_negated[$i] )); then
+      emit "  .byte 1"
+    else
+      emit "  .byte 0"
+    fi
+  done
+  emit ""
+
+  # Variables: emit as common symbols so the user's regular .space
+  # decls merge with these at link time.
+  local var=""
+  for var in ${(k)used_spot}; do
+    emit ".comm _spot_${var}, 4, 4"
+    emit ".comm _spot_${var}_ign, 1, 0"
+    emit ".comm _spot_${var}_stash_ptr, 8, 8"
+    emit ".comm _spot_${var}_stash_sp, 4, 4"
+  done
+  for var in ${(k)used_twospot}; do
+    emit ".comm _twospot_${var}, 4, 4"
+    emit ".comm _twospot_${var}_ign, 1, 0"
+    emit ".comm _twospot_${var}_stash_ptr, 8, 8"
+    emit ".comm _twospot_${var}_stash_sp, 4, 4"
+  done
+  for var in ${(k)used_tail}; do
+    emit ".comm _tail_${var}_ptr, 8, 8"
+    emit ".comm _tail_${var}_ndim, 4, 4"
+    emit ".comm _tail_${var}_dims, 32, 8"
+    emit ".comm _tail_${var}_ign, 1, 0"
+    emit ".comm _tail_${var}_stash_ptr, 8, 8"
+    emit ".comm _tail_${var}_stash_sp, 4, 4"
+  done
+  for var in ${(k)used_hybrid}; do
+    emit ".comm _hybrid_${var}_ptr, 8, 8"
+    emit ".comm _hybrid_${var}_ndim, 4, 4"
+    emit ".comm _hybrid_${var}_dims, 32, 8"
+    emit ".comm _hybrid_${var}_ign, 1, 0"
+    emit ".comm _hybrid_${var}_stash_ptr, 8, 8"
+    emit ".comm _hybrid_${var}_stash_sp, 4, 4"
+  done
+}
 
 emit_data() {
   emit ""

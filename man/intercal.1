@@ -54,6 +54,35 @@ containing the
 .B intercal
 wrapper (after resolving any symlinks).
 .TP
+.B INTERCAL_SYSLIB
+Selects the system library implementation. One of:
+.RS
+.IP \(bu 2
+.B native
+(default): use the hand-written assembly at
+.BR src/syslib/native/<platform>.s .
+6 KB on disk, compile-time cost ~0 ms. Verified byte-identical
+output to the pure-INTERCAL implementation by
+.BR tests/test_syslib_pure.sh .
+.IP \(bu 2
+.B cache
+: use a content-cached pre-compilation of the pure-INTERCAL
+.B src/syslib/syslib.i
+under
+.BR ${XDG_CACHE_HOME:-~/.cache}/intercal/ .
+First build per syslib version takes 30-100 s; subsequent builds
+are fast. Run
+.B tools/build_syslib.sh
+ahead of time to warm the cache.
+.RE
+.TP
+.B INTERCAL_REPRODUCIBLE
+If set to
+.BR 1 ,
+post-process macOS binaries (UUID rewrite + ad-hoc re-sign) so two
+compiles of the same source produce a byte-identical binary.
+Off by default to keep the everyday build path fast.
+.TP
 .B INTERCAL_PLATFORM
 Override platform auto-detection. One of
 .BR macos_arm64 ,
