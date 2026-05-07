@@ -10,7 +10,7 @@ Test results (3 platforms, all green in CI):
 
 | Suite | Count | What it covers |
 |-------|-------|----------------|
-| `tests/run_tests.sh` | 30 | Bootstrap compiler, full language |
+| `tests/run_tests.sh` | 33 | Bootstrap compiler, full language |
 | `tests/test_syslib_pure.sh` | 3 | Pure INTERCAL syslib vs native assembly |
 | `tests/run_self_tests.sh` | 25 | Self-hosted MVP (template-passthrough) |
 | `tests/run_stage3_tests.sh` | 3 | Evolving compiler (stage3.i) |

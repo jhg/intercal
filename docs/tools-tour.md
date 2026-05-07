@@ -4,6 +4,14 @@ The `tools/` directory holds the supporting scripts that surround the compiler: 
 
 This chapter is a one-paragraph-per-tool reference for what every script does, when to use it, and what flags it accepts.
 
+## build_syslib.sh — warm the pure-syslib cache
+
+    tools/build_syslib.sh
+
+Pre-compiles `src/syslib/syslib.i` for the current platform and writes the result into the user's cache directory at `$XDG_CACHE_HOME/intercal/syslib-<platform>-<hash>.s` (default `$HOME/.cache/intercal/`). The cache key is the SHA-256 of `syslib.i`, so the file auto-invalidates whenever the syslib changes.
+
+After running this once, every subsequent compilation with `INTERCAL_SYSLIB=cache` skips the 30–100-second penalty of recompiling the pure syslib. Run in CI / release pipelines so end users do not pay the cold-cache cost. If you never use `INTERCAL_SYSLIB=cache`, you can ignore this script entirely; native (the default) does not touch the cache.
+
 ## bench.sh — performance dashboard
 
     tools/bench.sh                       # default tabular output

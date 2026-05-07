@@ -113,7 +113,7 @@ Our compiler is a tiny, hand-readable program with no production users; a seriou
 
 The standard countermeasure, *Diverse Double-Compiling* (DDC) by David A. Wheeler (2005, formalised in his 2009 PhD), is to compile the same source with two independent compilers and verify that their outputs agree. If two unrelated compilers produce byte-equivalent binaries from the same INTERCAL source, both would have to share the backdoor for the attack to survive. For us, the practical analogue is the differential test we already run: pure-INTERCAL syslib compiled by `intercalc.sh` versus native syslib hand-written in assembly. The two paths are independent enough that a Trusting Trust attack on one would have to be replicated by a hand attacker on the other.
 
-This is also why we keep the bootstrap compiler readable and small. A 1825-line zsh script is not malice-proof, but it is auditable in an afternoon — which is the most defensible position a small language implementation can occupy.
+This is also why we keep the bootstrap compiler readable and small. A two-thousand-line zsh script is not malice-proof, but it is auditable in an afternoon — which is the most defensible position a small language implementation can occupy.
 
 ## Exercises
 

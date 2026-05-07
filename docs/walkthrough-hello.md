@@ -231,7 +231,7 @@ It does not touch:
 - WRITE IN (numeric or character).
 - Runtime errors.
 
-Each of those is exercised by one or more of the 30 tests in `tests/run_tests.sh`. The reader who has followed the hello-world walkthrough is equipped to step into any of them and understand the emitted code.
+Each of those is exercised by one or more of the 33 tests in `tests/run_tests.sh`. The reader who has followed the hello-world walkthrough is equipped to step into any of them and understand the emitted code.
 
 ## Exercises
 

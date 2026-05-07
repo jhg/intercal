@@ -87,13 +87,22 @@ Several standard optimisations do not apply well to INTERCAL:
 
 The optimisations that apply best are the local ones: constant folding, peephole, dead-code elimination on runtime-flag checks. These are the ones already implemented above.
 
-## The `--pure-syslib` thought experiment
+## The `INTERCAL_SYSLIB=cache` mode (implemented)
 
-One optimisation that would be genuinely useful: when compiling with `--pure-syslib`, the syslib's INTERCAL source is appended to the user program and runs through the whole pipeline. That takes our ~0.1s compile time to ~30s for typical programs. Most of that time is in `tokenize`, `check_politeness`, and `codegen_program` processing 9000 lines of INTERCAL.
+When the compiler is invoked with `INTERCAL_SYSLIB=cache` (env var), the syslib's INTERCAL source is compiled once and reused. The flow is:
 
-A middle-end pass that memoised the compiled syslib (an `.o` file containing the syslib's codegen output, produced once and cached) would reduce the per-compile cost to near the native-syslib level. This is a mechanical change — no semantic analysis required — but it is a significant change to how `intercalc.sh` structures its output pipeline.
+1. The compiler hashes `src/syslib/syslib.i` with SHA-256.
+2. It looks for a pre-compiled artifact at `$XDG_CACHE_HOME/intercal/syslib-<platform>-<hash>.s` (default `$HOME/.cache/intercal/`).
+3. If present, the artifact is concatenated with the runtime and the program — same shape as the native path.
+4. If absent, `intercalc.sh --emit-syslib` is invoked recursively to produce the artifact, which is then placed in the cache and used.
 
-We have not done it. The `--pure-syslib` flag is opt-in, only used by the differential test, and the test runs fast enough without the optimisation.
+The artifact is a stand-alone assembly file with all internal `_stmt_*` symbols renamed to `_syslib_stmt_*` (avoiding link-time clash with the user program), BSS variables emitted as `.comm` (mergeable across translation units), and `.global _rt_syslib_NNNN` aliases for every labelled syslib routine.
+
+This collapses pure-syslib compile time from ~30 s per build to ~0 s per build after one warming pass. `tools/build_syslib.sh` warms the cache for the current platform; running it once after cloning eliminates the cold-cache penalty on the first real compile.
+
+Native remains the default. Cache mode is opt-in via env var because the cache directory is per-user state and most users do not need it.
+
+The result is a three-way design: native (fast, hand-written), cache (fast and pure-INTERCAL), `--pure-syslib` (slow but unconditional). All three are byte-equivalent for the arithmetic test cases by construction. The differential test exercises `--pure-syslib`; production builds use native or cache; the regression test in CI exercises cache mode to catch any drift between the cached artifact and a fresh compilation.
 
 ## When to add a middle end
 

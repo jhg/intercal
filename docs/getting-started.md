@@ -79,13 +79,13 @@ The source of that program is seventeen statements that look alien. Open `tests/
 
 ## Run the test suite
 
-The repository ships with 30 INTERCAL programs, each with an expected output. The test runner compiles each, runs it, and compares stdout:
+The repository ships with 33 INTERCAL programs, each with an expected output. The test runner compiles each, runs it, and compares stdout:
 
     zsh tests/run_tests.sh
 
-You should see 30 lines of `PASS`, and the last line:
+You should see 33 lines of `PASS`, and the last line:
 
-    Results: 30 passed, 0 failed
+    Results: 33 passed, 0 failed
 
 If anything failed, stop here and ask. Something about your setup is off.
 

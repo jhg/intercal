@@ -36,6 +36,8 @@ See [parser-theory.md](parser-theory.md).
 
 The pure-INTERCAL syslib (9065 lines) is slow but is the authoritative specification of what each arithmetic routine does. The native assembly syslib (~300 lines per platform) is fast but translation-dependent. Running both implementations on the same inputs and diffing is a strong correctness test — it catches any bug that exists in only one of them.
 
+A third path bridges the two: `INTERCAL_SYSLIB=cache` pre-compiles the pure-INTERCAL syslib once per content hash and reuses the resulting `.s` artifact, giving native-like compile time with pure-syslib semantics. `tools/build_syslib.sh` warms the cache on first use.
+
 See [syslib.md](syslib.md) and [testing-and-workflow.md](testing-and-workflow.md).
 
 ## Why Label 666 for syscalls?

@@ -61,21 +61,27 @@ Somebody reading `src/syslib/syslib.i` sees, in literal INTERCAL, what addition 
 
 ### Performance
 
-The native syslib is substantially faster. A timing run on macOS ARM64 shows:
+The three modes have very different cost profiles. Wall-clock to compile a representative arithmetic program on macOS ARM64:
 
-- Native: ~0.09s to compile a 300-statement program that calls syslib routines.
-- Pure: ~30s for the same program, because the native output has to compile `syslib.i` alongside the user code, and `syslib.i` is 9065 lines of INTERCAL that themselves go through the whole pipeline.
+| Mode | First build | Subsequent builds | Binary size |
+|------|------------|-------------------|-------------|
+| Native (default) | ~0.09 s | ~0.09 s | ~40 KB |
+| `INTERCAL_SYSLIB=cache` | 30–100 s (warming the cache) | ~0.1 s | ~40 KB |
+| `--pure-syslib` (no cache) | ~30 s | ~30 s | ~1.3 MB |
 
-Binary size grows from ~40 KB to ~1.3 MB in the pure case, since every syslib statement becomes its own block of assembly. The pure mode is not intended for day-to-day use.
+Native is the path of least surprise. Cache is the right choice when you want pure-syslib semantics for verification but cannot pay the per-build penalty. `--pure-syslib` directly is reserved for the differential test, which deliberately exercises the slow path.
 
 ## How the compiler decides
 
-`detect_syslib` (in `intercalc.sh`) scans every `NEXT` target. If any lies in [1000, 1999], `needs_syslib=1`. If so:
+`detect_syslib` (in `intercalc.sh`) scans every `NEXT` target. If any lies in [1000, 1999], `needs_syslib=1`. The compiler then chooses among three syslib paths:
 
-- With the default flag layout (no `--pure-syslib`), the native assembly `src/syslib/native/<platform>.s` is concatenated with the runtime and the program, so the calls resolve at link time against hand-written routines.
-- With `--pure-syslib`, the pure INTERCAL `src/syslib/syslib.i` is appended to the user's source *before* tokenisation, and its labels flow through the compiler like any other user-level statement. The final linking step no longer includes `src/syslib/native/<platform>.s`.
+- **Native** (default, `INTERCAL_SYSLIB=native` or unset): the platform-specific assembly `src/syslib/native/<platform>.s` is concatenated with the runtime and the program. Calls to labels 1000–1999 resolve at link time against hand-written routines.
+- **Cache** (`INTERCAL_SYSLIB=cache`): on first build, `intercalc.sh` invokes itself with `--emit-syslib` to compile `src/syslib/syslib.i` to a stand-alone `.s` artifact. The artifact is keyed by SHA-256 of `syslib.i` and stored at `$XDG_CACHE_HOME/intercal/syslib-<platform>-<hash>.s` (default `$HOME/.cache/intercal/`). Subsequent builds reuse the cached artifact. Result: pure-INTERCAL semantics with native-like compile time, paid once per `syslib.i` content hash.
+- **`--pure-syslib`** flag (used by the differential test): the pure INTERCAL `src/syslib/syslib.i` is appended to the user's source before tokenisation, and its labels flow through the compiler like any other user-level statement. No caching; the syslib is recompiled from scratch every time. This is what the test suite uses to verify the compiler against itself.
 
-The `--pure-syslib` path is what verifies that the compiler, the runtime, and the syslib together are internally consistent: if the pure version computes the same answer as the native version across all three arithmetic test cases, then by construction the compiler handles the pure-INTERCAL syslib's constructs correctly. It is a regression sentinel for the language features the syslib actually uses.
+The `--pure-syslib` path is what proves the compiler, the runtime, and the syslib together are internally consistent: if the pure version computes the same answer as the native version across all arithmetic test cases, the compiler handles the pure-INTERCAL syslib's constructs correctly. It is a regression sentinel for the language features the syslib actually uses.
+
+The cache path is what makes pure-INTERCAL syslib *practical*. Run `tools/build_syslib.sh` once after cloning (or in a release pipeline), and every subsequent build with `INTERCAL_SYSLIB=cache` pays no syslib-compilation cost.
 
 ## Why the pure syslib is big
 
