@@ -1,8 +1,25 @@
 # TODO - Working notes
 
-## Estado actual (2026-04-21 tarde)
+## Estado actual (2026-05-08, post v0.1.0 release)
 
-Phase 2 MVP 25/25. Phase 2.5 + Phase 3.0 D.1-D.6 + Phase 5.0 R.1-R.3 + R.6 + Phase 7.0 DOC.3 completos. ~20 commits hoy.
+v0.1.0 tagged. 9001a9f. Release workflow disparado. 65 tests verde en 3 plataformas (33 bootstrap + 25 self-hosted MVP + 4 stage3 + 3 syslib pure). 42/42 tasks de la sesión cerradas.
+
+Pendientes para próxima sesión (orden de prioridad):
+1. Verificar que la release v0.1.0 publicó correctamente (release.yml + release-smoke.yml).
+2. Si algo falla en smoke, fix + re-tag v0.1.1.
+3. Phase 4 stage3 loop primitive: necesita extensión non-standard (computed COME FROM) o ~30 statements scaffolding por loop. Tres intentos documentados en docs/intercal_patterns.md. Requiere sesión dedicada con foco completo.
+4. Stage 3.2.b+: extender el detector "DO" a las posiciones del scan que necesitamos para un lexer real (necesita loops con break).
+5. Phase 6.0 Q.x quality: regression adicional, property testing, fuzzing, integration con programas reales, benchmarks, memory safety (ASan/valgrind), SBOM.
+6. Phase 7.0 DOC tutorial / website (mdBook) — el usuario está iterando esto en paralelo.
+7. Phase 8.0 optimizaciones avanzadas: register allocation real, inline syslib calls.
+8. Phase 9.0 Windows.
+9. Phase 10.0 extensiones del lenguaje.
+10. Phase 11.0 más Label 666 syscalls.
+11. Phase 12.0 ecosystem (editors, LSP, formatter).
+
+Sesión previa (2026-04-21 tarde)
+
+Phase 2 MVP 25/25. Phase 2.5 + Phase 3.0 D.1-D.6 + Phase 5.0 R.1-R.3 + R.6 + Phase 7.0 DOC.3 completos.
 
 Completado hoy:
 1. Runtime Linux x86_64 bugfix: _rt_sys666_open/write guardaban alloc_size en [rbp-32] colisionando con el buffer -> SIGSEGV. Fix con r14.
