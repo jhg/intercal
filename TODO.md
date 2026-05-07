@@ -1,6 +1,73 @@
 # TODO - Working notes
 
-## Estado actual (2026-05-08, post v0.1.0 release)
+## Estado actual (2026-05-08, sesión tarde — book + Part VII)
+
+Sesión dedicada exclusivamente a `docs/` (no se ha tocado el compilador). Resumen para la próxima sesión:
+
+### Lo que se hizo hoy
+1. **mdBook publishing**. `book.toml` en raíz + `docs/SUMMARY.md` + `.github/workflows/docs.yml` con `actions/configure-pages@v5` y `actions/deploy-pages@v5`. Link-check en CI antes del build (verifica que cada `[text](file.md)` resuelve, advierte sobre archivos no listados en SUMMARY). Página 404 en `docs/404.md`. Site live en https://jesushernandez.net/intercal/.
+2. **Split book intro vs directory index**. `SUMMARY.md` apunta a `docs/introduction.md` (homepage del libro). `docs/README.md` sigue siendo el índice navegacional para GitHub viewers y agentes.
+3. **Eliminación masiva de em-dashes**. Sustitución bulk con perl, fixes manuales en tablas. Cero em-dashes en docs/. AGENTS.md tiene una sección nueva "Documentation prose style" (líneas ~92-115) que documenta esta y otras reglas para que sesiones futuras escriban correctamente desde el primer borrador.
+4. **Style pass profundo** sobre los chapters más leídos: `introduction.md`, `what-is-intercal.md`, `getting-started.md`, `overview.md`, `intercal-primer.md`, `label-666-intro.md` reescritos con tono más natural. Pasada quirúrgica más ligera sobre los técnicos (drop "This chapter X..." openers, drop "essentially" hedges, fix tablas rotas).
+5. **Capítulos didácticos antes inexistentes**: `getting-started.md`, `what-is-intercal.md`, `label-666-intro.md`, `your-first-contribution.md`, `design-rationale.md` (FAQ).
+6. **Capítulos de teoría con investigación web verificada**: `parser-theory.md` (LL(k), packrat/PEG/combinators), `lexer-theory.md` (DFA/NFA, longest-match), `executables-and-linking.md` (ELF/Mach-O, dyld/PLT/GOT, PIE, SOURCE_DATE_EPOCH), `calling-conventions.md` (AAPCS64 + System V AMD64 + ABI specs), `middle-end-and-optimisation.md` (Cytron 1991 SSA + dominance frontiers + SCCP).
+7. **Capítulos sobre features distintivas**: `turing-text-model.md`, `politeness-rule.md`, `come-from.md`, `numeric-io.md`. Y meta-chapters: `error-messages.md` (Rust/Niko Matsakis diagnostics), `comparing-languages.md` (C vs Lisp vs INTERCAL phase by phase), `esolangs-context.md` (Brainfuck, Befunge, Malbolge, Shakespeare, Whitespace), `language-design-philosophy.md` (Hoare 1973 + Wirth Pascal/Modula/Oberon), `history-and-context.md` (verified 26 May 1972 Princeton SPITBOL IBM/360), `self-hosting.md` con sección Trusting Trust + DDC, `anatomy-of-a-binary.md` (otool/objdump walkthrough).
+8. **Tours**: `tools-tour.md` (un párrafo por script en tools/), `tests-tour.md` (un párrafo por test_*.i agrupados por categoría).
+9. **Reference apparatus**: `appendix-grammar.md` (EBNF), `appendix-exercise-hints.md` (hints para los exercises de cada capítulo), `glossary.md`, `further-reading.md` (annotated bibliography), `statement-cheatsheet.md` (tabla one-line por statement/syslib/syscall).
+10. **Part VII (lo más importante para el goal del usuario)**: convertir el libro en un puente al ecosistema real. Cinco capítulos:
+    - `from-intercal-to-real-compilers.md` (capstone con tabla side-by-side: cada concepto de este libro mapeado a su contraparte en LLVM/rustc/GCC, plus lista de temas no cubiertos: GC, JIT, PGO, LTO, polyhedral).
+    - `llvm-overview.md` (3-fase architecture, LLVM IR, pass manager, repo layout).
+    - `gcc-overview.md` (GENERIC/GIMPLE/RTL pipeline, machine descriptions).
+    - `rustc-overview.md` (AST/HIR/THIR/MIR/LLVM-IR pipeline, borrow checker en MIR, crate layout, rustc-dev-guide).
+    - `contributing-to-production-compilers.md` (cómo buildear cada uno, dónde encontrar good first issues, las review conventions diferentes: LLVM/rustc en GitHub, GCC por mailing list, expectativas realistas de timeline).
+11. **Bug-fix en CI**: `.github/workflows/docs.yml` step "Verify internal links" estaba fallando en bash. Causa: `set -e` + `pipefail` + grep que returns 1 cuando no hay matches. Fix: usar `set -uo pipefail` (sin `-e`), capturar output con `|| true`, here-string en lugar de pipe-into-while.
+12. **Pre-push hook**: drop hardcoded "(56 tests passed across 4 suites)" — reemplazado por "(all suites green)" porque el conteo se quedaba obsoleto.
+
+### Estado del repo
+- 52 chapters en `docs/` (más `docs/666.md` y `docs/intercal_patterns.md` que ya existían).
+- Cero em-dashes verificado.
+- Todos los enlaces internos verificados.
+- mdBook builds clean (verificable corriendo `mdbook serve --open` localmente si se instala mdBook, o esperando al CI).
+- Pages live en https://jesushernandez.net/intercal/ (con auto-deploy en cada push a main que toque docs/).
+- Pre-push verde en todos los commits (33 bootstrap + 25 self-hosted MVP + 4 stage3 + 3 syslib pure = 65 tests).
+
+### Decisiones con rationale (para no rehacerlas mañana)
+- **Em-dashes prohibidos**: feedback explícito del usuario, "muy AI style". Documentado en AGENTS.md "Documentation prose style".
+- **No claim "most of the documentation came from the model"** en what-is-intercal: el usuario hizo los primeros commits, AGENTS.md es suyo, 666.md original es suyo. La forma actual del bullet AI-driven dice "compiler, runtime, syslib, and tests came from the model", omitiendo docs.
+- **Part VII es la razón por la que el libro existe** (frase que puse en introduction.md): el goal del usuario evolucionó a "el camino más rápido posible para luego contribuir a Rust/GCC/LLVM". Las partes I-VI son preparación.
+- **`docs/README.md` y `docs/introduction.md` separados**. `README.md` es el índice (cinco reading paths, full chapter index, navegación para GitHub y agentes). `introduction.md` es la portada del libro web (welcome, organización, who-should-read-what).
+- **`book.toml` site-url = /intercal/** porque el dominio custom es jesushernandez.net y el Pages path es /intercal/.
+
+### Pendientes para próxima sesión (orden de prioridad)
+1. **Verificar que el deploy a Pages funciona después del último push**. URL: https://jesushernandez.net/intercal/. Si no aparece la nueva intro, mirar Actions → docs workflow.
+2. **Si queda tiempo y el usuario lo pide, posibles ampliaciones del libro**:
+   - Capítulo sobre garbage collection / memory management como tema "no cubierto pero relevante".
+   - Capítulo sobre type systems (no tocamos serieamente; bridge a Pierce TaPL).
+   - Capítulo sobre incremental compilation / queries / Salsa (rustc).
+   - Capítulo sobre LSP / IDE integration.
+   - Worked example dentro de Part VII: implementar una optimización trivial en LLVM y mostrar el patch completo.
+3. **Posibilidad de un "second-pass" style review** sobre los chapters técnicos (semantic-analysis, code-generation, etc.) que recibieron solo pasada quirúrgica. Por ahora aceptable; no urgente.
+4. **Phase 4 stage3.i continúa siendo el trabajo pendiente del compilador**: la otra sesión paralela. Loop primitive bloqueado en pattern (~30 statements scaffolding).
+5. **El bug de syslib silent-overflow** (1000, 1030, 1050, 1500, 1540) sigue sin arreglarse en el código; documentado en syslib.md como caveat. Si el otro Claude trabaja en ello, regenerar templates y manifest después.
+
+### Cómo retomar
+1. Lee este archivo (TODO.md) y AGENTS.md "Documentation prose style".
+2. `git pull` para integrar cambios del otro Claude.
+3. `git log --oneline -20` para ver el estado.
+4. Si la conversación con el usuario lo requiere, usa la sección "Estado actual" como contexto y la lista de pendientes como starting point.
+
+### Style contract recap (lo más importante para escribir docs)
+- Cero em-dashes. Cero en-dashes. Coma, punto, dos puntos, paréntesis, según contexto.
+- No openers tipo "This chapter X". Empieza con el tema directamente.
+- No hedges: "essentially", "actually", "really", "in itself", "in some sense".
+- No clichés: "It is worth noting", "Of course", "Indeed", "Naturally".
+- Bullets con `:` no con `—` o `,`: `- foo.md: short description`.
+- Direct address: "you" cuando aplica, no siempre "we".
+- Frases mixed-length, declarativas.
+- Plain English: "use" no "utilise", "show" no "demonstrate".
+- Sin closing summaries.
+
+## Estado anterior (2026-05-08, post v0.1.0 release)
 
 v0.1.0 tagged. 9001a9f. Release workflow disparado. 65 tests verde en 3 plataformas (33 bootstrap + 25 self-hosted MVP + 4 stage3 + 3 syslib pure). 42/42 tasks de la sesión cerradas.
 
