@@ -61,14 +61,14 @@ See [AGENTS.md](AGENTS.md) for complete architecture, INTERCAL language referenc
 
 ## Documentation
 
-The `docs/` directory is the book-length walkthrough, structured so it can be read as a practical compiler-construction textbook grounded in this implementation.
+The `docs/` directory is the book-length walkthrough, structured so it can be read as a practical compiler-construction textbook grounded in this implementation. It is published as a navigable site at **<https://jesushernandez.net/intercal/>** (built by the `docs` GitHub Actions workflow on every push to `main`).
 
 - New to INTERCAL? Start with [docs/what-is-intercal.md](docs/what-is-intercal.md), then [docs/getting-started.md](docs/getting-started.md).
 - Learning compiler construction? Follow [docs/overview.md](docs/overview.md) → [docs/pipeline.md](docs/pipeline.md) → per-phase chapters.
 - Working on the code? Start at [docs/map-of-the-compiler.md](docs/map-of-the-compiler.md) and [docs/your-first-contribution.md](docs/your-first-contribution.md).
 - Curious about decisions? See [docs/design-rationale.md](docs/design-rationale.md).
 
-The full chapter index lives at [docs/README.md](docs/README.md). The whole tree also builds as an [mdBook](https://rust-lang.github.io/mdBook/): run `mdbook serve --open` if you have mdBook installed, or wait for the `docs` GitHub Actions workflow to publish to GitHub Pages on every push to `main` (one-time enabling at Settings → Pages → Source → GitHub Actions).
+The full chapter index lives at [docs/README.md](docs/README.md). To preview the book locally, install [mdBook](https://rust-lang.github.io/mdBook/) and run `mdbook serve --open`.
 
 ## Development
 

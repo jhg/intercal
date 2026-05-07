@@ -43,3 +43,5 @@ If you have already built it and want the language tour, read [intercal-primer.m
 If you want to know the shape of the compiler before reading any phase in detail, [overview.md](overview.md) and then [pipeline.md](pipeline.md) give it to you in two short chapters.
 
 If you are looking for a specific topic, the chapter index on the right-hand sidebar (or in [README.md](README.md) if you are reading on GitHub) lists every chapter with a one-line description.
+
+The source for this book and for the compiler it describes lives at <https://github.com/jhg/intercal>. Issues, pull requests, and discussion happen there.
