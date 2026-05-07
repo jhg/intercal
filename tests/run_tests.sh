@@ -211,6 +211,8 @@ run_test_error "politeness_polite" test_errors_polite.i "099"
 
 # Runtime error tests
 run_test_runtime_error "error_e123" test_error_e123.i "123"
+run_test_runtime_error "error_e436" test_error_e436.i "436"
+run_test_runtime_error "error_e275" test_error_e275.i "275"
 run_test_runtime_error "error_e621" test_error_e621.i "621"
 run_test_runtime_error "error_e633" test_error_e633.i "633"
 
