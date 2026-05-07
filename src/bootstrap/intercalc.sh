@@ -49,7 +49,7 @@ diagnose() {
   local i
   for (( i=1; i<=stmt_count; i++ )); do
     (( stmt_polite[$i] )) && (( polite++ )) || true
-    (( stmt_not[$i] )) && (( not_count++ )) || true
+    (( stmt_negated[$i] )) && (( not_count++ )) || true
     local t="${stmt_type[$i]:-?}"
     type_count[$t]=$((${type_count[$t]:-0}+1))
     [[ -n "${stmt_label[$i]:-}" ]] && labels+=("${stmt_label[$i]}")
@@ -425,6 +425,76 @@ detect_syslib() {
   used_twospot[1]=1; used_twospot[2]=1; used_twospot[3]=1; used_twospot[4]=1
   # Label 666 syscall buffer (always in runtime.s)
   used_tail[65535]=1
+}
+
+# Mark which statements need a runtime abstain/reinstate flag check.
+# A stmt is "modifiable" if it is initially abstained (DON'T) OR if any
+# ABSTAIN/REINSTATE statement targets it (by label or by gerund).
+# Statements that are never modified can skip the 4-instruction flag
+# load at their entry point: dead-flag elimination.
+typeset -a stmt_needs_flag
+compute_flag_checks() {
+  local i j
+  # Default: not modifiable.
+  for (( i=1; i<=stmt_count; i++ )); do
+    stmt_needs_flag[$i]=0
+    if (( stmt_negated[$i] )); then
+      stmt_needs_flag[$i]=1
+    fi
+  done
+
+  # Map gerund tokens to statement types.
+  local -A gerund_to_type
+  gerund_to_type[CALCULATING]="ASSIGN ARRAY_DIM"
+  gerund_to_type[NEXTING]="NEXT"
+  gerund_to_type[FORGETTING]="FORGET"
+  gerund_to_type[RESUMING]="RESUME"
+  gerund_to_type[STASHING]="STASH"
+  gerund_to_type[RETRIEVING]="RETRIEVE"
+  gerund_to_type[IGNORING]="IGNORE"
+  gerund_to_type[REMEMBERING]="REMEMBER"
+  gerund_to_type[ABSTAINING]="ABSTAIN"
+  gerund_to_type[REINSTATING]="REINSTATE"
+  gerund_to_type[COMINGFROM]="COME_FROM"
+  gerund_to_type[READINGOUT]="READ_OUT"
+  gerund_to_type[WRITINGIN]="WRITE_IN"
+
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]}"
+    [[ "$t" != "ABSTAIN" && "$t" != "REINSTATE" ]] && continue
+    local body="${stmt_body[$i]}"
+    local flag_arg=""
+    if [[ "$t" == "ABSTAIN" ]]; then
+      flag_arg="${body#ABSTAIN FROM }"
+    else
+      flag_arg="${body#REINSTATE }"
+    fi
+    flag_arg="${flag_arg## }"
+    if [[ "$flag_arg" == \(*\) ]]; then
+      local target_label="${flag_arg#\(}"
+      target_label="${target_label%\)}"
+      local target_stmt="${label_to_stmt[$target_label]:-}"
+      [[ -z "$target_stmt" || "$target_stmt" == syslib_* || "$target_stmt" == syscall_666 ]] && continue
+      stmt_needs_flag[$target_stmt]=1
+    else
+      # Gerund list. Normalize multi-word gerunds the same way codegen does.
+      local text="$flag_arg"
+      text="${text/COMING FROM/COMINGFROM}"
+      text="${text/READING OUT/READINGOUT}"
+      text="${text/WRITING IN/WRITINGIN}"
+      local -a gerunds
+      gerunds=(${=text})
+      for g in "${gerunds[@]}"; do
+        local types="${gerund_to_type[$g]:-}"
+        [[ -z "$types" ]] && continue
+        for (( j=1; j<=stmt_count; j++ )); do
+          for tt in ${=types}; do
+            [[ "${stmt_type[$j]}" == "$tt" ]] && stmt_needs_flag[$j]=1
+          done
+        done
+      done
+    fi
+  done
 }
 
 # ============================================================
@@ -921,17 +991,19 @@ codegen_statement() {
   emit ""
   emit "_stmt_${i}:  // ${stmt_type[$i]}"
 
-  # Abstain check
-  local flag_offset=$((i-1))
-  emit "  adrp x0, _stmt_flags@PAGE"
-  emit "  add x0, x0, _stmt_flags@PAGEOFF"
-  if (( flag_offset > 4095 )); then
-    emit "  mov w9, #${flag_offset}"
-    emit "  ldrb w1, [x0, x9]"
-  else
-    emit "  ldrb w1, [x0, #${flag_offset}]"
+  # Abstain check (skip if static analysis proves this stmt is never modified).
+  if (( ${stmt_needs_flag[$i]:-1} )); then
+    local flag_offset=$((i-1))
+    emit "  adrp x0, _stmt_flags@PAGE"
+    emit "  add x0, x0, _stmt_flags@PAGEOFF"
+    if (( flag_offset > 4095 )); then
+      emit "  mov w9, #${flag_offset}"
+      emit "  ldrb w1, [x0, x9]"
+    else
+      emit "  ldrb w1, [x0, #${flag_offset}]"
+    fi
+    emit "  tbnz w1, #0, _stmt_${i}_end"
   fi
-  emit "  tbnz w1, #0, _stmt_${i}_end"
 
   # Probability check
   if (( stmt_prob[$i] < 100 )); then
@@ -1876,6 +1948,7 @@ main() {
   check_labels
   resolve_come_from
   detect_syslib
+  compute_flag_checks
 
   if (( DIAGNOSE_MODE )); then
     diagnose

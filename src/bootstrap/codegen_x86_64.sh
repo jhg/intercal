@@ -198,12 +198,14 @@ codegen_statement() {
   emit ""
   emit "_stmt_${i}:  # ${stmt_type[$i]}"
 
-  # Abstain check
-  local flag_offset=$((i-1))
-  emit "  lea rax, [rip + _stmt_flags]"
-  emit "  movzx ecx, byte ptr [rax + ${flag_offset}]"
-  emit "  test ecx, ecx"
-  emit "  jnz _stmt_${i}_end"
+  # Abstain check (skip if static analysis proves stmt is never modified).
+  if (( ${stmt_needs_flag[$i]:-1} )); then
+    local flag_offset=$((i-1))
+    emit "  lea rax, [rip + _stmt_flags]"
+    emit "  movzx ecx, byte ptr [rax + ${flag_offset}]"
+    emit "  test ecx, ecx"
+    emit "  jnz _stmt_${i}_end"
+  fi
 
   # Probability check
   if (( stmt_prob[$i] < 100 )); then
