@@ -101,13 +101,12 @@ printf 'ABC' > "$FIXTURES/three.i"
 printf 'DO GIVE UP\n' > "$FIXTURES/give_up.i"
 
 # Stage 3.1.a byte count
-# Stage 3.1.b first byte value as Roman
-# Stage 3.1.c last byte value as Roman
-# Stage 3.1.d boolean: 1 if first byte is 'D' (68), 0 otherwise
-# Format: <count><\n><first byte><\n><last byte><\n><is_first_D>
-# Roman of 0 prints empty line.
-run_stage3 "one_byte_A"   "$FIXTURES/one.i"     "$(printf 'I\nLXV\nLXV\n')"
-run_stage3 "three_bytes"  "$FIXTURES/three.i"   "$(printf 'III\nLXV\nLXVII\n')"
+# Stage 3.1.b first byte value
+# Stage 3.1.c last byte value
+# Stage 3.1.d-e: branchless equality probes of first byte against D O P A
+# Format: count, first, last, is_D, is_O, is_P, is_A (each as Roman; 0 -> empty)
+run_stage3 "one_byte_A"   "$FIXTURES/one.i"     "$(printf 'I\nLXV\nLXV\n\n\n\nI')"
+run_stage3 "three_bytes"  "$FIXTURES/three.i"   "$(printf 'III\nLXV\nLXVII\n\n\n\nI')"
 run_stage3 "give_up_11b"  "$FIXTURES/give_up.i" "$(printf 'XI\nLXVIII\nX\nI')"
 
 rm -rf "$FIXTURES"
