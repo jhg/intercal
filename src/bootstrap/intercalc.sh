@@ -2098,6 +2098,14 @@ main() {
     linux_arm64|linux_x86_64)
       repro_flags=(-Wl,--build-id=none -Wl,-s)
       ;;
+    macos_arm64)
+      # Suppress cc's auto ad-hoc codesign so we can re-sign
+      # deterministically below (only effective when reproducibility
+      # is requested).
+      if [[ -n "${INTERCAL_REPRODUCIBLE:-}" ]]; then
+        repro_flags=(-Wl,-no_adhoc_codesign)
+      fi
+      ;;
   esac
 
   print -r -- "$asm_combined" | $CC "${repro_flags[@]}" -x assembler - -o "$TMPBIN" 2>&2
@@ -2105,6 +2113,21 @@ main() {
   if [[ $cc_exit -ne 0 ]]; then
     exit 1
   fi
+
+  # Optional macOS reproducibility: opt-in via INTERCAL_REPRODUCIBLE=1.
+  # Sequence: strip metadata that contains the random temp object name,
+  # rewrite LC_UUID with a content-derived hash, re-sign ad-hoc with
+  # deterministic flags. Apple's arm64 toolchain auto-signs every
+  # binary; modifying any byte invalidates the signature.
+  if [[ -n "${INTERCAL_REPRODUCIBLE:-}" && "$_INTERCAL_PLATFORM" == macos_arm64 ]] \
+       && command -v python3 >/dev/null 2>&1 \
+       && command -v codesign >/dev/null 2>&1 \
+       && command -v strip >/dev/null 2>&1; then
+    strip "$TMPBIN" 2>/dev/null || true
+    python3 "$ROOT_DIR/tools/rewrite_uuid.py" "$TMPBIN" 2>&2 || true
+    codesign -fs - --identifier intercal --digest-algorithm=sha256 "$TMPBIN" 2>/dev/null || true
+  fi
+
   cat "$TMPBIN"
 }
 
