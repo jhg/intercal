@@ -150,6 +150,48 @@ For stage3.i, prefer:
 
 When an actual loop is unavoidable (e.g., scanning 60000-byte source), the expected cost is ~30 statements of scaffolding around a small body — still feasible but worth factoring into the compiler structure.
 
+### Empirically: the unwind dance fails at top level
+
+Several attempts at the standard `(NEXT_A) (NEXT_B) (RESUME .sel)` pattern revealed that it ONLY works when there are at least N pending NEXT-stack entries, where N is the maximum value of `.sel`. At top level of `_main`, the NEXT stack is empty, so any `RESUME N` (N >= 1) immediately fires `ICL632I PROGRAM ENDED VIA RESUME INSTEAD OF GIVE UP`.
+
+Even inside a function, the pattern is fragile: `(801)` at the first `NEXT` always wins because it FORGETs its own push and unwinds. The second `NEXT` and the `RESUME .sel` line are unreachable in the normal flow. Empirically verified by testing syslib label 1000 with `.1=#65535, .2=#1` — it should error on overflow per the spec but actually returns silently, exit 0, no ICL code. The (1801) "no overflow" path always wins; the (1802) error path is dead code.
+
+So the syslib's promised "error on overflow" for 1000 is documentation-only. Behavior matches 1009 (silent wrap).
+
+### Conditional ADD without a branch
+
+A pattern that DOES work and avoids the conditional execution problem entirely:
+
+```intercal
+DON'T NOTE compute .B = 1 if .A == .CMP else 0
+DO STASH .1 .2 .3 .4
+DO .1 <- .A
+DO .2 <- .CMP
+PLEASE DO (1010) NEXT          DON'T NOTE .3 = .A - .CMP (wraps)
+DO .D <- .3
+DO RETRIEVE .1 .2 .3 .4
+DO .Z1 <- '.D ~ .D'             DON'T NOTE pack any set bit to LSB
+DO .Z <- '.Z1 ~ #1'             DON'T NOTE 0 if .D=0, 1 otherwise
+DO :T1 <- '.Z $ #1'             DON'T NOTE flip via mingle+xor: .B = NOT .Z
+DO :T2 <- '?:T1'
+DO .B <- ':T2 ~ #1'             DON'T NOTE .B = 1 if .A==.CMP, 0 otherwise
+DON'T NOTE then unconditionally accumulate
+DO STASH .1 .2 .3 .4
+DO .1 <- .COUNTER
+DO .2 <- .B
+PLEASE DO (1000) NEXT           DON'T NOTE .COUNTER += 0 or 1
+DO .COUNTER <- .3
+DO RETRIEVE .1 .2 .3 .4
+```
+
+This is what stage3.i Stage 3.1.d uses to compute "is first byte equal to 'D'" without any branch instruction. ~15 statements per equality test, but no abstain dance, no unwind, no branch needed.
+
+### Status of the stage3.i loop work
+
+Three attempts have been logged. Each ended at the same blocker: a clean conditional break in INTERCAL needs either a multi-statement abstain dance with computed REINSTATE, or the unwind pattern wrapped in a function with at least one ancestor frame. Both work in principle; both require careful design more than translation from a plan.
+
+The pragmatic decision documented in TODO.md and the project status memory: the v0.1 release ships with the MVP template-passthrough self-hosted compiler (functionally complete for all 25 test programs). stage3.i continues to evolve via feature-by-feature unrolled additions (3.1.a byte count, 3.1.b first byte, 3.1.c last byte, 3.1.d is-first-D boolean...). Real loops with breaks deferred to v0.2+.
+
 ## Politeness budget
 
 Every statement that is `DO`, `PLEASE`, `PLEASE DO`, `DON'T`, or `PLEASE DON'T` counts. That includes `DON'T NOTE` comments.
