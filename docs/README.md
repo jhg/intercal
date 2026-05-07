@@ -2,6 +2,8 @@
 
 This directory is the narrative companion to the compiler. The root `README.md` is the quick start, `AGENTS.md` is the full reference and contributor contract, and `docs/` is the book-length walkthrough: how each phase works, why the code is organised the way it is, and what the design tradeoffs were.
 
+When the docs are rendered as an [mdBook](https://rust-lang.github.io/mdBook/) and published to GitHub Pages, the book's homepage is [introduction.md](introduction.md). This file you are reading now (`README.md`) is the directory index that appears on github.com when you browse the `docs/` folder, and it is also the navigational map for contributors and AI agents working on the repository.
+
 The target audiences are four:
 
 1. A complete beginner who has never seen INTERCAL or worked on a compiler before.
