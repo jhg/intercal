@@ -68,7 +68,7 @@ The `docs/` directory is the book-length walkthrough, structured so it can be re
 - Working on the code? Start at [docs/map-of-the-compiler.md](docs/map-of-the-compiler.md) and [docs/your-first-contribution.md](docs/your-first-contribution.md).
 - Curious about decisions? See [docs/design-rationale.md](docs/design-rationale.md).
 
-The full chapter index lives at [docs/README.md](docs/README.md).
+The full chapter index lives at [docs/README.md](docs/README.md). The whole tree also builds as an [mdBook](https://rust-lang.github.io/mdBook/): run `mdbook serve --open` if you have mdBook installed, or wait for the `docs` GitHub Actions workflow to publish to GitHub Pages on every push to `main` (one-time enabling at Settings → Pages → Source → GitHub Actions).
 
 ## Development
 

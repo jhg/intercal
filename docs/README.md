@@ -167,7 +167,20 @@ Every chapter in this directory is plain GitHub-flavoured markdown — readable 
 The repository ships the configuration to render that book without any additional editing. If you have mdBook installed:
 
     mdbook serve --open       # build and open in browser, watching for changes
+    mdbook build              # one-shot build, output in book/
 
-The configuration lives in `book.toml` at the repository root; the table of contents lives in `docs/SUMMARY.md`. The build output goes to `book/` (gitignored).
+The configuration lives in `book.toml` at the repository root; the table of contents lives in `docs/SUMMARY.md`. The build output goes to `book/` (gitignored). A custom 404 page is at `docs/404.md`.
 
-The published version is built by the `docs` GitHub Actions workflow on every push to `main` and deployed to GitHub Pages. The workflow definition is at `.github/workflows/docs.yml` — adjust the `site-url` in `book.toml` if you fork the repository to a different name.
+## Publishing on GitHub Pages
+
+The repository includes a GitHub Actions workflow at `.github/workflows/docs.yml` that builds the book and deploys it to GitHub Pages on every push to `main` (when any file under `docs/` or `book.toml` changes). The workflow:
+
+1. Installs a pinned mdBook version into the runner.
+2. Verifies every internal markdown link in `docs/*.md` resolves to an existing file, and warns about chapters not referenced in `SUMMARY.md`.
+3. Builds the book.
+4. On `push` to `main`: uploads as a Pages artifact and deploys via `actions/deploy-pages`.
+5. On `pull_request`: uploads as a regular workflow artifact for preview download (kept seven days).
+
+The first time the workflow runs, the repository owner needs to enable Pages once at **Settings → Pages → Source → GitHub Actions**. After that the workflow handles deployment automatically. The published URL follows the GitHub Pages convention: `https://<owner>.github.io/<repo>/`.
+
+If you fork the repository to a different name, update the `site-url` field in `book.toml` accordingly.

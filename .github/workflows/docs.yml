@@ -39,6 +39,30 @@ jobs:
             | tar -xz -C "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Verify internal links
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in docs/*.md; do
+            grep -oE '\]\(([a-zA-Z][^)#]*\.md)' "$f" 2>/dev/null \
+              | sed 's|^]( *||' \
+              | while read -r target; do
+                  if [ ! -f "docs/$target" ]; then
+                    echo "::error file=$f::link to docs/$target does not resolve"
+                    fail=1
+                  fi
+                done
+          done
+          # Verify every doc is reachable from SUMMARY.md
+          ls docs/*.md | sed 's|^docs/||' | sort > /tmp/files.txt
+          grep -oE '\(([^)]*\.md)\)' docs/SUMMARY.md | sed 's/^(//;s/)$//' | sort -u > /tmp/summary.txt
+          missing=$(comm -23 /tmp/files.txt /tmp/summary.txt | grep -v '^SUMMARY\.md$' || true)
+          if [ -n "$missing" ]; then
+            echo "::warning::docs/*.md not referenced in SUMMARY.md:"
+            echo "$missing" | sed 's/^/  - /'
+          fi
+          test "$fail" = "0"
+
       - name: Setup Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
