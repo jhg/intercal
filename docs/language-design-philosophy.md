@@ -1,6 +1,6 @@
 # Language design philosophy: INTERCAL against the canon
 
-C. A. R. Hoare's 1973 keynote *Hints on Programming Language Design* is the canonical short statement of how to design a programming language well. Hoare lays out five principles, simplicity, security, fast translation, efficient code, and readability, and argues that languages should be evaluated against them.
+C. A. R. Hoare's 1973 keynote *Hints on Programming Language Design* is the canonical short statement of how to design a programming language well. Hoare lays out five principles (simplicity, security, fast translation, efficient code, and readability) and argues that languages should be evaluated against them.
 
 INTERCAL was published one year before Hoare's lecture and sets out, with what was probably playful awareness, to violate every one of his principles deliberately. Reading the two documents side by side is one of the best ways to understand what INTERCAL is doing and why.
 

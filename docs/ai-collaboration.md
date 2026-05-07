@@ -32,7 +32,7 @@ These rules exist because past violations have caused real regressions. The TDD 
 
 - Broad searches across the codebase (find every place `,65535` is written, find every `_rt_error_*` call site, enumerate all TODOs).
 - Parallel research (platform-specific assembly pitfalls vs cross-platform pitfalls, differential-testing techniques vs traditional golden-output testing).
-- Drafting documentation, the kind of editorial work this directory represents.
+- Drafting documentation, the kind of editorial work this directory represents. The prose-style rules an agent should apply when writing for `docs/` are listed in `AGENTS.md` under "Documentation prose style"; follow them from the start so a later style pass is not needed.
 - Proposing test cases from a natural-language description of a bug.
 - Reviewing a diff for consistency with the rest of the codebase.
 

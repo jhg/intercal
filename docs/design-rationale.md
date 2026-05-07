@@ -1,6 +1,6 @@
-# Design rationale, an FAQ
+# Design rationale: an FAQ
 
-This chapter answers, in plain language, the questions that anybody seeing this compiler for the first time will reasonably ask. Each answer is short, self-contained, and points at the deeper chapters for readers who want more.
+The questions anybody seeing this compiler for the first time will reasonably ask, with short answers that point at the deeper chapters for readers who want more.
 
 ## Why write an INTERCAL compiler in 2026?
 

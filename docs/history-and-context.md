@@ -1,6 +1,6 @@
 # History and context
 
-The INTERCAL language, the compilers that have implemented it, and the design choices that brought us here. This chapter is the historical and comparative context that the technical chapters assume but do not spell out.
+The INTERCAL language, the compilers that have implemented it, and the design choices that brought us here. The historical and comparative context that the technical chapters assume but do not spell out.
 
 ## INTERCAL, 1972
 

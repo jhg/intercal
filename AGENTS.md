@@ -89,12 +89,37 @@ Key files:
 - Brief sub-agents with full context: cite file paths with line numbers, state constraints (e.g. "must match intercalc.sh codegen byte-for-byte"), set response length limits. A sub-agent knows nothing about the conversation history.
 - Never delegate understanding. Do not prompt with "based on your findings, fix X". Synthesize results yourself and decide the change.
 
+### Documentation prose style
+
+The book under `docs/` is meant to read as written by a human for humans. Write that way from the start so a later style pass is not needed.
+
+Avoid:
+
+- Em-dashes (`—`). Use a comma, semicolon, colon, or period instead, depending on context. Never use the en-dash (`–`) as a substitute either.
+- Self-conscious meta-openers. Do not begin a chapter with "This chapter explains/describes/documents X". The chapter title and the prose itself are enough. Open with the topic directly: a short fragment, an example, or a contentful first sentence.
+- Hedge words and filler intensifiers: "essentially", "actually", "really", "very", "in itself", "in some sense", "to a certain degree". Cut them. If a claim is uncertain, say what you do know.
+- Clichéd transitions: "It is worth noting", "Of course", "Indeed", "Naturally", "On the one hand / on the other hand". Cut, or replace with a concrete connector.
+- Restated section openers. The first sentence of a section should advance the topic, not paraphrase the heading.
+- Long parallel structures across multiple paragraphs ("A reader X..., A reader Y..., A reader Z..."). A short bullet list reads better than three near-identical paragraphs.
+- Heavy nominalisation. Prefer "implementing X" over "the implementation of X", "we test X" over "testing of X is performed".
+- Closing summaries that restate what was just said.
+
+Prefer:
+
+- Direct, declarative sentences. Mix sentence lengths.
+- Plain English over Latinate vocabulary. "Use" not "utilise". "Show" not "demonstrate". "Help" not "facilitate".
+- Concrete examples before abstractions. A line of source, a snippet of output, a concrete file path land before the general claim.
+- Direct address to the reader where natural ("you can", "if you have not yet built the compiler"). Avoid "we" if "you" or the bare imperative would do.
+- Bullet captions written with a colon, not an em-dash: `- foo.md: short description`.
+
+When in doubt, read the sentence aloud. Sentences a human would not say in conversation are usually the ones to rewrite.
+
 ### Files and conventions
 
-- `CLAUDE.md` is a symlink to `AGENTS.md` — always edit `AGENTS.md`, never `CLAUDE.md` directly
-- `TODO.md` at root is a working notes file for Claude between iterations (not project docs)
-- `SECURITY.md` (root) documents security model and known limitations
-- `docs/666.md` Label 666 syscall design: CLC-INTERCAL investigation, design decisions, why our simplified approach
+- `CLAUDE.md` is a symlink to `AGENTS.md`. Always edit `AGENTS.md`, never `CLAUDE.md` directly.
+- `TODO.md` at root is a working notes file for Claude between iterations (not project docs).
+- `SECURITY.md` (root) documents security model and known limitations.
+- `docs/666.md` Label 666 syscall design: CLC-INTERCAL investigation, design decisions, why our simplified approach.
 
 ### Commit discipline
 

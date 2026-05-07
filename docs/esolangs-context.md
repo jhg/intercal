@@ -1,8 +1,8 @@
 # INTERCAL among the esoteric languages
 
-INTERCAL is the oldest member of a small but persistent genre: the *esoteric programming language* (esolang). An esolang is a language designed not for production use but to make a point, usually about minimalism, parody, conceptual difficulty, or computational theory. INTERCAL invented the genre in 1972; the second wave arrived in the early 1990s; the genre is still active today.
+INTERCAL is the oldest member of a small but persistent genre: the *esoteric programming language* (esolang). An esolang is designed not for production use but to make a point, usually about minimalism, parody, conceptual difficulty, or computational theory. INTERCAL invented the genre in 1972; the second wave arrived in the early 1990s; the genre is still active today.
 
-This chapter places INTERCAL alongside the other prominent esolangs and identifies what each contributes.
+What follows places INTERCAL alongside the other prominent esolangs and identifies what each contributes.
 
 ## Brainfuck (1993)
 
