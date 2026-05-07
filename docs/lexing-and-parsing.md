@@ -98,3 +98,11 @@ The cost is that a program with syntactically invalid expressions will compile f
 The pure-INTERCAL compiler in `src/compiler/stage3.i` will eventually duplicate this logic inside the INTERCAL language itself. Today it only reads the source and emits a few diagnostic bytes. Once it grows, it will use the same parallel-array layout (`,11` for statement labels, `,12` for polite flags, etc.) for the same reason zsh does: constant-time indexing and no heap allocation.
 
 See [self-hosting.md](self-hosting.md) for the stage3 roadmap and [code-generation.md](code-generation.md) for how the tree built here is consumed.
+
+## Exercises
+
+1. The lexer recognises `DON'T` as one token but `DO NOT` as two. Construct a small program that exposes the difference at runtime, and explain why the politeness count is the same in both cases.
+2. List every keyword the lexer recognises. How many bytes does each occupy in the source after uppercasing? Are any prefixes of others (which would matter for a different lexing strategy)?
+3. The expression parser builds a tree per statement at codegen time, not at lexing time. Sketch what the tree looks like for `'.1 $ "#5 ~ #3"'`. How many nodes does it have?
+4. Find the line in `parse_expr` that consumes a binary operator (`$` or `~`). Why does the parser not need to peek ahead to disambiguate the two?
+5. The parser does not enforce alternation of sparks `'` and rabbit-ears `"`. Construct a malformed expression that the parser accepts but the runtime rejects. What ICL code fires?

@@ -156,6 +156,14 @@ The pipeline is opaque in its default form. Two flags make it observable:
 
 For smaller debugging you can always add a `set -x` near the top of `intercalc.sh` and watch the phases execute.
 
+## Exercises
+
+1. Run `INTERCAL_ASM_ONLY=1 zsh src/bootstrap/intercalc.sh < tests/test_give_up.i`. Identify, in the emitted assembly, which lines came from the codegen prologue, which came from `codegen_give_up`, and which came from the runtime concatenation.
+2. Trace what happens to `SOURCE` between `read_source` and the end of `tokenize`. How many distinct strings does the lexer materialise during tokenisation?
+3. The pipeline runs `check_politeness` before `check_labels`. What would break, if anything, if their order were swapped?
+4. `detect_syslib` decides at compile time whether to link the syslib. Construct a minimal program that toggles `needs_syslib` from 0 to 1 by adding a single statement.
+5. The final concatenation step pipes `runtime.s + syslib.s + program.s` to `cc`. What is the consequence of swapping that order? Try it manually with `cat program.s runtime.s | cc -x assembler -` on a hello-world output.
+
 ## Next reading
 
 - [lexing-and-parsing.md](lexing-and-parsing.md) — Phases 2 and the expression parser.

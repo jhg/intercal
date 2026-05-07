@@ -87,6 +87,14 @@ Not strictly a check, but run in the same pass group. `scan_variables` records w
 
 For a variable that appears in an expression but is never assigned, we still record it as "used" — reading it is well-defined (value 0), and we need the BSS slot.
 
+## Exercises
+
+1. Compute the politeness boundaries for a 7-statement program, a 12-statement program, and a 100-statement program. For each, what is the minimum and maximum number of `PLEASE` statements that satisfy the rule?
+2. The compiler stores `label_to_stmt` as an associative array. Suppose the maximum label number were reduced from 65535 to 999. What part of the compiler would need to change? What about the runtime?
+3. `resolve_come_from` overwrites silently when two COME FROMs target the same label. Write the smallest INTERCAL program that triggers this latent bug. What does the program currently do, and what should it do per the specification?
+4. `scan_variables` records a variable as "used" when it is read but never written. Why is this important? What would happen if we instead only recorded written variables?
+5. The politeness check is the only compile-time error the compiler reports for a syntactically well-formed program. Argue for or against adding a compile-time check for `RESUME #0` (currently a runtime error).
+
 ## Next reading
 
 - [code-generation.md](code-generation.md) — what we do with the resolved label map and the come_from_target entries.

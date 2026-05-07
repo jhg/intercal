@@ -121,6 +121,7 @@ You want to know *why* something is the way it is.
 |------|---------|
 | [statement-cheatsheet.md](statement-cheatsheet.md) | One-line reference for every statement, operator, syslib label, and syscall |
 | [appendix-grammar.md](appendix-grammar.md) | Formal EBNF grammar |
+| [appendix-exercise-hints.md](appendix-exercise-hints.md) | Hints for the exercises in each chapter |
 | [glossary.md](glossary.md) | INTERCAL symbols and compiler jargon |
 | [design-rationale.md](design-rationale.md) | FAQ covering major design decisions |
 | [history-and-context.md](history-and-context.md) | INTERCAL history and comparative notes |

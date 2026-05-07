@@ -130,3 +130,11 @@ INTERCAL has a number of features that the language specification treats as impo
 - Comments — there are none in standard INTERCAL. `DON'T NOTE ...` is the idiomatic fake-comment: it's a negated statement that would parse as unknown, so it is skipped at runtime and never executes. The compiler sees it, classifies it as `UNKNOWN_NEGATED`, and emits nothing for it.
 
 That is enough to read the test programs and the source. Go to [pipeline.md](pipeline.md) next.
+
+## Exercises
+
+1. The hello-world program in `tests/test_hello.i` has 17 statements and 4 `PLEASE`s. Compute its politeness ratio. By how many statements could you shrink the program before falling below the 1/5 threshold, assuming you do not touch the `PLEASE`s?
+2. Write the smallest INTERCAL program that uses `STASH` and `RETRIEVE` correctly. What goes wrong if you swap their order?
+3. The unary operators `&`, `V`, `?` operate on adjacent bits of one value. Compute, on paper, the result of `&#5` (i.e. unary AND applied to the constant 5, treated as 16-bit).
+4. INTERCAL has no `if` statement. Look up the conversion idiom in `AGENTS.md` (section "Essential idioms") and explain in one paragraph how it lets you express a two-way branch.
+5. `DON'T NOTE foo bar` is the idiomatic comment. What other constructions could be used to comment out a line, and why are they worse?

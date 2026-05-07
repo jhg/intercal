@@ -225,6 +225,14 @@ The two ways to see what codegen produced:
 
 The first gives you the generated assembly *after* the Linux ARM64 `sed` conversion (if applicable). The second is a higher-level dump that shows each phase. Use them when you are adding a new statement type or chasing a codegen bug; do not use them as a verification tool, because the assembly output can be legitimately different across platforms.
 
+## Exercises
+
+1. The dispatcher emits the same abstain-flag check for every statement. Estimate the per-statement instruction overhead. On a 1000-statement program, what fraction of the emitted instructions is dedicated to abstain checks?
+2. Compile `DO .1 <- '#5 $ #3'` with `INTERCAL_ASM_ONLY=1` and read the generated code. How many `bl` calls into the runtime does the single statement produce? How many of those would a constant-folding pass eliminate?
+3. The codegen for scalar assignment emits an ignore-flag check before every store. The codegen for array element assignment does not. Find the discrepancy in `intercalc.sh` and explain whether it is a bug.
+4. `codegen_array_dim` calls `_rt_mmap` to allocate the array. What happens if the same array is dimensioned twice in a program — once to size N, once to size M? Where does the previous M-sized allocation go?
+5. The ARM64 codegen and the x86-64 codegen share zero source code (the latter overrides every emit function). What would it take to refactor a small overlap (say, the abstain-flag check) into a platform-neutral helper?
+
 ## Next reading
 
 - [runtime.md](runtime.md) — every `_rt_*` routine the emitted code calls.
