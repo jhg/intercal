@@ -40,6 +40,52 @@ SOURCE=""
 
 emit() { asm+="$1"$'\n' }
 
+diagnose() {
+  local polite=0 not_count=0
+  local -A type_count
+  local -A var_used
+  local -a labels
+  local -a syslib_calls
+  local i
+  for (( i=1; i<=stmt_count; i++ )); do
+    (( stmt_polite[$i] )) && (( polite++ )) || true
+    (( stmt_not[$i] )) && (( not_count++ )) || true
+    local t="${stmt_type[$i]:-?}"
+    type_count[$t]=$((${type_count[$t]:-0}+1))
+    [[ -n "${stmt_label[$i]:-}" ]] && labels+=("${stmt_label[$i]}")
+    if [[ "$t" == "NEXT" ]]; then
+      local target="${stmt_next_target[$i]:-}"
+      (( target >= 1000 && target <= 1999 )) && syslib_calls+=("$target")
+      (( target == 666 )) && syslib_calls+=("666 (Label 666 syscall)")
+    fi
+  done
+
+  echo "=== INTERCAL compile-time diagnostics ===" >&2
+  echo "platform:           $_INTERCAL_PLATFORM" >&2
+  echo "statements:         $stmt_count" >&2
+  echo "  PLEASE:           $polite" >&2
+  echo "  NOT (abstained):  $not_count" >&2
+  if (( stmt_count >= 5 )); then
+    local pct=$((polite * 100 / stmt_count))
+    echo "  politeness ratio: ${pct}%  (must be in [20%, 33%])" >&2
+  else
+    echo "  politeness:       not enforced (under 5 statements)" >&2
+  fi
+  echo "labels defined:     ${#labels[@]}" >&2
+  echo "syslib calls:       ${#syslib_calls[@]}" >&2
+  if (( ${#syslib_calls[@]} > 0 )); then
+    local seen
+    seen=$(printf "%s\n" "${syslib_calls[@]}" | sort -u | tr '\n' ' ')
+    echo "  unique targets:   $seen" >&2
+  fi
+  echo "needs syslib:       $needs_syslib" >&2
+  echo "uses --pure-syslib: $USE_PURE_SYSLIB" >&2
+  echo "statement types:" >&2
+  for t in "${(@k)type_count}"; do
+    printf "  %-12s %d\n" "$t" "${type_count[$t]}" >&2
+  done
+}
+
 die_compile() {
   local code=$1
   local msg=$2
@@ -1442,6 +1488,14 @@ codegen_gerund_modify() {
   local -a gerunds
   gerunds=(${=text})
 
+  # Validate gerunds before emitting any code -- unknown gerunds are a
+  # silent bug otherwise.
+  for g in "${gerunds[@]}"; do
+    if [[ -z "${gerund_map[$g]:-}" ]]; then
+      die_compile "017" "DO YOU EXPECT ME TO FIGURE THIS OUT? (UNKNOWN GERUND: $g)"
+    fi
+  done
+
   emit "  adrp x0, _stmt_flags@PAGE"
   emit "  add x0, x0, _stmt_flags@PAGEOFF"
   emit "  mov w1, #${flag_value}"
@@ -1714,10 +1768,12 @@ else
   esac
 fi
 
+DIAGNOSE_MODE=0
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
     --pure-syslib) USE_PURE_SYSLIB=1; shift ;;
+    --diagnose)    DIAGNOSE_MODE=1; shift ;;
     *) shift ;;
   esac
 done
@@ -1754,6 +1810,11 @@ main() {
   check_labels
   resolve_come_from
   detect_syslib
+
+  if (( DIAGNOSE_MODE )); then
+    diagnose
+    exit 0
+  fi
 
   codegen_program
 

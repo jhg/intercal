@@ -727,6 +727,13 @@ codegen_gerund_modify() {
   local -a gerunds
   gerunds=(${=text})
 
+  # Validate gerunds before emitting any code.
+  for g in "${gerunds[@]}"; do
+    if [[ -z "${gerund_map[$g]:-}" ]]; then
+      die_compile "017" "DO YOU EXPECT ME TO FIGURE THIS OUT? (UNKNOWN GERUND: $g)"
+    fi
+  done
+
   emit "  lea rax, [rip + _stmt_flags]"
 
   for g in "${gerunds[@]}"; do

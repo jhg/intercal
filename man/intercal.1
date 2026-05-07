@@ -33,6 +33,17 @@ Write the compiled binary to
 .IR output .
 Default:
 .BR a.out .
+.TP
+.B \-\-diagnose
+(Bootstrap only.) Print compile-time metrics (statement count, politeness
+ratio, label and syslib-call summary, statement-type histogram) to
+stderr and exit without producing a binary.
+.TP
+.B \-\-pure-syslib
+(Bootstrap only.) Use the pure-INTERCAL system library
+.RB ( src/syslib/syslib.i )
+instead of the native assembly version. Significantly slower (~330x);
+intended for verification, not normal builds.
 .SH ENVIRONMENT
 .TP
 .B INTERCAL_HOME
