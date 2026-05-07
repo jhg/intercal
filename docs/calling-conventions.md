@@ -42,8 +42,45 @@ On macOS, our generated `_main` follows the convention: at entry, `argc` is in `
 ### Small AAPCS64 traps
 
 - `x16` changes role between macOS (syscall number) and Linux (intra-procedure scratch). The `sed` pipeline in `intercalc.sh` rewrites `mov x16, #N` into `mov x8, #M` when translating for Linux, along with the syscall number itself.
-- `stp` / `ldp` operate on 16-byte pairs. Forgetting to use these instead of pairs of `str` / `ldr` is a common bug; the pair forms are cheaper and also maintain 16-byte alignment implicitly.
+- `stp` / `ldp` are the *load-pair* and *store-pair* instructions; they move two registers (16 bytes) in one cycle. Forgetting to use these instead of pairs of `str` / `ldr` is a common cost-of-prologue inefficiency. They also maintain 16-byte stack alignment implicitly: pushing FP+LR via `stp x29, x30, [sp, #-16]!` decrements `sp` by exactly 16 in one instruction, leaving the stack correctly aligned without a separate `sub sp, sp, #16`.
 - Floating-point arguments go in `v0`–`v7`. Our compiler emits no floating-point code, so we never touch those registers. If we ever do, AAPCS64's full rules for mixed integer/float argument passing become relevant.
+
+### The canonical AAPCS64 prologue and epilogue
+
+Most leaf-and-non-leaf functions in our runtime follow a small set of templates. The non-leaf canonical prologue is:
+
+    stp x29, x30, [sp, #-16]!   ; push frame pointer and link register, sp -= 16
+    mov x29, sp                  ; set new frame pointer to current sp
+
+And the matching epilogue:
+
+    ldp x29, x30, [sp], #16      ; pop FP and LR, sp += 16
+    ret                           ; return via x30
+
+Two important properties:
+
+- FP (`x29`) and LR (`x30`) are always saved next to each other. This is what stack walkers (debuggers, profilers, `__builtin_frame_address`) depend on: walking the linked list of saved frame pointers and reading the previous LR at offset 8.
+- Callee-saved registers (`x19`–`x28`, `d8`–`d15`) are pushed in pairs at higher offsets if the routine uses any of them. Our `_rt_*` routines mostly do not need callee-saved registers, so most prologues are just the FP/LR pair.
+
+If a routine needs local stack space beyond the frame pointer save, it allocates after pushing FP+LR:
+
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #N               ; N must be a multiple of 16
+    ; ... routine body ...
+    add sp, sp, #N
+    ldp x29, x30, [sp], #16
+    ret
+
+Or, more compactly with a wider initial allocation:
+
+    stp x29, x30, [sp, #-(16+N)]!   ; allocate FP/LR slot plus N locals in one go
+    mov x29, sp
+    ; ... access locals at [sp, #16] through [sp, #(16+N-8)] ...
+    ldp x29, x30, [sp], #(16+N)
+    ret
+
+Our `_rt_write_roman` uses the second form because it has a small stack-local buffer for the roman-numeral string. Most other `_rt_*` routines use the first form with `N=0`.
 
 ## System V AMD64 — Linux x86-64
 
