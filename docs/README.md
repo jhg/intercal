@@ -115,6 +115,7 @@ You want to know *why* something is the way it is.
 | [tests-tour.md](tests-tour.md) | One-paragraph reference for every `tests/test_*.i` |
 | [tools-tour.md](tools-tour.md) | One-paragraph reference for every `tools/*.sh|*.py` |
 | [debugging.md](debugging.md) | Symptom-to-phase debugging guide |
+| [error-messages.md](error-messages.md) | The ICL convention, our diagnostics, where they fall short |
 
 ### Worked examples and contribution
 
@@ -137,6 +138,7 @@ You want to know *why* something is the way it is.
 | [design-rationale.md](design-rationale.md) | FAQ covering major design decisions |
 | [history-and-context.md](history-and-context.md) | INTERCAL history and comparative notes |
 | [esolangs-context.md](esolangs-context.md) | INTERCAL among Brainfuck, Befunge, Malbolge, Shakespeare, Whitespace |
+| [language-design-philosophy.md](language-design-philosophy.md) | INTERCAL against Hoare's principles and Wirth's |
 | [further-reading.md](further-reading.md) | Annotated bibliography of external resources |
 
 ## What is not in `docs/`

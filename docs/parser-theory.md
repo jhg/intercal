@@ -118,15 +118,34 @@ The pure-INTERCAL parser will follow the same recursive-descent pattern, with IN
 
 Writing a recursive-descent parser in INTERCAL is a serious exercise in discipline. The stash-retrieve protocol for preserving parser state across recursion is the only mechanism INTERCAL offers for local variables. The parser logic itself is not complicated; the book-keeping is.
 
-## Parser generators for comparison
+## Parser generators and modern alternatives
 
-If we ever decided to replace our hand-written parser with a generator, the options would be:
+If we ever decided to replace our hand-written parser, the options span a wider design space than Bison alone:
 
-- **Flex + Bison / Yacc.** The classical Unix pair. Produces LALR(1) parsers. Widely available, well-tested, C-only output.
-- **ANTLR.** A modern generator supporting LL(k) with semantic predicates and multiple output languages (Java, C#, Python, C++, etc.). Produces more readable code than Bison but is heavier-weight.
-- **Parser combinator libraries.** Libraries like Haskell's Parsec or JavaScript's Chevrotain let you write parsers compositionally as code, without a separate grammar file. Closest in spirit to hand-written recursive descent.
+- **Flex + Bison / Yacc.** The classical Unix pair. Produces LALR(1) parsers. Widely available, well-tested, C-only output. Half a century of compiler infrastructure rests on these tools.
 
-For an INTERCAL-sized grammar, parser combinators would be the closest-to-our-hand-written equivalent, with the benefit of a cleaner compositional structure. We have not needed them.
+- **ANTLR.** A modern LL(k) generator with semantic predicates and multiple output languages (Java, C#, Python, C++, etc.). More readable generated code than Bison, at the cost of being heavier-weight and a Java dependency.
+
+- **Parser combinator libraries.** Higher-order functions composed into parsers, written directly in the host language. Examples: Haskell's Parsec / Megaparsec, F#'s FParsec, JavaScript's Chevrotain, Rust's `nom` and `chumsky`. Each parse rule is a first-class value, giving the compositionality of a grammar specification with the introspectability of normal code. Closest in spirit to hand-written recursive descent.
+
+- **Packrat parsers and PEGs.** Bryan Ford's 2002 ICFP paper (*Packrat Parsing: Simple, Powerful, Lazy, Linear Time*) introduced parsing expression grammars (PEGs) as an alternative to context-free grammars. PEGs differ from CFGs in two important ways: alternation is *ordered* (the first matching alternative wins, removing ambiguity by construction) and they freely allow lookahead and negation. Packrat parsing implements PEGs with linear-time guarantees via memoisation — every (rule, position) pair is computed at most once. Modern packrat-style tools include `peg`, `pest` (Rust), and `Lark`'s Earley mode.
+
+- **Earley parsers.** General-purpose parsers that handle any context-free grammar, including ambiguous ones, in O(n³) worst case but linear time on most practical grammars. Used in NLP and in places where the grammar is not yet stable. Good safety property: if you write an ambiguous grammar by accident, an Earley parser will tell you, where an LALR generator would silently shift-reduce.
+
+The trade-off space:
+
+| Approach | Grammar class | Performance | Best for |
+|----------|---------------|-------------|----------|
+| Hand-written recursive descent | LL(1) typically | Fast, simple | Small to medium grammars, error-message quality matters |
+| Bison/yacc | LALR(1) | Fast | Large grammars where the LALR(1) restriction is acceptable |
+| ANTLR | LL(*) | Fast | Cross-language code generation |
+| Parser combinators | LL(k), backtracking | Variable | DSLs embedded in a host language |
+| Packrat / PEG | PEG | O(n) memoised | Grammars with natural ordered alternatives |
+| Earley | Any CFG | O(n³) worst case | Ambiguous or evolving grammars |
+
+For an INTERCAL-sized grammar, hand-written recursive descent is clearly correct. Parser combinators would be the closest-to-our-implementation alternative if we ever wanted to express the grammar more declaratively. PEG and packrat would be overkill but would handle the spark/rabbit-ears alternation slightly more elegantly through ordered alternation.
+
+We are not contemplating any of these. The hand-written parser is short and matches the grammar exactly. The exercise of imagining what a generator would look like is more useful than the migration would be.
 
 ## Exercises
 

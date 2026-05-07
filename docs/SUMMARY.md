@@ -48,11 +48,13 @@
 - [Tests directory tour](tests-tour.md)
 - [Tools tour](tools-tour.md)
 - [Debugging the compiler](debugging.md)
+- [Error message design](error-messages.md)
 
 # Part VI: Context and contribution
 
 - [Comparing with other languages](comparing-languages.md)
 - [INTERCAL among esoteric languages](esolangs-context.md)
+- [Language design philosophy](language-design-philosophy.md)
 - [History and context](history-and-context.md)
 - [Design rationale](design-rationale.md)
 - [Your first contribution](your-first-contribution.md)

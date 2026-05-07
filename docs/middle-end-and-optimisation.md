@@ -65,17 +65,24 @@ Every scalar assignment begins with a three-instruction sequence checking the va
 
 ## What a real IR would enable
 
-If we ever wanted to take optimisation seriously, the first step would be to introduce an IR. SSA form is the standard choice: every variable is assigned exactly once, and uses are explicit. In SSA, most classical optimisations become one-pass tree rewrites.
+If we ever wanted to take optimisation seriously, the first step would be to introduce an IR. SSA form is the standard choice: every variable is assigned exactly once, and every use names exactly which definition reaches it. In SSA, most classical optimisations become local tree rewrites.
 
-A plausible roadmap:
+The textbook construction is Cytron, Ferrante, Rosen, Wegman and Zadeck (1991), *Efficiently Computing Static Single Assignment Form and the Control Dependence Graph*. The algorithm has two parts:
 
-- Phase A: introduce a naive three-address IR between parsing and codegen. Each INTERCAL expression becomes a sequence of three-address instructions (`t3 = t1 MINGLE t2`). Codegen lowers the IR to assembly one instruction at a time. Compile speed should be unaffected; program speed will be slightly worse because the IR-to-assembly lowering is less sophisticated than the current direct codegen.
-- Phase B: convert the three-address IR to SSA. Introduce φ-functions at control-flow joins (INTERCAL has few of these, so the φ count stays low).
-- Phase C: implement constant folding on SSA. Measure the speedup. Iterate.
-- Phase D: implement dead-code elimination on SSA.
-- Phase E: revisit the codegen, now producing native assembly from optimised SSA.
+1. Compute the control-flow graph and its dominance relation. Then compute the *dominance frontier* of every node — the set of nodes Y where the current node X dominates a predecessor of Y but does not strictly dominate Y. This is where φ-functions belong.
+2. Place φ-functions at the dominance frontiers, then rename variables so that every definition has a unique name and every use names the dominating definition.
 
-Each phase is a significant effort, and each introduces new test coverage requirements. We should not contemplate this road until stage3 (the pure-INTERCAL compiler) is self-hosted, because the IR would have to be expressed in INTERCAL too. Introducing complexity into a codebase that is not yet self-sufficient is premature.
+The result is in worst-case linear time in the size of the program, which is what made SSA practical for production compilers. LLVM, GCC's GIMPLE, and most modern back-ends rely on it.
+
+A plausible roadmap for our compiler, if SSA were ever justified:
+
+- Phase A: introduce a naive three-address IR between parsing and codegen. Each INTERCAL expression becomes a sequence of three-address instructions (`t3 = t1 MINGLE t2`). Codegen lowers the IR to assembly one instruction at a time.
+- Phase B: convert the three-address IR to SSA via the Cytron algorithm. INTERCAL has few control-flow joins (NEXT/RESUME pairs and COME FROM back-edges), so the φ count stays low.
+- Phase C: implement *sparse conditional constant propagation* (Wegman and Zadeck, 1991) on the SSA form. SCCP combines our existing constant folding with reachability analysis: when a comparison evaluates to a known constant, the branch it controls is propagated as dead, which in turn lets more values be marked constant. Iterate until fixpoint.
+- Phase D: dead-code elimination on SSA. Easy in SSA: a definition is dead if its variable name has no live uses.
+- Phase E: revisit the codegen to produce native assembly from optimised SSA. This is also where register allocation lives, traditionally via Chaitin-style graph colouring.
+
+Each phase is a significant effort and introduces new test coverage requirements. We should not contemplate this road until stage3 (the pure-INTERCAL compiler) is self-hosted, because the IR would have to be expressed in INTERCAL too. Introducing complexity into a codebase that is not yet self-sufficient is premature.
 
 ## Optimisations that INTERCAL itself resists
 
