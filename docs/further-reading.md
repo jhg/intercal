@@ -34,6 +34,74 @@ All entries listed are free to read online or widely available in libraries. Pri
 
 - The shecc project at https://github.com/sysprog21/shecc. A self-hosting educational C compiler targeting ARM32 and RISC-V. Similar educational ambitions to this repository but for a real language. Good comparison point.
 
+## Per-compiler resources (Part VII deep dives)
+
+### LLVM
+- LLVM Language Reference Manual (LangRef.rst), the IR specification, at <https://llvm.org/docs/LangRef.html>.
+- "The Architecture of Open Source Applications: LLVM" by Chris Lattner at <https://aosabook.org/en/v1/llvm.html>.
+- LLVM Developer Meetings (twice yearly, on YouTube) for talks on every part of the project.
+- LLVM Weekly newsletter at <https://llvmweekly.org/>.
+- The Clang Docs at <https://clang.llvm.org/docs/> for the reference C/C++ frontend.
+
+### GCC
+- GCC Internals manual at <https://gcc.gnu.org/onlinedocs/gccint/>. Covers GENERIC, GIMPLE, RTL.
+- "An Introduction to GCC" by Brian J. Gough, free at <https://nongnu.askapache.com/gcc-intro/>.
+- The GCC Summit proceedings (2003-2010) for retrospective architectural papers.
+- GCC mailing list archives at <https://gcc.gnu.org/lists.html>.
+
+### rustc
+- The [rustc-dev-guide](https://rustc-dev-guide.rust-lang.org/), the canonical reference for rustc internals.
+- *The Rustonomicon* at <https://doc.rust-lang.org/nomicon/> for unsafe Rust details the compiler enforces.
+- Niko Matsakis's blog at <https://smallcultfollowing.com/babysteps/> for design history of the borrow checker, NLL, and Polonius.
+- Rust Internals forum at <https://internals.rust-lang.org/>.
+- "Rust Compiler Performance" at <https://perf.rust-lang.org/> for tracking compile-time regressions.
+
+### Go (gc)
+- The Go internals series at <https://internals-for-interns.com/posts/understanding-go-runtime/> walks the runtime piece by piece. Pairs with our [runtime.md](runtime.md).
+- Sazak's Go internals series at <https://sazak.io/series/go-internals> covers the SSA backend and walk pass in detail.
+- The community-maintained <https://github.com/emluque/golang-internals-resources> indexes most Go internals material.
+- Russ Cox's blog at <https://research.swtch.com/> for original design notes.
+- The Go assembly documentation at <https://go.dev/doc/asm>.
+
+### GHC (Haskell)
+- "The Implementation of Functional Programming Languages" by Simon Peyton Jones (1987), free at <https://www.microsoft.com/en-us/research/publication/the-implementation-of-functional-programming-languages/>.
+- "Implementing Lazy Functional Languages on Stock Hardware: The Spineless Tagless G-Machine" (Peyton Jones 1992), the canonical STG reference.
+- "OutsideIn(X): Modular type inference with local assumptions" (Vytiniotis et al. 2011) for the type-checker algorithm.
+- The GHC Commentary at <https://gitlab.haskell.org/ghc/ghc/-/wikis/commentary>.
+- "Trees that Grow" (Najd and Peyton Jones 2017) for the HsSyn AST design.
+
+### OCaml
+- The OCaml manual at <https://ocaml.org/manual>.
+- *Real World OCaml* by Yaron Minsky, Anil Madhavapeddy, Jason Hickey, free at <https://dev.realworldocaml.org/>.
+- Xavier Leroy's papers at <https://xavierleroy.org/publi/>.
+- "The ZINC Experiment: An Economical Implementation of the ML Language" (Leroy 1990) for the bytecode VM.
+- "Linear Scan Register Allocation" (Poletto and Sarkar 1999), implemented in `asmcomp/linscan.ml`.
+
+### Cranelift
+- Cranelift documentation in the wasmtime repo at <https://github.com/bytecodealliance/wasmtime/tree/main/cranelift/docs>.
+- Chris Fallin's blog at <https://cfallin.org/> for design notes on regalloc2 and ISLE.
+- "Simple and Efficient Construction of Static Single Assignment Form" (Braun et al., CC 2013) for the on-the-fly SSA construction algorithm.
+- Bytecode Alliance Zulip at <https://bytecodealliance.zulipchat.com/>.
+
+### Zig
+- The Zig language reference at <https://ziglang.org/documentation/master/>.
+- Andrew Kelley's blog at <https://andrewkelley.me/> for the bootstrap and self-hosted backend stories.
+- Zig Software Foundation developer notes on YouTube.
+- Zig source documentation in `src/Sema.zig` and surrounding files.
+
+### Swift
+- Swift compiler documentation at <https://swift.org/swift-compiler/>.
+- The SIL specification in `docs/SIL.rst` of the swift repo.
+- Apple WWDC sessions on the Swift compiler.
+- Swift evolution proposals at <https://github.com/apple/swift-evolution>.
+- *Swift Intermediate Language: A High-Level IR to Complement LLVM* by Chris Lattner.
+
+### V8
+- V8 design docs at <https://v8.dev/docs/>.
+- V8 blog at <https://v8.dev/blog>, particularly the posts on Sparkplug, Maglev, and Orinoco.
+- Mathias Bynens's articles at <https://mathiasbynens.be/notes/> on V8 internals.
+- Cliff Click's papers on sea of nodes and HotSpot's C2.
+
 ## Specific techniques
 
 - "Grammar: The language of languages" by Matt Might. Available at https://matt.might.net/articles/grammars-bnf-ebnf/. A clear, example-rich survey of BNF, EBNF, ABNF, and their uses. Pairs with [appendix-grammar.md](appendix-grammar.md).

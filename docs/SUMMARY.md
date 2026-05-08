@@ -66,6 +66,13 @@
 - [LLVM, in shape](llvm-overview.md)
 - [GCC, in shape](gcc-overview.md)
 - [rustc, in shape](rustc-overview.md)
+- [Go (gc), in shape](go-overview.md)
+- [GHC (Haskell), in shape](ghc-overview.md)
+- [OCaml, in shape](ocaml-overview.md)
+- [Cranelift, in shape](cranelift-overview.md)
+- [Zig, in shape](zig-overview.md)
+- [Swift, in shape](swift-overview.md)
+- [V8, in shape](v8-overview.md)
 - [Contributing to a production compiler](contributing-to-production-compilers.md)
 
 # Reference

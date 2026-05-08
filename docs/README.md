@@ -8,7 +8,7 @@ The target audiences are five:
 
 1. A complete beginner who has never seen INTERCAL or worked on a compiler before.
 2. A reader who wants to understand compiler construction using this repository as a teaching example.
-3. A reader who wants the fastest possible path from no compiler experience to contributing to LLVM, rustc, or GCC.
+3. A reader who wants the fastest possible path from no compiler experience to contributing to a production compiler (LLVM, GCC, rustc, Go, GHC, OCaml, Cranelift, Zig, Swift, V8).
 4. A contributor (human or AI) who needs to locate the right file or phase to modify in this repository.
 5. An experienced developer who wants quick answers about the design decisions.
 
@@ -57,13 +57,23 @@ You want to change a phase or fix a bug.
 
 ### Production-compiler bridge path
 
-You want to contribute to LLVM, rustc, or GCC and you want the cheapest preparation.
+You want to contribute to a production compiler and you want the cheapest preparation. Part VII has its own self-contained chapter for each of ten compilers; pick one and read just that.
 
 1. [introduction.md](introduction.md), [overview.md](overview.md), [pipeline.md](pipeline.md): orientation.
 2. The per-phase chapters of Parts III and IV: lexing, parsing, semantic analysis, code generation, runtime, syslib, calling conventions, executables.
 3. [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md): the capstone bridge that names the correspondence between this book's vocabulary and production-compiler vocabulary.
-4. [llvm-overview.md](llvm-overview.md), [gcc-overview.md](gcc-overview.md), [rustc-overview.md](rustc-overview.md): structural orientation for the three.
-5. [contributing-to-production-compilers.md](contributing-to-production-compilers.md): the practical walk to a first patch.
+4. Pick the compiler that matches your goal and read its chapter:
+   - [llvm-overview.md](llvm-overview.md): the modular infrastructure that powers Clang, rustc, Swift, Julia.
+   - [gcc-overview.md](gcc-overview.md): the GNU compiler with three-IR stack, mature LTO, and a mailing-list culture.
+   - [rustc-overview.md](rustc-overview.md): four-IR Rust compiler with borrow checker on MIR.
+   - [go-overview.md](go-overview.md): self-contained Go compiler, no LLVM, with declarative SSA rewrite rules.
+   - [ghc-overview.md](ghc-overview.md): Haskell with formal IRs (Core/STG/Cmm) and lazy-evaluation runtime.
+   - [ocaml-overview.md](ocaml-overview.md): Hindley-Milner reference implementation, dual bytecode + native, unbroken bootstrap chain.
+   - [cranelift-overview.md](cranelift-overview.md): backend-as-library, the deliberate counterpoint to LLVM.
+   - [zig-overview.md](zig-overview.md): comptime as the compiler's centre of gravity, stage1→stage2 self-hosting.
+   - [swift-overview.md](swift-overview.md): SIL as semantic IR with explicit ARC and witness tables.
+   - [v8-overview.md](v8-overview.md): JIT with four tiers, sea-of-nodes, speculation, deoptimisation.
+5. [contributing-to-production-compilers.md](contributing-to-production-compilers.md): the practical walk to a first patch on any of them.
 
 ### Design-rationale / quick-answer path
 
@@ -144,11 +154,18 @@ You want to know *why* something is the way it is.
 
 | File | Purpose |
 |------|---------|
-| [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md) | Capstone: maps the book's concepts onto LLVM, rustc, and GCC; reading plan to a first patch |
-| [llvm-overview.md](llvm-overview.md) | LLVM's three-phase architecture, IR, and repo layout |
-| [gcc-overview.md](gcc-overview.md) | GCC's GENERIC/GIMPLE/RTL pipeline and repo layout |
-| [rustc-overview.md](rustc-overview.md) | rustc's HIR/THIR/MIR/LLVM-IR pipeline and crate layout |
-| [contributing-to-production-compilers.md](contributing-to-production-compilers.md) | How to build, find an issue, and submit to each |
+| [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md) | Capstone: maps the book's concepts onto all ten production compilers; reading plan to a first patch |
+| [llvm-overview.md](llvm-overview.md) | LLVM: modular infrastructure, single SSA IR, TableGen, MLIR |
+| [gcc-overview.md](gcc-overview.md) | GCC: three-IR stack (GENERIC/GIMPLE/RTL), mailing-list culture |
+| [rustc-overview.md](rustc-overview.md) | rustc: four-IR stack (HIR/THIR/MIR/LLVM IR), borrow checker on MIR, query system |
+| [go-overview.md](go-overview.md) | Go (gc): self-contained, declarative SSA rewrite rules, fast compile times |
+| [ghc-overview.md](ghc-overview.md) | GHC: four IRs (HsSyn/Core/STG/Cmm), lazy evaluation runtime, type classes |
+| [ocaml-overview.md](ocaml-overview.md) | OCaml: Hindley-Milner inference, functor module system, dual bytecode + native |
+| [cranelift-overview.md](cranelift-overview.md) | Cranelift: backend-as-library, ISLE, regalloc2, antithesis to LLVM |
+| [zig-overview.md](zig-overview.md) | Zig: comptime as unifying primitive, Sema as the compiler, multiple self-hosted backends |
+| [swift-overview.md](swift-overview.md) | Swift: SIL with explicit ARC and witness tables, Mandatory vs Performance passes |
+| [v8-overview.md](v8-overview.md) | V8: tiered JIT, sea-of-nodes IR (TurboFan), speculation and deoptimisation |
+| [contributing-to-production-compilers.md](contributing-to-production-compilers.md) | How to build, find an issue, and submit to each of the ten |
 
 ### Reference apparatus
 
