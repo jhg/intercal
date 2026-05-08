@@ -133,6 +133,77 @@ peephole_optimize() {
   asm=$(printf "%s\n" "${result[@]}")
 }
 
+emit_ir_full() {
+  # Note [IRFullDump]
+  #   This is the inspection-only landing of proposal 9 (Three-address
+  #   IR feeding codegen). It combines what --emit-cfg and --emit-3addr
+  #   show into one report: each basic block is enumerated, then the
+  #   ops within it are listed in three-address form, then outgoing
+  #   edges. Codegen still walks the parse tree directly; this dump
+  #   lives parallel to it. The follow-up work is to make codegen
+  #   consume the same model. See improvement-proposals.md prop 9.
+  local i
+  echo "=== Three-address IR + CFG ==="
+  echo "platform:  $_INTERCAL_PLATFORM"
+  echo "stmts:     $stmt_count"
+  echo "ops:       $stmt_count (one IR op per source statement at this layer)"
+  echo
+
+  # Reuse leader-detection from emit_cfg.
+  local -A is_leader
+  is_leader[1]=1
+  for (( i=1; i<=stmt_count; i++ )); do
+    [[ -n "${stmt_label[$i]:-}" ]] && is_leader[$i]=1
+    case "${stmt_type[$i]:-}" in
+      NEXT|RESUME|GIVE_UP)
+        (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
+        ;;
+    esac
+    local lbl="${stmt_label[$i]:-}"
+    if [[ -n "$lbl" ]] && [[ -n "${come_from_target[$lbl]:-}" ]]; then
+      (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
+      is_leader[${come_from_target[$lbl]}]=1
+    fi
+  done
+
+  # Walk blocks; for each, emit the 3addr-style listing.
+  local blk_id=-1
+  local in_block=0
+  for (( i=1; i<=stmt_count; i++ )); do
+    if (( ${is_leader[$i]:-0} )); then
+      (( in_block )) && echo
+      blk_id=$((blk_id + 1))
+      local first_label="${stmt_label[$i]:-}"
+      local hdr="block B${blk_id}:"
+      [[ -n "$first_label" ]] && hdr+=" [label ${first_label}]"
+      echo "$hdr"
+      in_block=1
+    fi
+    local t="${stmt_type[$i]:-?}"
+    local body="${stmt_body[$i]:-}"
+    local lbl="${stmt_label[$i]:-}"
+    local prefix="${i}:"
+    [[ -n "$lbl" ]] && prefix+="(${lbl})"
+    (( stmt_polite[$i] )) && prefix+=" PLEASE"
+    (( stmt_negated[$i] )) && prefix+=" NOT"
+    case "$t" in
+      ASSIGN)        echo "  ${prefix} ASSIGN  ${body}" ;;
+      ASSIGN_ARRAY)  echo "  ${prefix} STORE   ${body}" ;;
+      ARRAY_DIM)     echo "  ${prefix} DIM     ${body}" ;;
+      NEXT)          echo "  ${prefix} NEXT    -> label ${stmt_next_target[$i]:-?}" ;;
+      RESUME)        echo "  ${prefix} RESUME  ${body}" ;;
+      FORGET)        echo "  ${prefix} FORGET  ${body}" ;;
+      ABSTAIN|REINSTATE) echo "  ${prefix} ${t}  ${body}" ;;
+      COME_FROM)     echo "  ${prefix} COME_FROM <- label ${stmt_cf_target[$i]:-?}" ;;
+      IGNORE|REMEMBER|STASH|RETRIEVE) echo "  ${prefix} ${t}  ${body}" ;;
+      READ_OUT|WRITE_IN) echo "  ${prefix} ${t} ${body}" ;;
+      GIVE_UP)       echo "  ${prefix} GIVE_UP" ;;
+      *)             echo "  ${prefix} ${t}  ${body}" ;;
+    esac
+  done
+  echo
+}
+
 emit_tokens() {
   # Inspection-only: print a token-level statement table, the layer
   # below --emit-3addr and --emit-cfg. Useful for confirming that the
@@ -2493,6 +2564,7 @@ EMIT_SYSLIB_MODE=0
 EMIT_CFG_MODE=0
 EMIT_3ADDR_MODE=0
 EMIT_TOKENS_MODE=0
+EMIT_IR_FULL_MODE=0
 TIME_REPORT=0
 # Note [OptBisect]
 #   --opt-bisect-limit=N caps the number of optional transformations
@@ -2513,6 +2585,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-cfg)           EMIT_CFG_MODE=1; shift ;;
     --emit-3addr)         EMIT_3ADDR_MODE=1; shift ;;
     --emit-tokens)        EMIT_TOKENS_MODE=1; shift ;;
+    --emit-ir-full)       EMIT_IR_FULL_MODE=1; shift ;;
     --time-report)        TIME_REPORT=1; shift ;;
     --opt-bisect-limit=*) OPT_BISECT_LIMIT=${1#--opt-bisect-limit=}; shift ;;
     --opt-bisect-verbose) OPT_BISECT_VERBOSE=1; shift ;;
@@ -2616,6 +2689,11 @@ main() {
 
   if (( EMIT_TOKENS_MODE )); then
     emit_tokens
+    exit 0
+  fi
+
+  if (( EMIT_IR_FULL_MODE )); then
+    emit_ir_full
     exit 0
   fi
 

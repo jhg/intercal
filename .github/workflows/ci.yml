@@ -85,6 +85,7 @@ jobs:
           zsh tests/test_label_dce.sh
           zsh tests/test_inline_syslib.sh
           zsh tests/test_peephole_dsl.sh
+          zsh tests/test_emit_ir_full.sh
 
       - name: Csmith-INTERCAL differential (5 programs)
         run: zsh tests/run_csmith_diff.sh 5
