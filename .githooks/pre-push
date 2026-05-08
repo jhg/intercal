@@ -21,6 +21,7 @@ zsh tests/test_emit_3addr.sh
 zsh tests/test_emit_tokens.sh
 zsh tests/test_time_report.sh
 zsh tests/test_opt_bisect.sh
+zsh tests/test_peephole_rules.sh
 
 # Self-hosted MVP (25 tests)
 echo "pre-push: run_self_tests.sh"

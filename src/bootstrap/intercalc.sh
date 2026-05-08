@@ -73,6 +73,12 @@ ensure_syslib_cache() {
 # target label (the branch is dead -- fall-through reaches the label
 # anyway). Both `b LABEL` (ARM64) and `jmp LABEL` (x86_64) handled.
 peephole_optimize() {
+  # Note [PeepholeRules]
+  #   This pass is the last text-level transformation before assembling.
+  #   Rules here must be locally sound (never change observable behaviour
+  #   in the surrounding context). Each rule is gated by opt_bisect_check
+  #   so --opt-bisect-limit can disable them individually for debugging.
+  #   Keep the window small (1-3 lines) so this remains O(n) on the asm.
   local -a lines result
   lines=("${(@f)asm}")
   local n=${#lines[@]}
@@ -88,6 +94,8 @@ peephole_optimize() {
     local lookahead=""
     (( j <= n )) && lookahead="${lines[$j]}"
     local skip=0
+
+    # Rule R1: branch immediately followed by its target label.
     if [[ "$cur" =~ '^[[:space:]]+b[[:space:]]+(_[a-zA-Z0-9_]+)[[:space:]]*$' ]]; then
       local target="${match[1]}"
       if [[ "$lookahead" == "${target}:"* ]]; then
@@ -99,6 +107,24 @@ peephole_optimize() {
         opt_bisect_check "peephole_jmp_to_next" && skip=1
       fi
     fi
+
+    # Rule R2: identity mov "mov REG, REG" is dead.
+    # ARM64: "mov xN, xN" / "mov wN, wN".
+    # x86-64: "mov rax, rax" / "mov al, al" etc.
+    if (( ! skip )) && [[ "$cur" =~ '^[[:space:]]+mov[[:space:]]+([wxer][a-z0-9]+|al|ax|eax|rax|cx|ecx|rcx|dx|edx|rdx),[[:space:]]*([wxer][a-z0-9]+|al|ax|eax|rax|cx|ecx|rcx|dx|edx|rdx)[[:space:]]*$' ]]; then
+      local r1="${match[1]}"
+      local r2="${match[2]}"
+      if [[ "$r1" == "$r2" ]]; then
+        opt_bisect_check "peephole_identity_mov" && skip=1
+      fi
+    fi
+
+    # Rule R3: collapse runs of blank lines to at most one. Keeps
+    # generated asm readable without emitting spurious blanks.
+    if (( ! skip )) && [[ -z "${cur// /}" ]] && (( ${#result[@]} > 0 )) && [[ -z "${result[-1]// /}" ]]; then
+      opt_bisect_check "peephole_collapse_blanks" && skip=1
+    fi
+
     if (( ! skip )); then
       result+=("$cur")
     fi
