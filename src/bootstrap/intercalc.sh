@@ -644,6 +644,17 @@ scan_variables() {
 # SECTION 4: Semantic analysis
 # ============================================================
 
+# Note [PoliteRatioBoundary]
+#   The INTERCAL-72 manual specifies that "no fewer than 1/5 nor more
+#   than 1/3" of statements must use PLEASE. We compute integer-only
+#   ratios via cross-multiplication:
+#     polite/total >= 1/5  iff  5*polite >= total  iff  polite*5 >= total
+#     polite/total <= 1/3  iff  3*polite <= total  iff  polite*3 <= total
+#   Boundaries: under 5 statements the rule does not apply (the
+#   INTERCAL-72 spec is silent for very small programs; we exempt them
+#   as a convenience). The lower bound uses strict "less" so a program
+#   with exactly 1/5 polite statements passes. The upper bound uses
+#   strict "greater" so 1/3 is the inclusive ceiling.
 check_politeness() {
   if (( stmt_count < 5 )); then return; fi
   local polite=0
@@ -676,6 +687,17 @@ check_labels() {
   done
 }
 
+# Note [ComeFromUnique]
+#   INTERCAL's COME FROM creates an implicit edge from a labelled
+#   statement to the COME FROM source: after the labelled statement
+#   executes, control transfers to the COME FROM site rather than
+#   falling through. The INTERCAL-72 spec allows at most one COME FROM
+#   per target label; multiple targets cause E555 at compile time.
+#   This is the only check we do here; codegen later inserts the
+#   implicit edge by emitting an unconditional branch at the end of
+#   the labelled statement to the COME FROM source.
+#   Note that COME FROM was not in the original INTERCAL-72 spec; we
+#   adopted it as a standard feature per modern INTERCAL practice.
 resolve_come_from() {
   local i
   for (( i=1; i<=stmt_count; i++ )); do
@@ -2569,8 +2591,22 @@ main() {
   asm_combined=$(cat "${runtime_files[@]}" <(print -r -- "$asm"))
 
   if [[ "$_INTERCAL_PLATFORM" == linux_arm64 ]]; then
-    # Convert macOS ARM64 syntax to Linux ARM64 GNU assembler syntax
-    # IMPORTANT: process @PAGEOFF before @PAGE to avoid partial match
+    # Note [SedPlatformConversion]
+    #   We generate macOS ARM64 assembly natively and rewrite it to
+    #   Linux ARM64 GNU assembler syntax via sed. The two platforms
+    #   share the AArch64 ISA but diverge in:
+    #     - Section directives (__TEXT,__text vs .text)
+    #     - Relocation syntax (@PAGE/@PAGEOFF vs bare/:lo12:)
+    #     - Syscall instruction (svc #0x80 vs svc #0)
+    #     - Syscall numbers (Mach-O numbers vs Linux numbers)
+    #     - Symbol prefix (_main vs main)
+    #   Order matters: @PAGEOFF must be rewritten BEFORE @PAGE because
+    #   "@PAGE" is a prefix of "@PAGEOFF". A naive @PAGE-first sed would
+    #   leave residual "OFF" tokens. This is documented as a "real bug
+    #   we encountered during CI" (see memory/bugs_learned.md).
+    #   Linux x86-64 takes a different path: it has its own dedicated
+    #   codegen backend (src/bootstrap/codegen_x86_64.sh) because the
+    #   syntax differences are too large for sed to handle reliably.
     asm_combined=$(print -r -- "$asm_combined" | sed \
       -e 's/\.section __TEXT,__text/.text/' \
       -e 's/\.section __DATA,__data/.data/' \

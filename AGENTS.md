@@ -121,6 +121,28 @@ When in doubt, read the sentence aloud. Sentences a human would not say in conve
 - `SECURITY.md` (root) documents security model and known limitations.
 - `docs/666.md` Label 666 syscall design: CLC-INTERCAL investigation, design decisions, why our simplified approach.
 
+### Note [Name] convention (GHC-style)
+
+Cross-cutting design decisions, subtle invariants, or non-obvious tradeoffs that deserve more than a one-line comment go into a labelled `Note [Name]` block in the source. The convention follows GHC's longstanding practice (see `compiler/GHC/Core/Opt/Simplify/Iteration.hs` for examples).
+
+Format:
+
+    # Note [SomeUniqueName]
+    #   Free-form prose explaining the why. Multiple paragraphs OK.
+    #   Reference papers, prior bug reports, or other Notes by name.
+
+Rules:
+- The bracketed name appears nowhere else in the source. Use grep as the index: `git grep 'Note \[SomeUniqueName\]'`.
+- A Note is documented at its primary site (typically the function or constant it explains). Reference it from related call sites with `# See Note [SomeUniqueName]`.
+- If a Note becomes stale, fix it or remove it. Lying Notes are worse than no Notes.
+
+Existing Notes in this repo (as of this writing):
+- `Note [OptBisect]` — `--opt-bisect-limit` mechanism (intercalc.sh).
+- `Note [PeepholeRules]` — peephole pass invariants (intercalc.sh).
+- `Note [IgnoreDCE]` — variable-level dead-flag elimination (intercalc.sh).
+
+When implementing future proposals from `docs/improvement-proposals.md`, add a `Note [Name]` at each new piece of non-obvious logic.
+
 ### Commit discipline
 
 - Review commit messages TWICE before committing to ensure accuracy
