@@ -155,7 +155,7 @@ For a reader, STG is the most distinctive piece of GHC's design and the hardest 
 
 ## Cmm: portable assembly with cooperative GC
 
-After STG, GHC translates to Cmm (`compiler/GHC/Cmm/`). Cmm is GHC's portable assembly. The lineage: it descends from C-- (Peyton Jones, Ramsey 1999), a portable assembly designed to support garbage-collected languages.
+After STG, GHC translates to Cmm (`compiler/GHC/Cmm/`). Cmm is GHC's portable assembly. The lineage: it descends from C-- (Peyton Jones, Ramsey, and Reig, 1999), a portable assembly designed to support garbage-collected languages.
 
 What Cmm has that LLVM IR does not:
 
@@ -177,7 +177,7 @@ These passes are conventional but operate on a representation that knows about g
 
 After Cmm passes, GHC has two backends:
 
-- **NCG (Native Code Generator)**: compiler/GHC/CmmToAsm/. GHC's own backend, hand-written per architecture, ~10K lines per arch (x86-64, AArch64, PowerPC, RISC-V are supported in various states). The default for most platforms.
+- **NCG (Native Code Generator)**: compiler/GHC/CmmToAsm/. GHC's own backend, hand-written per architecture (x86-64, AArch64, PowerPC, RISC-V are supported in various states). Each backend is small relative to LLVM: roughly the order of ten thousand lines per architecture. The default for most platforms.
 - **LLVM**: compiler/GHC/Driver/Backend/. Translate Cmm to LLVM IR, hand off to LLVM. Produces faster code in some cases (~5-15% improvement on numeric code), slower compile times.
 
 The choice is per-build: `ghc -fllvm` selects LLVM, default is NCG. The NCG is small, fast to run, and produces reasonable code. LLVM is the production choice for tightly-optimised numeric Haskell.
@@ -186,7 +186,7 @@ Why does NCG exist alongside an LLVM option? Compile speed (NCG is much faster),
 
 ## The runtime (RTS)
 
-`rts/` is GHC's runtime system, around 150,000 lines of C plus assembly. It is the largest non-Haskell part of GHC.
+`rts/` is GHC's runtime system, on the order of a hundred thousand lines of C plus assembly. It is the largest non-Haskell part of GHC.
 
 What it provides:
 
@@ -270,9 +270,9 @@ Build:
     cd ghc
     ./boot
     ./configure
-    hadrian/build  # the new build system; old Make also works
+    hadrian/build
 
-Build time is significant (~30 minutes from scratch). Bootstrapping requires an older GHC, downloadable via `ghcup`.
+Build time is significant (~30 minutes from scratch). Bootstrapping requires an older GHC, downloadable via `ghcup`. Hadrian has been the only supported build system since GHC 9.6 (2023); the legacy Make-based build was removed.
 
 ## Where to go next
 

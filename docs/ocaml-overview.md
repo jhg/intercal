@@ -1,6 +1,6 @@
 # OCaml, in shape
 
-OCaml is the production member of the ML family of languages, descendant of Caml Light, descendant of CAML, descendant of LCF/ML. The compiler lives at <https://github.com/ocaml/ocaml>. It is small by production-compiler standards, around 200,000 lines, and has been continuously self-bootstrapped since 1985 through an unbroken chain of source releases. That continuity is itself the lesson: a self-hosting compiler can persist for decades without the bootstrap chain ever breaking, if the project takes care to ship a bootstrap binary alongside source.
+OCaml is the production member of the ML family of languages, descendant of Caml Special Light, descendant of Caml Light, descendant of Caml, descendant of LCF/ML. The compiler lives at <https://github.com/ocaml/ocaml>. It is small by production-compiler standards, around 200,000 lines, and has been continuously self-bootstrapped for roughly 35 years through an unbroken chain of source releases. That continuity is itself the lesson: a self-hosting compiler can persist for decades without the bootstrap chain ever breaking, if the project takes care to ship a bootstrap binary alongside source.
 
 OCaml deserves a chapter for three independent reasons. It is the canonical implementation of Hindley-Milner type inference, the algorithm that underlies the type systems of Haskell, Rust (in part), Swift (in part), Scala, and most modern statically-typed functional languages. Its module system with functors is a piece of language design that has not been adopted at the same depth by anyone else in this Part. And it pairs a native compiler with a bytecode compiler that share the same frontend, demonstrating in 200,000 lines what tiered compilation looks like at the design level rather than the JIT level.
 
@@ -133,7 +133,7 @@ The native pipeline takes Lambda through closure conversion, Cmm lowering, instr
 
 **Mach** (`asmcomp/mach.ml`): a per-architecture intermediate that captures the target's instructions plus pseudo-registers. The Cmm-to-Mach lowering picks instructions; the result is Mach.
 
-**Liveness and register allocation** (`asmcomp/liveness.ml`, `asmcomp/linscan.ml`): the regalloc is linear scan, the classical Poletto-Sarkar algorithm from "Linear Scan Register Allocation" (1999). The OCaml implementation is notably small (~200 lines) and notably readable. It is one of the best educational references for register allocation in any production compiler.
+**Liveness and register allocation** (`asmcomp/liveness.ml`, `asmcomp/regalloc.ml`, `asmcomp/linscan.ml`): OCaml ships two native register allocators. The default is a graph-colouring allocator (Chaitin-Briggs flavour). An optional linear-scan allocator, the classical Poletto-Sarkar algorithm from "Linear Scan Register Allocation" (1999), is opt-in via `-linscan` (since OCaml 4.06) and lives in `asmcomp/linscan.ml`. The linear-scan implementation is small (~330 lines) and notably readable. It is one of the best educational references for register allocation in any production compiler.
 
 **Linear** (`asmcomp/linear.ml`): the Mach is then linearised, exploring control flow and producing a flat instruction sequence.
 
@@ -158,12 +158,13 @@ The OCaml 5.0 multicore project deserves a footnote. It took about a decade of d
 
 ## The unbroken bootstrap chain
 
-OCaml has been continuously self-bootstrapped since 1985. The chain:
+The ML language family traces back to LCF/ML (Edinburgh, 1970s). The Caml lineage is:
 
-- 1985: Caml from CamlLight from Caml-Light from LCF/ML
-- ~1990: Caml v3 (Leroy)
-- 1996: OCaml 1.0
-- continuously since: each release built by the previous
+- ~1987: Caml (Ascánder Suárez at INRIA), the first Caml implementation, in Lisp.
+- 1990: Caml Light (Xavier Leroy and Damien Doligez), bytecode VM, the first widely-used Caml.
+- 1995: Caml Special Light, added a native compiler.
+- 1996: OCaml 1.0, the unified release that succeeds Caml Special Light.
+- continuously since: each release built by the previous.
 
 The mechanism: `boot/ocamlc` is a bytecode binary committed to the repository. It is the previous release's bytecode compiler, capable of compiling the current source. Each release updates `boot/ocamlc` only after a successful self-build.
 
@@ -171,7 +172,7 @@ This is the textbook implementation of "Trusting Trust" considerations applied a
 
 For our INTERCAL compiler, the boot binary equivalent is `intercalc.sh` (the zsh script, plus the runtime and syslib it depends on). The chain is: `intercalc.sh` compiles `compiler.i` to produce `intercal_core`, which compiles itself, fixpoint test. The same shape, smaller scale, less scrutiny.
 
-The OCaml chain has been unbroken for 40 years. That is a useful number to remember when thinking about how long a self-hosted compiler can persist.
+The Caml family chain has been unbroken for roughly 35 years (depending on whether you count from Caml Light's 1990 bytecode self-hosting or earlier prototypes). That is a useful number to remember when thinking about how long a self-hosted compiler can persist.
 
 ## Repo layout
 

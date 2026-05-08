@@ -158,7 +158,7 @@ Each frontend parses its language and emits GENERIC trees. From that point onwar
 A few frontends deserve attention:
 
 - **gccgo**: an alternative Go frontend that uses GCC's optimiser instead of the standard `gc` compiler's SSA backend. Slower to compile, sometimes produces faster code, supports architectures `gc` does not. The Go ecosystem effectively maintains two production compilers.
-- **gccrs** (GCC Rust): an in-progress Rust frontend in GCC. Motivation: certifications and safety-critical environments where rustc/LLVM cannot be used. Active development through 2024-2026, included in the GCC distribution since GCC 13. The borrow checker is provided by the `polonius` library, shared with rustc.
+- **gccrs** (GCC Rust): an in-progress Rust frontend in GCC. Motivation: certifications and safety-critical environments where rustc/LLVM cannot be used. Active development through 2024-2026, included in the GCC distribution since GCC 13. The Polonius borrow-check library, originally developed by the rustc project, was integrated into gccrs for GCC 15. In rustc itself, Polonius is opt-in and still being stabilised; the production borrow checker remains NLL.
 - **GNAT (Ada)**: the most complete free-software Ada compiler. Used for high-integrity software (avionics, defence). The GCC Ada frontend is the only practically viable Ada implementation outside proprietary tools.
 - **gfortran**: the most widely used free Fortran compiler. Numerical computing in Linux and HPC environments depends heavily on it.
 

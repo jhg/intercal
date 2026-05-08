@@ -39,6 +39,9 @@ Plus per-architecture self-hosted backends in `src/arch/`:
 - `aarch64/CodeGen.zig`: AArch64 native backend.
 - `riscv64/CodeGen.zig`: RISC-V 64 native backend.
 - `wasm/CodeGen.zig`: WebAssembly native backend.
+- `sparc64/CodeGen.zig`: SPARC64 native backend.
+
+The list is not closed; new architectures are added as the project evolves.
 
 The self-hosted backends exist for fast debug builds. They produce less-optimised code than LLVM but compile orders of magnitude faster, which matters for iteration. Production release builds typically use LLVM; debug builds increasingly use the self-hosted backends as they mature.
 
@@ -56,7 +59,7 @@ For a reader coming from rustc, the analogy is HIR-vs-MIR, but with the twist th
 
 ## Sema, in detail
 
-Sema is the central object of study. As of recent Zig (around 0.14), it is a single Zig file of approximately 30,000 lines.
+Sema is the central object of study. As of recent Zig (around 0.14), `src/Sema.zig` is a single Zig file of roughly 35,000 lines, growing over time.
 
 What Sema does:
 
@@ -156,16 +159,16 @@ For a reader of this book, the relevant lesson is: a compiler can ship the entir
 
 This is the part of Zig that mirrors our project most directly.
 
-- **Stage1** (2016 to ~2022): the original Zig compiler, written in C++. It implemented enough Zig to compile the second compiler. Like our `intercalc.sh`.
+- **Stage1** (2015 to ~2022): the original Zig compiler, written in C++. It implemented enough Zig to compile the second compiler. Like our `intercalc.sh`.
 - **Stage2** (2020 onwards, mainline since 2022): the self-hosted Zig compiler, written in Zig. Compiled by stage1 initially, then by itself. Equivalent to our `compiler.i` and (eventually) `stage3.i`.
 - **Stage3** in Zig parlance was originally the conceptual third generation; in practice the project treats stage2 as the compiler and validates that it can self-compile. Equivalent to our 3-generation fixpoint.
 
 The bootstrap mechanics today:
 
-1. The repo contains `stage1/zig1.wasm`, a WebAssembly file containing a stripped-down Zig compiler.
-2. A small C program (`zig1.c`, generated from the wasm) interprets the wasm to produce stage1's binary.
-3. Stage1 compiles stage2's source.
-4. Stage2 self-compiles to verify the fixpoint.
+1. The repo contains `stage1/zig1.wasm`, a WebAssembly file containing a stripped-down stage2 compiler.
+2. A small C program (generated from the wasm) interprets the wasm.
+3. Running that interpreter against the current stage2 source produces a native stage2 binary.
+4. The fresh stage2 then self-compiles to verify the fixpoint.
 
 The zig1.wasm artifact is, in spirit, the same kind of "primordial spark" that our `intercalc.sh` provides for INTERCAL. A small bootstrap that contains just enough to start the self-hosting chain.
 

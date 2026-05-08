@@ -8,12 +8,12 @@ About 50,000 lines of Rust cover x86-64, AArch64, RISC-V 64-bit, and s390x targe
 
 ## Who uses it
 
-Cranelift was created at Mozilla in the SpiderMonkey timeframe and is now developed under the Bytecode Alliance. The major consumers:
+Cranelift began in 2016 as `cretonne`, started by Dan Gohman as a standalone code-generation library. It was later experimentally adopted by Mozilla's SpiderMonkey as a WebAssembly backend (2018-2020) but was removed before shipping in Firefox. It is now developed under the Bytecode Alliance. The major consumers:
 
 - **Wasmtime**: the reference WebAssembly runtime. Cranelift compiles each WASM module on first use. Compile time matters because users wait for it.
 - **rustc** as an alternative debug-mode codegen backend, enabled with `-Zcodegen-backend=cranelift`. Speeds debug builds by 2-3x because Cranelift is much faster to run than LLVM.
 - **Wasmer**: another WASM runtime, supports Cranelift among multiple backends.
-- **Lucet** (deprecated): Fastly's edge-WASM runtime, originally Cranelift-based.
+- **Lucet** (archived): Fastly's edge-WASM runtime, originally Cranelift-based; Fastly migrated to Wasmtime.
 
 The pattern is that Cranelift wins where compile time per function dominates total time: JIT scenarios, ahead-of-time compilation of many small functions, debug builds where iteration speed matters more than emitted code quality.
 
@@ -93,11 +93,11 @@ The split between CLIF and VCode is a clean boundary: CLIF for portable optimisa
 
 Register allocation is delegated to the `regalloc2` crate, a separate library used by Cranelift and potentially by other backends. The crate exposes a function-level allocator interface: input is a SSA function in a regalloc2-specific IR, output is the same function with virtual registers replaced by physical ones, plus spill/reload code.
 
-The algorithm is a SSA-based variant of linear scan. Live ranges are computed in a single pass. Each range is assigned a register greedily, in order of start point, with conflicts resolved by spilling or splitting. The allocator preserves SSA invariants throughout: phi-nodes (block parameters in Cranelift's case) are handled by insertion of move instructions on incoming edges.
+The algorithm is a SSA-based **backtracking allocator**, ported and generalised from SpiderMonkey's IonMonkey allocator. Live ranges are grouped into "bundles"; bundles are pulled from a priority queue, attempting to assign a physical register to each. When a conflict arises, the allocator can evict a lower-spill-weight bundle and reassign it, or split the conflicting range and retry. This is fundamentally different from a linear-scan algorithm, which never revisits decisions.
 
 The result is allocation that is roughly comparable in quality to LLVM's `greedy` allocator but several times faster to run. For Cranelift's use case, that tradeoff is right.
 
-regalloc2 is independently published, has its own paper (Chris Fallin, "regalloc2: A SSA-Based Register Allocator", 2022), and is a self-contained way to learn modern register allocation. It is one of the most legible production register allocators available.
+regalloc2 is independently published with a design document (`doc/DESIGN.md` in the repo) and was introduced in Chris Fallin's blog post "Cranelift, Part 4: A New Register Allocator" (cfallin.org, 2022). It is a self-contained way to learn modern register allocation. It is one of the most legible production register allocators available.
 
 ## Object emission and JIT
 
@@ -122,7 +122,7 @@ For a learner, this is a clean illustration of the API design: AOT and JIT diffe
 | Compile time per function | ~10 ms typical | 100 ms - 1 s typical |
 | Code quality vs LLVM | 0.7-0.85x speedup baseline | 1.0x baseline |
 | Instruction selection DSL | ISLE | TableGen |
-| Register allocator | regalloc2 (linear scan, SSA-based) | Greedy, basic, fast (selectable) |
+| Register allocator | regalloc2 (backtracking, SSA-based, Ion-derived) | Greedy, basic, fast (selectable) |
 | IR | CLIF (SSA, block params, ~200 ops) | LLVM IR (SSA, phi nodes, ~60 core ops + intrinsics) |
 | API style | Embed-as-library from day 1 | Embed-as-library, retrofitted |
 

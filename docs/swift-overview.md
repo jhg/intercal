@@ -1,6 +1,6 @@
 # Swift, in shape
 
-The Swift compiler (`swiftc`) lives at <https://github.com/apple/swift>. Swift is Apple's modern systems-language project, used for application development on Apple platforms and increasingly for server-side code, machine-learning frameworks, and embedded targets. The compiler is interesting in this Part for one reason above others: SIL.
+The Swift compiler (`swiftc`) lives at <https://github.com/swiftlang/swift> (the project moved from `apple/swift` to the `swiftlang` organisation in mid-2024). Swift is Apple's modern systems-language project, used for application development on Apple platforms and increasingly for server-side code, machine-learning frameworks, and embedded targets. The compiler is interesting in this Part for one reason above others: SIL.
 
 SIL stands for Swift Intermediate Language. It is a SSA-form IR that sits between Swift's typed AST and LLVM IR, and it carries language-level semantics that no other production IR carries to the same degree. Reference counting operations are first-class instructions. Generic functions exist as polymorphic SIL definitions before specialisation. Protocols and witness tables are explicit. Memory ownership is annotated. Errors and traps are visible.
 
@@ -188,7 +188,7 @@ The `ClangImporter/` deserves a footnote. Swift can import C and Objective-C hea
 A practical path:
 
 1. Read the [Swift Language Guide](https://docs.swift.org/swift-book/) for context on the source language.
-2. Read [SwiftLanguageReference.html](https://github.com/apple/swift/blob/main/docs/SIL.rst), the SIL specification.
+2. Read the SIL specification at <https://github.com/swiftlang/swift/blob/main/docs/SIL/SIL.md>.
 3. Browse `lib/SIL/SILInstructions.def`, the list of SIL instructions. Categorised by purpose.
 4. Read one mandatory pass, `lib/SILOptimizer/Mandatory/DefiniteInitialization.cpp`. It is well-commented.
 5. Read one performance pass, `lib/SILOptimizer/Transforms/ARCOpts/ReferenceCounting.cpp`. ARC optimisation in concrete form.
@@ -196,7 +196,7 @@ A practical path:
 
 ## How to contribute
 
-GitHub PRs to <https://github.com/apple/swift>. The contribution flow is documented at <https://swift.org/contributing/>. Apple is the primary developer but the project is open source and external contributions are welcome.
+GitHub PRs to <https://github.com/swiftlang/swift>. The contribution flow is documented at <https://swift.org/contributing/>. Apple is the primary developer but the project is open source and external contributions are welcome.
 
 Beginner-friendly categories:
 
@@ -210,20 +210,20 @@ Build:
 
 The build is large. You need the `swift` repo plus `llvm-project` plus several `swift-corelibs-*` repos. Apple provides `update-checkout` and `build-script` to manage this:
 
-    git clone https://github.com/apple/swift
+    git clone https://github.com/swiftlang/swift
     cd swift
     ./utils/update-checkout --clone
     ./utils/build-script --release-debuginfo
 
 The first build takes hours and ~50 GB of disk. After that, incremental builds are tractable but never fast.
 
-For prospective contributors who do not want to commit to the full build, the Swift compiler driver is the lowest-friction starting point. It is a separate Swift package at <https://github.com/apple/swift-driver>.
+For prospective contributors who do not want to commit to the full build, the Swift compiler driver is the lowest-friction starting point. It is a separate Swift package at <https://github.com/swiftlang/swift-driver>. Swift evolution proposals live at <https://github.com/swiftlang/swift-evolution>.
 
 ## Where to go next
 
 - The Swift compiler documentation at <https://swift.org/swift-compiler/>.
-- Chris Lattner's papers on SIL, particularly "Swift Intermediate Language: A High-Level IR to Complement LLVM".
-- The Swift evolution proposals at <https://github.com/apple/swift-evolution>, which document the language's growth and the implementation tradeoffs.
+- Joe Groff and Chris Lattner's LLVM Developers' Meeting 2015 talk "Swift's High-Level IR: A Case Study of Complementing LLVM IR with Language-Specific Optimization".
+- The Swift evolution proposals at <https://github.com/swiftlang/swift-evolution> document the language's growth and the implementation tradeoffs.
 - Apple's WWDC sessions on the Swift compiler (search "swift compiler" on developer.apple.com).
 - [llvm-overview.md](llvm-overview.md) for the backend Swift uses.
 - [rustc-overview.md](rustc-overview.md) for the comparable system that takes different ownership choices.

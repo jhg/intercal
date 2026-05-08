@@ -16,10 +16,10 @@ For a reader of this book, V8 is the long-distance cousin to our INTERCAL compil
 
 V8 has four tiers, top to bottom:
 
-1. **TurboFan** (top-tier optimiser, since 2017): heavyweight, sea-of-nodes IR, deepest optimisation. Targets hot functions.
+1. **TurboFan** (top-tier optimiser, default since 2017): heavyweight, sea-of-nodes IR, deepest optimisation. Targets hot functions.
 2. **Maglev** (mid-tier optimiser, since 2023): lighter SSA-based IR, fewer optimisations. Bridges Sparkplug and TurboFan.
-3. **Sparkplug** (baseline JIT, since 2021): single-pass machine code generator from bytecode. No IR.
-4. **Ignition** (interpreter, since 2017): bytecode interpreter, the floor.
+3. **Sparkplug** (baseline JIT, since 2021): a near-single-pass machine code generator from bytecode (a brief loop-discovery pre-pass plus a code-emit pass). No IR.
+4. **Ignition** (interpreter, shipped 2016, default since 2017): bytecode interpreter, the floor.
 
 A function's execution path:
 
@@ -36,7 +36,7 @@ Why four tiers? Because the amortisation curve is steep. Generating optimised co
 
 The bytecode for V8 is custom, ~200 opcodes, register-machine flavour. Each function is compiled to a sequence of bytecode instructions where operands name "registers" (slots in a per-frame register file).
 
-The interpreter itself is generated from a domain-specific language called Torque (`src/torque/`), which compiles to C++. Torque is typed, has direct support for V8's tagged-value representation, and integrates with the runtime's type system for inline caches.
+The bytecode handlers themselves are written using V8's CodeStubAssembler (CSA), a TurboFan-backed macro assembler, and compiled at build time. A newer DSL, **Torque** (`src/torque/`), now layers on top of CSA and is the recommended way to write builtins, but Ignition predates Torque and uses CSA directly via the InterpreterAssembler subclass.
 
 What Ignition does that an interpreter for a static language might not:
 
@@ -61,7 +61,7 @@ What it does have:
 
 - The same stack frame layout as Ignition. Sparkplug-compiled functions can be called from Ignition and vice versa with identical activation records, which simplifies tier transitions.
 - Direct emission of bytecode-level inline-cache logic. The IC state is shared with Ignition.
-- Fast compilation: tens of microseconds per function on a modern CPU.
+- Fast compilation: roughly two to three orders of magnitude faster than TurboFan, on the order of bytecode-generation cost per the V8 team's own measurements.
 
 The point of Sparkplug is to eliminate Ignition's interpreter overhead (decoding each bytecode, dispatching to a handler) without paying the cost of an optimising compiler. For middle-tier-of-warmness functions, this is the right tradeoff.
 
@@ -73,7 +73,7 @@ Maglev (`src/maglev/`) is the newest of V8's tiers, added in 2023. It uses a sim
 
 The Maglev IR is conventional SSA: basic blocks, instructions, phi nodes (or block parameters, depending on the variant). Optimisation passes include type narrowing from feedback, simple constant folding, simple dead-code elimination. Lowering produces machine code through conventional instruction selection.
 
-Why Maglev exists: Sparkplug code is slow, TurboFan compilation is slow. The gap was wide enough that adding a tier in between was worth the engineering effort. Maglev compiles roughly 10x faster than TurboFan, generates code roughly 50% as fast as TurboFan's. The tradeoff fills the right slot in the warmth distribution.
+Why Maglev exists: Sparkplug code is slow, TurboFan compilation is slow. The gap was wide enough that adding a tier in between was worth the engineering effort. Maglev compiles roughly 10x faster than TurboFan and generates code "much faster than Sparkplug" but slower than TurboFan, per the V8 team's own announcement. The tradeoff fills the right slot in the warmth distribution.
 
 For a reader, Maglev is the cleanest example of "optimising compiler, but lighter". Compared to TurboFan, Maglev does less; compared to Sparkplug, Maglev does more. The architectural decisions visible in its source are mostly about budgeting: how much optimisation is worth doing for a given amount of compile time.
 
@@ -81,7 +81,7 @@ For a reader, Maglev is the cleanest example of "optimising compiler, but lighte
 
 TurboFan (`src/compiler/`) is the top-tier optimiser. It is the largest and most distinctive piece of V8.
 
-The TurboFan IR is **Sea of Nodes**, a graph IR introduced by Cliff Click in 1995 ("Combining Analyses, Combining Optimizations") and used in HotSpot's C2 (Java's top-tier JIT). The sea-of-nodes idea:
+The TurboFan IR is **Sea of Nodes**, a graph IR introduced in Cliff Click's 1995 PhD thesis "Combining Analyses, Combining Optimizations" (Rice University) and used in HotSpot's C2 (Java's top-tier JIT). The sea-of-nodes idea:
 
 - Each operation is a **node** in a graph.
 - Edges represent **dependencies** between nodes, of three kinds: data flow ("the value of node A is used by node B"), control flow ("node A executes, then node B can execute"), and effect ("node A's side effect must precede node B's").
@@ -236,7 +236,7 @@ The `tools/` directory has a number of useful diagnostics: `--trace-opt` (log op
 | Speculation | Yes, with deopt | No | No |
 | Type system | JavaScript dynamic + WASM static | Static | Static |
 | GC | Yes (Orinoco) | No (host language) | No |
-| Codebase | ~3M lines C++ | ~10M C++ | ~3M Rust |
+| Codebase | ~2.3M lines C++ | ~10M C++ | ~3M Rust |
 
 V8 is on the JIT side of every comparison. The cost of being on that side: more runtime complexity, harder to debug, harder to reason about peak performance. The benefit: optimisations that depend on runtime behaviour, possible only with a JIT.
 

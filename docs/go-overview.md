@@ -2,7 +2,7 @@
 
 The Go compiler, conventionally called `gc` (short for "Go compiler", unrelated to garbage collection), is the reference implementation of Go. Source lives at <https://github.com/golang/go> in `src/cmd/compile`. Unlike Clang or rustc, `gc` does not lean on LLVM, GCC, or any other backend. Frontend, middle end, backend, linker, runtime: all of it is Go, all of it is in the same repository, all of it builds itself.
 
-That self-contained quality is the first thing to take in. Around 50,000 lines of Go cover the whole pipeline from source text to ELF/Mach-O/PE/Wasm executable. There is no external dependency at compile time and no libc dependency at run time. The compiler decides stack vs heap allocation through escape analysis. The runtime ships its own scheduler for goroutines and its own concurrent garbage collector. The linker emits binaries for any of fifteen-odd targets without needing a system toolchain installed.
+That self-contained quality is the first thing to take in. Around 600,000 lines of Go cover the compiler proper (`cmd/compile`), with another 50,000 for the linker (`cmd/link`). Roughly half the compiler is generated from declarative SSA rewrite rules; the hand-written portion is about half that. There is no external dependency at compile time and no libc dependency at run time. The compiler decides stack vs heap allocation through escape analysis. The runtime ships its own scheduler for goroutines and its own concurrent garbage collector. The linker emits binaries for any of fifteen-odd targets without needing a system toolchain installed.
 
 For a reader of this book, Go is the most direct counterpart to our INTERCAL compiler at production scale: zsh and assembly here, Go and Go assembly there, the same self-contained spirit.
 
@@ -143,7 +143,7 @@ For somebody coming from a C/C++ world where cross-compiling is a recurring pain
 
 - Pre-1.5: the compiler was written in C as `6c`/`8c`/`5c` and translated to `6g`/`8g`/`5g` for Go targets.
 - Go 1.5: a semi-automated translation rewrote the compiler in Go. From this point on, Go itself was needed to build Go.
-- Go 1.20+: the bootstrap requirement is Go 1.17.13 (a chosen long-term-stable version). When bootstrapping from older sources or other systems, you can chain: build Go 1.4 from C, use it to build Go 1.17.13, use that to build current Go.
+- Since Go 1.22 the bootstrap rule is "Go 1.N requires Go 1.M, where M is N-2 rounded down to even", so Go 1.22-1.23 require Go 1.20.x and Go 1.24+ require Go 1.22.x. When bootstrapping from older sources, you chain through previous releases (Go 1.4 from C, then a 1.17.13 binary, then forward).
 
 `gccgo` is a separate frontend in GCC that uses GCC's optimiser instead of `gc`'s SSA. It is slower to compile, occasionally produces faster code, and is the way to use Go on architectures `gc` does not support. The Go ecosystem effectively maintains two production compilers, used in different niches.
 

@@ -104,7 +104,7 @@ SelectionDAG is the way most older LLVM backends do instruction selection. The d
 
 GlobalISel works on Machine IR (an SSA-form IR with target-generic operations) throughout. Each pass is explicit (not a phase of the DAG). The result is more uniform across targets and amenable to global optimisations during selection.
 
-Adoption: AArch64 uses GlobalISel by default. x86-64 and others are gradually transitioning. Some targets still use only SelectionDAG.
+Adoption: AArch64 uses GlobalISel by default at -O0 only; SelectionDAG remains the default at higher optimisation levels. x86-64 and others are gradually transitioning. Some targets still use only SelectionDAG.
 
 For a reader, the contrast between the two is illuminating. SelectionDAG is older and has more accumulated wisdom; GlobalISel is newer and has cleaner architecture. Both are still in production. The transition is a multi-year effort.
 
@@ -216,7 +216,7 @@ Most of what a beginner cares about is in `llvm/lib/Transforms/` (passes), `llvm
 | Frontends | One (INTERCAL) | Many (Clang, rustc, Swift, ...) |
 | Backends | Two (ARM64, x86-64) | Many (X86, AArch64, RISC-V, GPU, WASM, ...) |
 | Optimisations | Constant folding, dead-flag elimination, peephole | Hundreds of passes |
-| Codebase size | ~2000 lines zsh + a few thousand lines assembly | ~10 million lines C++ |
+| Codebase size | ~2000 lines zsh + a few thousand lines assembly | ~35 million lines total monorepo (~10M C++ source proper) |
 | Build | `cc -x assembler -` | CMake + ninja, ~30 minutes |
 
 The right way to read this table is not "INTERCAL is small, LLVM is big" but "everything LLVM does, our INTERCAL compiler also does, just at orders of magnitude less effort, with orders of magnitude less to optimise". The same conceptual machinery is in both.
@@ -234,7 +234,7 @@ A short order of attack:
 
 ## How to contribute
 
-Since 2024, LLVM uses GitHub PRs. The migration from Phabricator was completed that year. The contributing flow:
+Since late 2023, LLVM uses GitHub PRs as the recommended tool. Phabricator went read-only in October 2023 and the server was shut down in October 2024. The contributing flow:
 
     git clone https://github.com/llvm/llvm-project
     cd llvm-project
