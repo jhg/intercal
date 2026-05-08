@@ -465,6 +465,105 @@ Production-compiler equivalents:
 
 Where to read more: `AGENTS.md` for our policy; the rustc-dev-guide chapter on writing tests; LLVM's "writing tests" documentation.
 
+## Cross-platform testing via Docker (`tests/cross_test.sh`)
+
+What it is: a script that reproduces Linux CI behaviour locally on macOS by running the test suite inside Docker containers for the target platform.
+
+Where it lives in our code: `tests/cross_test.sh`. Usage:
+
+    zsh tests/cross_test.sh linux_x86_64
+    zsh tests/cross_test.sh linux_arm64 --image ubuntu:24.04
+
+The script mounts the repo into a container, installs `zsh` and `cc` (or whatever the platform needs), then runs the four test suites inside.
+
+Why it matters here specifically: the SIGSEGV bug on Linux x86-64 documented in `memory/bugs_learned.md` was reproducible only on actual Linux. Without local Docker reproduction, every fix iteration would require pushing to CI and waiting. With Docker, the iteration is local and fast.
+
+Production-compiler equivalents:
+- Many large compilers have test-runner scripts that abstract over local vs containerised vs cluster execution.
+- LLVM's `lit` runner can be combined with `qemu-user` for cross-target test execution.
+- rustc has `x.py test --target=...` which spawns the appropriate runners.
+
+Where to read more: `tests/cross_test.sh`; the Docker documentation on `--platform`; QEMU user-mode emulation for cases where Docker is not enough.
+
+## Documentation as a deliverable (mdBook + GitHub Pages)
+
+What it is: the `docs/` directory is built into a navigable book via mdBook and published to GitHub Pages on every push to `main`. The configuration lives in `book.toml`; the table of contents in `docs/SUMMARY.md`; the GitHub Actions workflow in `.github/workflows/docs.yml`.
+
+Where it lives: `book.toml`, `docs/SUMMARY.md`, `.github/workflows/docs.yml`. The workflow installs a pinned mdBook version, verifies internal links, builds, deploys.
+
+Why it matters here specifically: the project is at least as much an educational artefact as a working compiler. Documentation that is not searchable, navigable, and current is half-documentation. mdBook provides the search, navigation, and per-PR build verification.
+
+Production-compiler equivalents:
+- The Rust Book (`doc.rust-lang.org/book/`) is built with mdBook, the same tool. So is the rustc-dev-guide.
+- LLVM uses Sphinx for `llvm.org/docs/`.
+- GHC uses Sphinx for the user guide and a custom Wiki for the Commentary.
+- Each major compiler has user-facing documentation as a deliverable, not as an afterthought.
+
+Where to read more: `book.toml`; the mdBook documentation at `rust-lang.github.io/mdBook/`; the rustc-dev-guide repository.
+
+## Memory documentation (per-developer notes)
+
+What it is: a Markdown-based "memory" system for cross-session context, stored outside the repo (in the developer's local Claude config). Each memory file is one piece of context (project status, architecture decisions, bugs learned, dev workflow, release process). The index at `MEMORY.md` lists them.
+
+Where it lives: `/Users/jesus/.claude/projects/-Users-jesus-Repos-intercal/memory/` for this developer's local memory. The `memory/` content is per-developer and not committed.
+
+Why it matters here specifically: the project has been built incrementally across many AI-assisted sessions. Without persistent memory, each session starts cold. With memory, the AI agent recovers context in seconds: project status, prior debugging sessions, design rationales, commit hygiene rules.
+
+Production-compiler equivalents:
+- Personal `NOTES.md` files in dev environments are common.
+- Project-wide `CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md` files are increasingly standard.
+- Internal team wikis play a similar role.
+
+Where to read more: AGENTS.md in this repo; the AI-collaboration chapter in our docs.
+
+## Sed-based platform conversion
+
+What it is: instead of writing a separate codegen for every Linux variant, we generate macOS-style assembly and convert it to Linux ARM64 syntax via a series of sed substitutions. The conversions cover section names (`__TEXT,__text` → `.text`), relocation syntax (`@PAGE` → bare symbol; `@PAGEOFF` → `:lo12:`), syscall numbers, and entry-point name (`_main` → `main`).
+
+Where it lives in our code: the `linux_arm64` branch in `main()` of `intercalc.sh`.
+
+Why it matters here specifically: macOS and Linux ARM64 share enough of the assembly syntax that sed conversion is feasible. Linux x86-64 is different enough that we have a separate codegen backend (`codegen_x86_64.sh`). The sed approach is documented as a "cheat" in [platforms.md](platforms.md) so future maintainers know its limitations.
+
+Production-compiler equivalents:
+- LLVM/GCC have per-target backends with full machine descriptions; sed conversion is impossible at their scale.
+- The "sed cheat" pattern is viable only because we generate text assembly (not binary) and the platforms share an architecture.
+
+Where to read more: the sed substitutions in `intercalc.sh`; [platforms.md](platforms.md) for the pitfalls.
+
+## Lint-as-CI-gate
+
+What it is: lint scripts that run in CI before the test suite. A lint failure blocks the build, even if the tests would pass.
+
+Where it lives:
+- `tools/lint_intercal.sh`: scans `.i` files for politeness imbalance, suspicious keyword typos, unreferenced labels.
+- `tools/lint_assembly.sh`: scans `.s` files for known platform pitfalls (three-register x86 addressing, `//` comments in x86 assembly, etc.).
+- Both run from `.github/workflows/ci.yml` before tests.
+
+Why it matters here specifically: the assembly-pitfall list grew from real CI failures. Each lint rule corresponds to a real bug we encountered, the kind that shows up cryptically at link time and takes hours to diagnose. The lint catches the pattern at the source level, before assembly even begins.
+
+Production-compiler equivalents:
+- Clippy for Rust, clang-tidy for C/C++, govet for Go, hlint for Haskell. Each has hundreds of lint rules.
+- LLVM uses clang-tidy on its own source. rustc uses Clippy.
+
+Where to read more: our lint scripts; the Clippy documentation at `doc.rust-lang.org/clippy/`.
+
+## Pipeline-dump tool
+
+What it is: a debugging tool (`tools/pipeline_dump.sh`) that prints each intermediate stage of compilation for a given INTERCAL program: the tokenised statement list, the generated assembly, optionally the linked binary's disassembly.
+
+Where it lives: `tools/pipeline_dump.sh`. Usage: `tools/pipeline_dump.sh tests/test_hello.i`.
+
+Why it matters here specifically: when explaining the pipeline to somebody else, or debugging a specific phase, having one command that shows everything is much faster than running each phase separately.
+
+Production-compiler equivalents:
+- LLVM's `-print-after-all` (with the new pass manager): dumps IR after every pass.
+- Clang's `-emit-llvm -S` / `-emit-obj` / etc. for stage outputs.
+- rustc's `--emit=` with various output stages.
+- Go's `-gcflags='-d=ssa/<phase>=<level>'` dumps SSA at any named phase.
+- GHC's `-ddump-*` flags for each IR stage.
+
+Where to read more: `tools/pipeline_dump.sh` itself; [debugging.md](debugging.md) for usage in practice.
+
 ## Closing
 
 The techniques in this chapter are the visible advanced compiler engineering in our codebase. They are not the most sophisticated possible; they are the ones a 2,000-line shell script can reasonably carry. Each maps directly onto a slice of the production compilers in Part VII.

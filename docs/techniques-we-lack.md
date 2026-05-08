@@ -1296,6 +1296,340 @@ Production: Koka (research/Microsoft), Eff, Frank, Effekt; OCaml 5 (handlers wit
 
 Where to read more: Leijen, "Koka: Programming with Row-polymorphic Effect Types" (MSFP 2014); Leijen, "Type Directed Compilation of Row-Typed Algebraic Effects" (POPL 2017); Pretnar tutorial on algebraic effects.
 
+# Verifying compilers and formal methods
+
+A subfield of compiler engineering that our INTERCAL compiler does not touch at all: the work of producing compilers (or compiler components) with mathematical proofs of correctness. The proofs are typically discharged in a proof assistant (Coq, HOL4, Lean) and cover the property "for every input source, the produced binary computes the same observable behaviour as the source did under the language's formal semantics".
+
+## CompCert
+
+What it is: a Coq-verified optimising C compiler for a subset of C99. Written by Xavier Leroy and INRIA collaborators since 2005. About 100,000 lines of Coq plus generated OCaml. Targets PowerPC, ARM, x86-32, x86-64, RISC-V, Kalray K1.
+
+Production: used in safety-critical avionics (Airbus, MTU Aero Engines), automotive (some Renault and PSA components), and security-sensitive kernel work. Commercially distributed by AbsInt.
+
+What is verified: the entire pipeline from C AST to assembly. Every transformation, including standard optimisations (constant propagation, CSE, register allocation), is proved correct under CompCert's formal C semantics.
+
+What is not verified: the parser (uses Menhir, separately verified by the Menhir-CompCertCASM project), the assembler/linker, the C library.
+
+Lessons: building a verified compiler is a decade-plus project. CompCert produces code roughly 5-15% slower than `gcc -O2` on representative benchmarks. The trade-off is "you get a proof, you lose some optimisation". For safety-critical software, that is acceptable; for general use, it is not.
+
+Where to read more: compcert.org; Leroy's papers ("Formal verification of a realistic compiler", CACM 2009).
+
+## CakeML
+
+What it is: a HOL4-verified ML compiler. Targets x86-64, ARM, MIPS, RISC-V. Self-bootstrapped: the bootstrap proof shows that CakeML (running CakeML's own source on its own runtime) produces a binary equivalent to the one verified to compile to.
+
+Production: research/teaching primarily; growing presence in CHERI verification work and in academic projects requiring fully verified toolchains.
+
+Where to read more: cakeml.org; "CakeML: A Verified Implementation of ML" (Kumar et al., POPL 2014).
+
+## RustBelt
+
+What it is: a Coq-verified semantic model of Rust's type system, plus proofs that several core unsafe-Rust libraries (Arc, Mutex, RwLock, Cell) are sound. Built on the Iris separation-logic framework.
+
+Production: not integrated into rustc directly. Influences the compiler through papers and through the `rust-lang/unsafe-code-guidelines` working group's decisions.
+
+Where to read more: rustbelt project page; "RustBelt: Securing the Foundations of the Rust Programming Language" (Jung et al., POPL 2018).
+
+## Iris
+
+What it is: a higher-order concurrent separation logic implemented in Coq. The framework underlying RustBelt and many other verified-software projects. The "right" tool for reasoning about heap-manipulating concurrent programs in 2026.
+
+Where to read more: iris-project.org; tutorial at the Iris site; "Iris: Monoids and Invariants as an Orthogonal Basis for Concurrent Reasoning" (Jung et al., POPL 2015).
+
+## Verified parsers (Menhir, CompCertCASM)
+
+What they are: parser generators (or hand-written parsers) that come with proofs of correctness against an LR grammar specification. Menhir's `--coq` mode generates Coq code that can be verified to be correct. The CompCertCASM project verified Menhir's output.
+
+Where to read more: Menhir documentation, "Validating LR(1) parsers" (Jourdan, Pottier, Leroy, ESOP 2012).
+
+## Alive2
+
+What it is: an automated tool for verifying LLVM IR-level optimisations are correct. Uses an SMT solver to check that a transformed function is observably equivalent to the original under LLVM's IR semantics.
+
+Production: integrated into LLVM's CI in some configurations. Has found dozens of bugs in LLVM optimisations.
+
+Where to read more: github.com/AliveToolkit/alive2; "Alive2: Bounded Translation Validation for LLVM" (Lopes et al., PLDI 2021).
+
+## Csmith and YarpGen
+
+What they are: random C program generators that produce well-defined C programs with known expected outputs. Used to fuzz compilers via differential testing: compile with multiple compilers, compare outputs, file bugs on divergence.
+
+Production: Csmith found hundreds of bugs in GCC and LLVM. YarpGen is the newer generator with better coverage of vector and floating-point code.
+
+Where to read more: Csmith on github.com/csmith-project/csmith; "Finding and Understanding Bugs in C Compilers" (Yang et al., PLDI 2011).
+
+## KLEE, CBMC, SeaHorn
+
+What they are: tools that turn programs into logical formulas and feed them to SMT solvers, looking for bugs.
+
+- **KLEE**: symbolic execution on LLVM IR. Generates test inputs that trigger different execution paths.
+- **CBMC**: bounded model checker for C. Unrolls loops to a fixed depth, then checks for assertion violations.
+- **SeaHorn**: LLVM-based verification framework that combines abstract interpretation with model checking.
+
+Production: KLEE is used in security research; CBMC in safety-critical software; SeaHorn in research.
+
+Where to read more: klee.github.io; cbmc.org; seahorn.github.io.
+
+## Frama-C
+
+What it is: a static analysis platform for C with multiple plug-ins (Eva for value analysis, WP for weakest-precondition reasoning, RTE for runtime-error checking). Uses ACSL (ANSI/ISO C Specification Language) for annotations.
+
+Production: avionics (Airbus), defence software, automotive embedded.
+
+Where to read more: frama-c.com; the Frama-C tutorial.
+
+# Advanced type systems beyond what we have
+
+## Refinement types
+
+What they are: types augmented with logical predicates that constrain values. `{x: Int | x >= 0}` is a refined integer; the compiler emits SMT queries to verify that operations preserve the refinement.
+
+Production:
+- Liquid Haskell: refinement types for Haskell. Verifies properties like array-index safety, division by zero.
+- F* (FStar): Microsoft's verification-oriented language combining refinement types with SMT.
+- Refinement types in Idris 2.
+
+Where to read more: "Refinement Types for Haskell" (Vazou et al., ICFP 2014); fstar-lang.org.
+
+## Dependent types in production
+
+What they are: types that can depend on values. `Vec n A` is a vector of `n` elements of type `A`, where `n` is a value. The compiler must prove that operations preserve length constraints.
+
+Production:
+- **Idris 2**: a general-purpose programming language with dependent types. Compiles to native code via Chez Scheme or to JavaScript.
+- **Lean 4**: a theorem prover with a usable native code generator. Compiles via C.
+- **Coq's Extraction**: Coq programs can be extracted to OCaml or Haskell, then compiled normally.
+
+Where to read more: idris-lang.org; lean-lang.org; "Programming in Lean 4" (Avigad).
+
+## Linear types vs affine types
+
+What they are: type-system extensions that constrain how often a value can be used. *Linear*: exactly once. *Affine*: at most once. Useful for resources (file handles, mutex locks, memory) that must not be duplicated or forgotten.
+
+Production:
+- Linear Haskell (extension to GHC since 9.0).
+- Granule (research linear/graded types).
+- ATS (linear types for systems programming).
+- Rust's affine types (a value can be moved, after which the original is invalidated).
+
+Where to read more: "Linear Haskell" (Bernardy et al., POPL 2018); the Granule project.
+
+## Session types
+
+What they are: types that describe communication protocols. A session type `!Int.?Bool.End` means "send an Int, receive a Bool, terminate". Communication that does not match the session type is a type error.
+
+Production:
+- Scribble (a protocol-description language with backends for Java, Erlang, Go).
+- Session-typed APIs in Rust (the `session` crate).
+- Research languages like Pikelet.
+
+Where to read more: scribble.org; "Multiparty Session Types" papers (Honda, Yoshida).
+
+## Capability and ownership systems beyond Rust
+
+What they are: type-system features that track who can do what to a value.
+
+- **Pony's reference capabilities**: `iso`, `val`, `ref`, `box`, `tag`, `trn`. Each capability constrains aliasing and mutation. Pony's runtime is data-race-free by construction.
+- **Project Verona** (Microsoft Research): regions plus reference capabilities, aimed at gradual ownership.
+- **Alms**: ML extension with linear types and capabilities.
+- **Mezzo**: ML-family language with permission-based ownership.
+
+Where to read more: ponylang.io; project-verona on GitHub.
+
+## F* (FStar)
+
+What it is: a typed lambda calculus combining dependent types, refinement types, monadic effects, and SMT-aided proof. Compiles to OCaml, F#, or C (via KreMLin/Karamel).
+
+Production: Microsoft Project Everest's verified TLS stack (HACL\*, EverParse, EverCrypt). Linux kernel's WireGuard adopted HACL* code.
+
+Where to read more: fstar-lang.org; the Everest project; "F\*: A Tour de Force" papers.
+
+# GPU and HPC compilation
+
+## NVPTX backend
+
+What it is: LLVM's NVIDIA GPU backend. Targets PTX (NVIDIA's intermediate assembly), which the NVIDIA driver JITs to actual GPU machine code. Used by CUDA Clang, CUTLASS, OpenAI's Triton, and the entire NVIDIA toolchain.
+
+Where to read more: LLVM's `lib/Target/NVPTX/`; the PTX ISA reference manual; the OpenAI Triton compiler source.
+
+## AMDGPU backend
+
+What it is: LLVM's AMD GPU backend. Targets GCN, RDNA, CDNA architectures. Used by ROCm/HIP, AMD OpenCL, and increasingly by ML frameworks.
+
+Where to read more: LLVM's `lib/Target/AMDGPU/`; the AMD GPU ISA documentation.
+
+## SPIR-V codegen
+
+What it is: SPIR-V is a portable IR for GPU shaders and compute kernels, used by Vulkan, OpenCL 2.1+, and OpenGL extensions. Compilers targeting SPIR-V (Clang OpenCL, glslang for GLSL, DXC for HLSL, IREE) emit SPIR-V; vendors translate it to their hardware.
+
+Where to read more: KhronosGroup/SPIRV-Cross; the Vulkan specification.
+
+## Variable-length vectorisation: SVE, RVV, AVX-512
+
+What they are: vector-instruction-set extensions where the vector length is a runtime parameter rather than fixed at compile time. The compiler emits length-agnostic loops that work for any vector width the CPU supports.
+
+- **SVE/SVE2** (ARM): Scalable Vector Extension. Aimed at HPC; widely deployed in 2024+ ARM chips.
+- **RVV** (RISC-V): Vector Extension. The RISC-V analogue.
+- **AVX-512** (Intel): not technically variable-length but has length-masking that achieves similar flexibility.
+
+LLVM has been adding length-agnostic vectorisation since around 2020. The work has produced the `vscale` concept and the `<vscale x N x i32>` vector type, where length is parameterised.
+
+Where to read more: the ARM SVE programmer's guide; LLVM's vector predication proposal documents.
+
+## Halide
+
+What it is: a domain-specific language and compiler for image-processing pipelines. The user writes the *algorithm* (what to compute) separately from the *schedule* (how to compute it: tiling, parallelism, vectorisation, fusion). Halide handles the schedule transformation, freeing the user from low-level optimisation.
+
+Production: Adobe Photoshop, Google Pixel camera pipelines, embedded vision systems.
+
+Where to read more: halide-lang.org; "Halide: Decoupling Algorithms from Schedules for High-Performance Image Processing" (Ragan-Kelley et al., PLDI 2013).
+
+## TVM
+
+What it is: a tensor compiler that takes ML models (TensorFlow, PyTorch, ONNX) and lowers them through a TIR (Tensor IR) to optimised CPU/GPU/accelerator kernels. Uses learning-based schedule auto-tuning.
+
+Production: AWS, ARM, Qualcomm, OctoML's commercial offerings.
+
+Where to read more: tvm.apache.org; "TVM: An Automated End-to-End Optimizing Compiler for Deep Learning" (Chen et al., OSDI 2018).
+
+## MLIR linalg dialect
+
+What it is: a high-level tensor-operation dialect in MLIR. Operations like matrix multiply, convolution, and element-wise apply are expressed structurally; lowering passes turn them into nested loops, GPU kernels, or vendor-specific calls.
+
+Production: TensorFlow's MLIR backend, IREE, parts of OpenXLA.
+
+Where to read more: MLIR linalg documentation; the IREE compiler source.
+
+## CIRCT (hardware synthesis with MLIR)
+
+What it is: an LLVM/MLIR project for hardware design. Provides dialects for HDL (HardWare Description Language) representations and lowering paths from high-level descriptions (like Chisel's FIRRTL) to gate-level or Verilog output.
+
+Production: emerging in academic and industrial hardware design flows.
+
+Where to read more: circt.llvm.org; the CIRCT documentation.
+
+## Polly
+
+What it is: LLVM's polyhedral loop optimiser. Represents loop nests as integer polyhedra, applies transformations (tiling, fusion, interchange) on the polyhedral representation, lowers back to LLVM IR. Optional pass; not on by default.
+
+Production: enabled in some HPC builds; not default in Clang.
+
+Where to read more: polly.llvm.org; the Polly tutorial.
+
+# Differentiable programming and DSL compilation
+
+## Enzyme
+
+What it is: an LLVM-IR-level automatic differentiation framework. Transforms LLVM IR functions into their derivative functions, enabling autodiff for any LLVM-targeting language without source-language support.
+
+Production: research, with growing adoption in scientific computing and ML.
+
+Where to read more: enzyme.mit.edu; "Instead of Rewriting Foreign Code for Machine Learning, Automatically Synthesize Fast Gradients" (Moses and Churavy, NeurIPS 2020).
+
+## Swift autodiff
+
+What it is: Swift had built-in automatic differentiation as a language feature (added in Swift 5.x, in the `_Differentiation` module). Different from Enzyme: Swift autodiff operates at SIL level, exploiting Swift's type system to ensure differentiability properties.
+
+Status: actively maintained but not as visible as it once was; the Swift for TensorFlow project (which drove much of the original work) has wound down.
+
+Where to read more: Swift-evolution proposal SE-0419; the Swift Differentiable Programming Manifesto.
+
+## JAX and XLA HLO
+
+What they are: JAX is a Python library for differentiable numerical computing. Internally, JAX traces Python code to produce XLA HLO (High Level Operations), an IR for tensor computations. XLA compiles HLO to GPU/TPU/CPU code.
+
+Production: Google internally; Anthropic for Claude training; Google DeepMind; many ML research labs.
+
+Where to read more: jax.readthedocs.io; the XLA documentation.
+
+## Halide schedule auto-tuning
+
+What it is: searching the space of possible schedules (orderings of loop transformations) for a Halide algorithm to find the fastest. Uses search heuristics, machine learning, or brute force depending on the variant.
+
+Production: Halide's auto-scheduler; commercial offerings build on this idea.
+
+Where to read more: "Learning to Optimize Halide with Tree Search and Random Programs" (Adams et al., SIGGRAPH 2019).
+
+# Build infrastructure
+
+## Bazel hermetic builds
+
+What it is: Google's open-source build system. Hermetic by construction: every action declares its inputs (files, tools, env vars), and Bazel guarantees the action's output depends only on those inputs. Enables aggressive remote caching.
+
+Production: Google internally, many large open-source projects (TensorFlow, gRPC, Kubernetes parts, Envoy).
+
+Where to read more: bazel.build; the Bazel rules documentation.
+
+## Buck2
+
+What it is: Meta's modern build system, written in Rust. Successor to Buck, with first-class support for incremental rebuilds, remote execution, and per-target caching.
+
+Production: Meta internally; growing open-source adoption.
+
+Where to read more: buck2.build; the Buck2 documentation.
+
+## Nix-based reproducible builds
+
+What it is: Nix (the package manager) and NixOS (the OS) build everything from declarative descriptions, with builds isolated in sandboxes. Reproducible by construction. Build outputs hash-keyed.
+
+Production: NixOS, the Nixpkgs project (>100,000 packages), some companies internally.
+
+Where to read more: nixos.org; "Functional Package Management with Nix" (PhD thesis, Dolstra 2006).
+
+## sccache
+
+What it is: a distributed cache for compiler invocations. Hashes the compile command plus inputs, caches the output (object file), serves cached outputs to other machines.
+
+Production: Mozilla, many large Rust projects.
+
+Where to read more: github.com/mozilla/sccache.
+
+## ABI tools (abidiff, abicompat)
+
+What they are: tools that compare two versions of a shared library to detect ABI breaks. `abidiff` produces a diff; `abicompat` checks that an application built against one library version is compatible with another.
+
+Production: Red Hat (libabigail), Linux distribution maintainers.
+
+Where to read more: sourceware.org/libabigail; the Fedora ABI tracker.
+
+## Symbol versioning
+
+What it is: a feature of ELF dynamic linkers that lets a library expose multiple versions of a symbol with different ABIs. Old binaries link to the old version; new binaries to the new. Critical for ABI-stable libraries like glibc.
+
+Production: glibc, GTK+, many GNU libraries.
+
+Where to read more: the LSB ABI documentation; "How to Write Shared Libraries" (Drepper 2003).
+
+## DWARF debug info generation
+
+What it is: the standard format for embedding source-level debug information in compiled binaries. The compiler emits DWARF tables describing types, variable locations, line-number information, and call frames.
+
+Production: every modern Unix-shaped toolchain. DWARF 5 is the current standard.
+
+Where to read more: dwarfstd.org; "Introduction to the DWARF Debugging Format" by Eager.
+
+## CTF (Compact C Type Format)
+
+What it is: a Sun/Oracle alternative to DWARF, much smaller, used in Solaris and FreeBSD kernels for type-aware debugging without the DWARF size cost. Linux's BPF subsystem also uses it.
+
+Where to read more: the CTF specification at illumos.org; the BPF Type Format (BTF), Linux's adaptation.
+
+# Why we lack all of this
+
+The reasons are not all equivalent.
+
+For verifying compilers: INTERCAL has no formal semantics worth proving. The language is a parody; nobody is building safety-critical systems in it. Verified compilation would be silly here.
+
+For advanced type systems: INTERCAL's type system is four numeric types. There is nothing to extend.
+
+For GPU/HPC: INTERCAL programs do no useful numerical computation. SIMD is irrelevant.
+
+For DSL/autodiff: same.
+
+For build infrastructure: our build is one shell script. Bazel/Nix-scale infrastructure would be absurd.
+
+The lesson: techniques exist for specific problems. A small esoteric-language compiler does not have those problems. Knowing the techniques exist, and what they solve, is the valuable thing.
+
 # What we deliberately exclude
 
 Some techniques are not just absent but actively out of scope. Naming them prevents future confusion.

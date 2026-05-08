@@ -232,6 +232,50 @@ Most of what a beginner cares about is in `llvm/lib/Transforms/` (passes), `llvm
 
 The right way to read this table is not "INTERCAL is small, LLVM is big" but "everything LLVM does, our INTERCAL compiler also does, just at orders of magnitude less effort, with orders of magnitude less to optimise". The same conceptual machinery is in both.
 
+## If you only read five files
+
+When approaching LLVM for the first time, the following five give the broadest grounding:
+
+1. `llvm/lib/Passes/PassBuilder.cpp`: the new pass manager, the entry point that constructs the optimisation pipeline.
+2. `llvm/include/llvm/IR/Instructions.h`: the IR vocabulary as C++ classes.
+3. `mlir/lib/IR/Operation.cpp` plus `mlir/include/mlir/IR/OpDefinition.h`: the MLIR operation model.
+4. `bolt/lib/Rewrite/RewriteInstance.cpp`: the BOLT post-link optimiser's pipeline entry.
+5. `clang/lib/Sema/SemaExpr.cpp`: where most user-visible Clang diagnostics live.
+
+## Common contributor gotchas
+
+Avoidable first-PR mistakes that come up frequently in LLVM review:
+
+- Forgetting to update one of the parallel builder/visitor enums when adding a new Instruction.
+- Mismatched `LLVM_ENABLE_PROJECTS` versus `LLVM_ENABLE_RUNTIMES` for compiler-rt and libcxx.
+- Assuming MLIR ops auto-roundtrip; you must add `assemblyFormat` or a custom parser.
+- BOLT requires `-Wl,-q` (relocations preserved) at link time; without it BOLT cannot operate.
+- `opt -O2` no longer accepts the legacy pass manager flags. Use `-passes='...'` syntax with the new PM.
+
+## Area specialists in 2025-2026
+
+Following these contributors' commits and blog posts is a fast education in their respective subsystems:
+
+- Nikita Popov (middle-end, InstCombine).
+- Florian Hahn (LoopVectorize, VPlan).
+- Mehdi Amini (MLIR).
+- Maksim Panchenko and Amir Ayupov (BOLT).
+- Aaron Ballman (Clang Sema).
+- Fangrui Song / MaskRay (lld, ELF, linker matters).
+
+## Diagnostic flags worth knowing
+
+Beyond `-print-after-all`:
+
+- `opt -passes='print<...>'` for analysis dumps.
+- `--print-changed=quiet`: only show passes that change IR.
+- `llvm-reduce`: the modern replacement for `bugpoint`. Reduces a failing test case to a minimal reproducer.
+- `--debug-only=<pass>` (requires `-DLLVM_ENABLE_ASSERTIONS=ON`).
+- `clang -mllvm -opt-bisect-limit=N`: binary searching miscompiles.
+- `MLIRContext::disableMultithreading()`: makes MLIR crashes deterministic.
+
+For MLIR specifically: `mlir-opt --mlir-print-ir-after-all --mlir-print-ir-before-all --mlir-disable-threading`.
+
 ## How to read LLVM source for the first time
 
 A short order of attack:

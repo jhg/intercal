@@ -207,6 +207,44 @@ The Go assembler dialect deserves a footnote. Go's assembler is not GNU as. It u
 
 The shape Go shares with our INTERCAL compiler is "do it yourself, top to bottom". Go does it at production scale; we do it at toy scale. The decision points are the same: own backend or borrow LLVM, own linker or invoke `cc`, own runtime or rely on libc.
 
+## If you only read five files
+
+For getting oriented in Go's compiler source:
+
+1. `src/cmd/compile/README.md`: the project's own short orientation.
+2. `src/cmd/compile/internal/ssa/_gen/genericOps.go` and `_gen/AMD64.rules`: the generic IR ops and a per-arch lowering rule file.
+3. `src/cmd/compile/internal/ssa/rewrite.go`: how rules are matched and applied.
+4. `src/cmd/compile/internal/escape/escape.go`: escape analysis.
+5. `src/runtime/proc.go`: the runtime that the compiler emits cooperation calls into (write barriers, stack growth, preemption).
+
+## Common contributor gotchas
+
+- Editing `*.rules` without re-running `go generate` in `cmd/compile/internal/ssa` produces no effect. Easy to think your change is wrong when really the generated code is stale.
+- Rule order matters; more-specific rules go first.
+- Escape analysis is summary-based and per-package; recursion on calls is approximated.
+- `//go:nosplit` functions cannot allocate; the compiler will sometimes silently move heap-allocs off if you misuse it.
+- Runtime cooperation hooks (`runtime.morestack`, `writebarrier`) are inserted by the compiler in `genssa.go`. Do not assume the asm matches the SSA literally.
+
+## Area specialists
+
+- Keith Randall: SSA backend, originator.
+- Cherry Mui: linker, runtime.
+- Matthew Dempsky (mdempsky): escape analysis, frontend types2.
+- Austin Clements: runtime, GC cooperation.
+- David Chase: SSA, regalloc.
+
+## Diagnostic flags worth knowing
+
+- `GOSSAFUNC=Foo go build`: dump SSA HTML for function `Foo`.
+- `-gcflags='-m=2'`: escape and inlining details (level 3 is even more verbose).
+- `-gcflags='-d=ssa/<phase>/debug=1'`: trace a specific SSA phase.
+- `-gcflags='-d=checkptr=2'`: instrumented pointer checks.
+- `-gcflags='-S -L'`: assembly with source-line annotations.
+- `GODEBUG=gctrace=1,allocfreetrace=1`: runtime-side tracing.
+- `-gcflags='-d=ssa/<pass>/off=1'`: bisect rule changes by disabling one phase.
+
+For runtime-cooperation issues: `GODEBUG=asyncpreemptoff=1` isolates whether new safe-point work is at fault.
+
 ## Reading order
 
 For a contributor who wants to land a first patch on Go in roughly a month:

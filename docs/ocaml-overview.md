@@ -249,6 +249,47 @@ The shape closest to ours: OCaml's split between bytecode (small, portable, fast
 
 The shape closest to rustc: type inference, module-level abstraction, immutable-by-default semantics. Reading OCaml after rustc is reading a smaller cousin.
 
+## If you only read five files
+
+For getting oriented in OCaml's compiler source:
+
+1. `parsing/parsetree.mli`: the AST type, the foundation of every later transformation.
+2. `typing/typecore.ml`: the expression type-checker. ~4,000 lines of dense Hindley-Milner.
+3. `lambda/lambda.ml` and `lambda/translcore.ml`: Typedtree to Lambda lowering.
+4. `asmcomp/cmmgen.ml`: Lambda to Cmm.
+5. `asmcomp/asmgen.ml`: the native pipeline driver.
+
+For Flambda 2: `middle_end/flambda2/simplify/simplify_expr.ml` in the ocaml-flambda fork.
+
+## Common contributor gotchas
+
+- The type-checker mutates `Btype.cleanup_abbrev` levels. Do not snapshot a type without `generalize`/`instance` pairing or you will leak metavariables.
+- `Lambda.lambda` is untyped; all GADT info is lost. Do not try to recover it.
+- Native and bytecode backends share the frontend but diverge at Cmm/Bytegen. A behavioural difference is usually a Cmm bug.
+- The standard library is compiled with bootstrapping rules in `stdlib/Makefile`. Edits need a `make coldstart` cycle.
+- PRs that touch the type checker need the maintainers' agreement; the team is small and conservative. Discuss before implementing.
+
+## Area specialists
+
+- Xavier Leroy: whole compiler, release manager.
+- Gabriel Scherer: type system, frontend.
+- Florian Angeletti: errors, modules.
+- Pierre Chambart, Vincent Laviron, Guillaume Bury: Flambda 2.
+- Damien Doligez: runtime.
+- KC Sivaramakrishnan: multicore runtime.
+- Nathanaëlle Courant: Flambda 2 collaborator.
+
+## Diagnostic flags worth knowing
+
+- `-dparsetree`, `-dtypedtree`: frontend dumps.
+- `-dlambda`, `-drawlambda`: Lambda IR before and after early simplification.
+- `-dclambda`: Closure IR (after closure conversion).
+- `-dcmm`, `-dlinear`, `-dsel`, `-dreload`, `-dlive`, `-dspill`, `-dscheduling`: native-pipeline dumps.
+- `OCAMLPARAM=_,dump-into-file=1`: route dumps to files instead of stderr.
+- For Flambda 2: `-dflambda` and `-dflambda-let-stage`.
+
+For bootstrapping: `boot/ocamlc` is the bytecode compiler used while the build is broken. When frontend changes break the stdlib build, regenerate via `make promote` after the new compiler is bootstrapped.
+
 ## Reading order
 
 A practical path for somebody with some functional-programming background:

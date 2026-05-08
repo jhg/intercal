@@ -246,6 +246,48 @@ The `lib/std/zig/` choice is worth noting: putting the parser in the standard li
 
 The shapes are the same. The scale differs by two orders of magnitude. The choice points are similar: own backends or borrow LLVM, self-hosting strategy via a small bootstrap blob, compiler-as-library for tooling.
 
+## If you only read five files
+
+For getting oriented in Zig's compiler:
+
+1. `src/Sema.zig`: the heart. Type checking + comptime + monomorphisation.
+2. `src/Zcu.zig` and `src/InternPool.zig`: compilation unit and de-duped types/values.
+3. `src/codegen/llvm.zig` for the LLVM backend; `src/arch/x86_64/CodeGen.zig` for a self-hosted backend.
+4. `src/link/Elf.zig`: the ELF linker.
+5. `lib/std/Target.zig`: target descriptions, where every target attribute is enumerated.
+
+## Common contributor gotchas
+
+- Comptime calls run on the compiler's own stack; deep recursion segfaults the compiler, not the user program. Raise `--stack` when bootstrapping.
+- InternPool indices are not stable across compilations. Do not serialize them.
+- Semantic analysis is per-decl and lazy. Side-effecting `comptime` blocks at file scope may never run if the decl is unused.
+- The self-hosted backends are work in progress. Falling back to LLVM with `-fllvm` is sometimes necessary.
+- Zig's build system runs in a separate compiler invocation. Breakage of `build.zig` looks like compiler errors but is actually the cached build runner.
+
+## Area specialists
+
+- Andrew Kelley (andrewrk): creator, lead.
+- Jacob Young (jacobly0): x86 and aarch64 self-hosted backends.
+- Matthew Lugg (mlugg): incremental compilation, Zcu.
+- Jakub Konka: linker, Mach-O.
+- Veikka Tuominen (Vexu): Sema.
+- David Rubin: LLVM bindings.
+
+## Notable recent PRs
+
+- PR #24536 (jacobly0, July 2025): aarch64 from-scratch backend. Read for an example of how a self-hosted backend is added end to end.
+- PR #15569 (andrewrk): InternPool for all types and constant values. Read for the rationale of unifying type and value identity.
+
+## Diagnostic flags worth knowing
+
+- `--verbose-air`, `--verbose-mir`, `--verbose-llvm-ir`, `--verbose-cimport`, `--verbose-link`: per-stage verbosity.
+- `--debug-log <scope>`: scoped tracing (e.g., `--debug-log sema`); requires a debug-built compiler.
+- `-freference-trace=N`: show N levels of caller context for errors.
+- `--time-report`: per-pass compile-time breakdown.
+- `-fno-emit-bin -femit-llvm-ir`: emit LLVM IR without producing a binary.
+
+For ICE reduction: `zig reduce` (Zig's clone of `creduce`) trims a failing test to a minimal reproducer.
+
 ## Reading order
 
 A practical path for somebody who wants to get acquainted:

@@ -218,6 +218,53 @@ The differences are scale and the existence of an IR pipeline. rustc has four le
 
 The conceptual map is the same. Lex, parse, check, lower, emit. Reading rustc with the vocabulary from this book in mind, you will see the same shape, just with each phase greatly enlarged and each IR level made explicit.
 
+## If you only read five files
+
+For getting your bearings in rustc's source:
+
+1. `compiler/rustc_driver_impl/src/lib.rs`: the driver. Shows the phase pipeline end to end.
+2. `compiler/rustc_middle/src/query/mod.rs`: the query DAG. Every cacheable computation lives here.
+3. `compiler/rustc_borrowck/src/lib.rs`: the borrow checker entry point.
+4. `compiler/rustc_next_trait_solver/src/solve/mod.rs`: the new trait solver.
+5. `compiler/rustc_codegen_ssa/src/back/write.rs`: the codegen back-end shared layer between the LLVM, Cranelift, and GCC backends.
+
+## Common contributor gotchas
+
+- `./x.py check` before `./x.py build` saves hours.
+- Adding a new query requires touching `rustc_middle/src/query/mod.rs` AND implementing the provider; the macro errors are cryptic.
+- `tcx.lifetime` of inferred regions is meaningless outside the borrow checker.
+- UI tests need exact stderr; run `./x.py test --bless` to update expected outputs.
+- Using `-Znext-solver=globally` may hide bugs that only show with `coherence` mode.
+- Do not add `tracing::info!` in hot query paths; use `debug!` and run with `RUSTC_LOG`.
+
+## Area specialists
+
+- lcnr: next solver, NLL.
+- compiler-errors: trait solver, diagnostics.
+- Nilstrieb: parser, span machinery.
+- oli-obk: const eval, opaque types.
+- petrochenkov: resolver, macros.
+- Mark Rousskov: perf infrastructure.
+- Zalathar: coverage, rollups.
+
+## Notable recent PRs to read
+
+- PR #145244 (lcnr): "non-defining uses of opaques in borrowck". Demonstrates how opaque-type subtlety surfaces in borrow checking.
+- PR #140306: specialization in the new solver.
+- PR #126614: next-solver uplift.
+
+## Diagnostic flags worth knowing
+
+- `-Zdump-mir=all`, `-Zdump-mir-graphviz`: MIR snapshots.
+- `-Zverbose-internals`, `-Zprint-type-sizes`: type-system inspection.
+- `-Zself-profile` plus `summarize`: per-query timing.
+- `-Zthreads=1`: deterministic ICE reproduction.
+- `RUSTC_LOG=rustc_borrowck=debug`: scoped tracing.
+- `RUSTC_BACKTRACE=full`: see where an ICE was raised.
+- `-Ztrack-diagnostics`: trace which compiler code emitted each diagnostic.
+
+For nightly-regression bisection: `cargo bisect-rustc`. For incremental-compilation issues: `-Zincremental-verify-ich`.
+
 ## Reading the rustc-dev-guide
 
 The [rustc-dev-guide](https://rustc-dev-guide.rust-lang.org/) is the single most useful document for understanding rustc. It is maintained alongside the compiler, kept in sync with the source, and explicitly written for new contributors. A reasonable order:

@@ -180,6 +180,51 @@ This is a frequent shape in compiler engineering: the same mature problem (instr
 
 The rest of the wasmtime repo (the runtime, the WASM frontend, etc.) sits next to `cranelift/` but is logically separate.
 
+## If you only read five files
+
+For getting oriented in Cranelift source:
+
+1. `cranelift/codegen/src/ir/dfg.rs`: the data-flow graph IR.
+2. `cranelift/codegen/src/egraph.rs` plus `cranelift/codegen/src/opts/*.isle`: aegraph and the rewrite rules.
+3. `cranelift/codegen/src/isa/x64/lower.isle`: the x86-64 lowering rules.
+4. `cranelift/codegen/src/machinst/lower.rs` plus the regalloc2 entry in `cranelift/codegen/src/regalloc/mod.rs`.
+5. `pulley/src/interp.rs`: the Pulley portable bytecode interpreter.
+
+## Common contributor gotchas
+
+- The aegraph is acyclic and built once. You cannot mutate IR after egraph construction.
+- ISLE rules are pattern-matched bottom-up; more specific patterns must be marked with priorities or you get nondeterministic selection.
+- regalloc2 expects vregs in SSA. Any post-SSA pass that introduces a non-SSA def silently miscompiles.
+- Pulley shares ISA-shaped lowering with native back-ends. An instruction missing in `pulley_shared/abi.rs` falls back to a slow path.
+- `cargo test -p cranelift-codegen` does not run filetests. Use `cargo run -p cranelift-tools -- test`.
+
+## Area specialists
+
+- Chris Fallin: founder of regalloc2 and aegraph.
+- Nick Fitzgerald: Wasmtime, fuzzing.
+- Trevor Elliott: ISLE, x64.
+- Jamey Sharp: verifier, security.
+- Alex Crichton: Wasmtime overall, Pulley.
+- Anton Kirilov: AArch64.
+
+## Notable recent reads
+
+- PR #10709 (cfallin): "fix invalid regalloc constraints on try-call with empty handler list" demonstrates a representative regalloc-validation interaction.
+- Pulley performance issue #10102 thread.
+- Fallin's 2026-04-09 aegraph blog post.
+
+## Diagnostic flags worth knowing
+
+- `--set enable_verifier=true`: verify IR after each pass.
+- `CRANELIFT_DEBUG_REGALLOC=1`: dump regalloc decisions.
+- `--set regalloc_checker=true`: runtime-side regalloc validation. Catches a large fraction of regalloc bugs at runtime.
+- `wasmtime --emit-clif=dir/`: dump CLIF before each pass.
+- `cargo run -p cranelift-tools -- compile --target x86_64 --print foo.clif`: drive Cranelift on a `.clif` file directly.
+- `RUST_LOG=cranelift_codegen::isa=trace`: scoped tracing.
+- `--set enable_pcc=true`: proof-carrying code mode (experimental).
+
+For miscompiles: write a `.clif` filetest first (`run`, `compile`, `optimize`), then debug with `clif-util`.
+
 ## Reading order
 
 A practical path for a reader:

@@ -256,6 +256,45 @@ The `docs/comm/` (commentary) directory is the developer documentation, sometime
 
 GHC stands out on every row. Lazy evaluation alone changes everything: how arguments are passed, what allocation patterns look like, what optimisations matter, what the runtime has to do.
 
+## If you only read five files
+
+For getting oriented in GHC source:
+
+1. `compiler/GHC/Driver/Pipeline.hs`: the orchestrator.
+2. `compiler/GHC/Core/Opt/Simplify/Iteration.hs`: the simplifier rewrite engine, the heart of the optimiser.
+3. `compiler/GHC/Core/Opt/DmdAnal.hs`: demand analysis.
+4. `compiler/GHC/Stg/Lift.hs` plus `compiler/GHC/StgToCmm.hs`: STG and the lowering to Cmm.
+5. `rts/Schedule.c` plus `rts/sm/Storage.c`: the runtime system.
+
+## Common contributor gotchas
+
+- `Note [...]` is GHC's design-document convention. Every cross-cutting decision has a `Note`; grep is the only index. Adding code that crosses one of these boundaries usually means writing or referencing the relevant Note.
+- Demand-analysis fixpoints can blow compile time. Watch `-ddump-stranal` for divergent results.
+- The simplifier runs to a fixpoint, with a phase number. Rules are gated by phase: `{-# RULES "name" [2] forall x. f x = g x #-}` only fires in phase 2 and earlier.
+- RTS code is split between threaded/non-threaded variants compiled with different `#define`s. Edits to `Schedule.c` must build both ways.
+- "Shouldn't happen" panics expect you to add a Note explaining the invariant.
+
+## Area specialists
+
+- Simon Peyton Jones: simplifier, types.
+- Sebastian Graf: demand analysis, Cmm.
+- Matthew Pickering: eventlog, ticky tooling.
+- Ben Gamari: RTS, releases.
+- Andreas Klebinger: codegen, regalloc.
+- Cheng Shao: Wasm backend.
+- Rodrigo Mesquita: linker.
+
+## Diagnostic flags worth knowing
+
+- `-ddump-simpl-iterations`, `-ddump-stranal`, `-ddump-cse`: per-phase Core dumps.
+- `-ddump-stg-final`, `-ddump-cmm-from-stg`: STG and Cmm dumps.
+- `-ddump-asm-stats`: assembly statistics.
+- `-dverbose-core2core`: trace Core-to-Core passes.
+- `-dcore-lint`, `-dstg-lint`, `-dcmm-lint`: per-IR sanity checkers. Always enable when developing new passes.
+- `-ticky` plus `+RTS -rticky.html -RTS` plus `eventlog2html`: per-closure execution profile.
+
+For RTS issues: `+RTS -Ds -Da -DG -RTS` enables debug-build trace output; requires building with `--enable-debug-build`.
+
 ## Reading order
 
 A practical path:

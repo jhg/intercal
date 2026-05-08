@@ -249,6 +249,44 @@ Neither is "better". They are different points in the design space.
 
 Same shape, different scale. Same conceptual phases, more layers of optimisation, more frontends, more backends.
 
+## If you only read five files
+
+For getting oriented in GCC:
+
+1. `gcc/passes.def`: the pass pipeline. Reading this top to bottom gives you the map of GCC.
+2. `gcc/gimple.h` and `gcc/gimple.cc`: the GIMPLE data structures.
+3. `gcc/tree-ssa.cc`: the SSA transformations on GIMPLE.
+4. `gcc/lra.cc` plus `gcc/lra-constraints.cc`: register allocation.
+5. `gcc/rust/rust-session-manager.cc`: gccrs's frontend driver if you intend to work on Rust support.
+
+## Common contributor gotchas
+
+- Copyright assignment to the FSF (or DCO sign-off) is mandatory; PRs without it will be returned.
+- ChangeLog entries are expected. `contrib/mklog` exists for that; do not write them by hand.
+- `-fdump-tree-all-details-graph` produces graphviz, not the same as `-fdump-tree-all`.
+- LRA's reload constraints fail silently as "unable to find a register to spill" when you forget to mark a clobber. The fix is almost always in `*.md` constraints.
+- gccrs must compile against trunk libgccjit and matches a specific Rust edition. Mismatched `--enable-languages=rust` builds quietly skip it.
+
+## Area specialists
+
+- Richard Biener: middle-end, tree-ssa.
+- Jakub Jelinek: release manager, OpenMP.
+- Vladimir Makarov: LRA, IRA.
+- Jeff Law: RTL.
+- Arthur Cohen and Philip Herron: gccrs leads.
+- David Malcolm: analyzer, diagnostics.
+
+## Diagnostic flags worth knowing
+
+- `-fdump-passes`: list all passes that ran.
+- `-fdump-tree-all-details-blocks-vops`: very verbose tree dumps.
+- `-fdump-rtl-all-slim`, `-fdump-ipa-all`, `-fdump-tree-evrp`.
+- `-da`: alias for `-fdump-rtl-all`.
+- `-S -dp`: annotate generated assembly with RTL insn IDs.
+- `-fdbg-cnt=<pass>:N`: bisect a regression at the granularity of a specific pass.
+
+To bypass the driver, run `cc1` directly: `cc1 -quiet -fdump-tree-all foo.c`. To debug an internal-error: `gdb cc1`, set a breakpoint at `internal_error`, then `bt` and `p debug_tree(t)`.
+
 ## Reading GCC source for the first time
 
 A practical order:

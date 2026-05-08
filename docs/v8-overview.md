@@ -256,6 +256,51 @@ The connection is at the conceptual level: both compilers translate source code 
 
 If we ever wanted to add a JIT mode to our INTERCAL compiler (for instance, an interactive debug session that compiles INTERCAL functions on demand), the relevant techniques would come from V8.
 
+## If you only read five files
+
+For getting oriented in V8 source:
+
+1. `src/compiler/turboshaft/graph.h` and `src/compiler/turboshaft/operations.h`: the new IR (Turboshaft is replacing TurboFan; the JS pipeline migrated 2024-2026).
+2. `src/maglev/maglev-graph-builder.cc`: Maglev's IR construction.
+3. `src/ic/ic.cc` and `src/ic/handler-configuration.h`: the inline-cache machinery.
+4. `src/codegen/code-stub-assembler.cc`: CSA, the assembler-level macro language.
+5. `src/compiler/pipeline.cc`: the orchestrator, tier transitions.
+
+## Common contributor gotchas
+
+- V8 has four tiers (Ignition, Sparkplug, Maglev, Turboshaft/TurboFan). A function can deopt back across them. Your "perf bug" may be a tier-up never happening; check `--print-opt-code` and `%GetOptimizationStatus`.
+- IC feedback informs Maglev. Breaking the IC slot layout silently regresses optimisation.
+- Turboshaft is replacing TurboFan in 2024-2026; the JS pipeline already migrated. Do not write new TurboFan reducers.
+- ICs are written in CSA. Edits live in `*.tq` (Torque), not directly in `.cc`.
+- `d8` (the standalone shell) runs without snapshot by default; mksnapshot crashes during build are usually due to a CSA assertion.
+
+## Area specialists
+
+- Tobias Tebbi: Turboshaft, Torque.
+- Nico Hartmann: Turboshaft, Maglev co-lead.
+- Toon Verwaest and Leszek Swirski: Maglev.
+- Jakob Kummerow: numeric, BigInt.
+- Camillo Bruni: Sparkplug, perf tooling.
+- Ross McIlroy: Ignition.
+
+## Notable recent reads
+
+- V8 blog "Land ahoy: leaving the Sea of Nodes" (Turboshaft rationale).
+- "Turbolev" series at blog.seokho.dev (2025).
+- Maglev launch post at v8.dev/blog/maglev.
+
+## Diagnostic flags worth knowing
+
+- `--trace-turbo`: writes turbo.json for turbolizer.com (a graphical IR explorer).
+- `--trace-turbo-graph`, `--trace-maglev-graph-building`, `--trace-maglev-regalloc`: per-IR tracing.
+- `--print-maglev-code`: dump generated Maglev code.
+- `--trace-ic`: trace inline-cache transitions.
+- `--trace-opt`, `--trace-deopt`: trace optimisation tier transitions and deopts.
+- `--trace-turbo-reduction`, `--turboshaft-trace-reduction`: trace IR reductions.
+- `--allow-natives-syntax`: enables `%DebugPrint`, `%OptimizeFunctionOnNextCall`, `%PrepareFunctionForOptimization` for in-script introspection.
+
+For graphical exploration: feed `--trace-turbo` JSON into <https://v8.github.io/tools/head/turbolizer/> to step through reductions.
+
 ## Reading order
 
 A practical path:

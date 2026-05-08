@@ -528,6 +528,177 @@ Plus, conference proceedings:
 
 Most major compiler features were proposed in one of these venues before being engineered into production. Reading current proceedings is reading where the next decade's compilers will go.
 
+## Compiler engineering specialisations in 2026
+
+"Compiler engineer" is one job title hiding ten distinct careers. The skills overlap; the day-to-day work, target codebases, and hiring pipelines do not. A reader picking a track benefits from naming the choice early.
+
+### Frontend engineer
+
+Lexers, parsers, name resolution, type checking, diagnostics. The work is closest to the early chapters of this book. A frontend engineer at Apple writes Clang's Sema; at rustc, the borrow checker and trait solver; at TypeScript, the structural-typing inference; at Swift, the constraint solver. Diagnostics quality is half the work; an unhelpful error message is a bug. Prerequisites: parsing, type theory, language semantics. Pierce's *Types and Programming Languages* is the standard text. Apple, Microsoft (TypeScript, C#), Mozilla, JetBrains (Kotlin) and the Rust project hire here.
+
+### Optimiser engineer
+
+The middle end: SSA, dataflow, loop analyses, vectorisation, inlining, partial redundancy elimination. The work is reading benchmarks, hypothesising transformations, prototyping passes, fighting compile-time regressions. Optimiser engineers tend to congregate at LLVM (Apple, Google, ARM), GCC (Red Hat, SUSE, AdaCore), rustc, Go, and GHC. Prerequisites: SSA construction, dataflow analysis, the classical optimisation literature. Cooper and Torczon, then Muchnick.
+
+### Backend engineer
+
+Instruction selection, register allocation, instruction scheduling, machine descriptions, calling conventions. The work parameterises by ISA: x86-64, ARM64, RISC-V, GPU dialects, custom accelerators. Vendor work dominates here. NVIDIA, AMD, Intel, ARM, Qualcomm, Apple Silicon all run large backend teams. Embedded vendors maintain GCC and LLVM forks for niche targets. Prerequisites: computer architecture (Hennessy and Patterson), the target's ISA reference, register allocation papers (Chaitin, Poletto-Sarkar, Wimmer linear scan, regalloc2 SSA-based).
+
+### Runtime engineer
+
+Garbage collectors, schedulers, linkers, dynamic loaders, ABIs, exception handling. The runtime is half the language's behaviour at execution time. Go's GC team, V8's Orinoco, GHC's RTS, OCaml's runtime, .NET's CoreCLR, the JVM (Oracle, Azul, Amazon Corretto), Swift's ARC and concurrency runtime are all runtime engineering. Prerequisites: *The Garbage Collection Handbook*, knowledge of the target OS's memory model, lock-free programming.
+
+### ML compiler engineer
+
+The fastest-growing track. Take a neural network expressed in PyTorch or JAX, lower it through MLIR or a custom IR, fuse operations, tile for the target's memory hierarchy, generate kernels for GPU, TPU, or NPU. The toolchains are XLA, TVM, IREE, Triton, Mojo, the Modular stack. NVIDIA, Google, Meta, Apple, Modular, Anthropic, OpenAI, Cerebras, Tenstorrent, AWS Annapurna, Groq, Graphcore, Qualcomm AI all hire heavily. Compensation is the highest in the field. Prerequisites: linear algebra, GPU programming (CUDA or its analogues), MLIR, plus standard compiler skills. The combination of compiler and ML background is rare; either alone is not enough.
+
+### GPU compiler engineer
+
+Adjacent to ML compilers but distinct. The work is shader compilation (Vulkan, Metal, DirectX), CUDA backend, ROCm, ray-tracing intrinsics, warp-level optimisation. NVIDIA's NVPTX backend in LLVM, AMD's ROCm, Apple's Metal, Intel's compute stack. Prerequisites: SIMT execution, the target GPU's microarchitecture, divergence analysis, register pressure under massive parallelism.
+
+### Security and sanitizer engineer
+
+ASan, MSan, UBSan, TSan, LSan, CFI, ShadowCallStack, fuzzing harnesses, hardening transformations. Compilers as the last line of defence. Google's sanitizer team, Apple's PAC and CFI work, Microsoft's CFG and CET enablement. Constant-time codegen for cryptography sits here too: the Clangover attack of 2024 showed that a compiler can turn constant-time source into secret-dependent machine code, opening cryptographic implementations to timing side-channels. Prerequisites: knowledge of common vulnerability classes, dynamic analysis instrumentation, the target's hardware-security features.
+
+### HLS engineer
+
+High-Level Synthesis: compiling C, C++, or domain-specific languages to FPGA bitstreams. Xilinx (now AMD) Vivado HLS, Intel HLS, Cadence Stratus. The IR pipeline ends at hardware, not software. Smaller community than software compilers, but well-paid and aging slowly. Prerequisites: digital logic, Verilog or VHDL, polyhedral analysis for loop transformations.
+
+### Language designer
+
+The track with the fewest jobs but the longest reach. Designs evolution proposals, drives RFC processes, shepherds feature acceptance. Most language designers are also senior compiler engineers; the job rarely exists in isolation. Apple drives Swift evolution from inside; Rust has an open RFC process; Haskell's GHC Steering Committee gates language extensions; the Go team is small and centralised. Prerequisites: years of credibility on the implementation side, plus writing skill.
+
+### Compiler verification engineer
+
+Formal proofs that a compiler preserves semantics. CompCert (the verified C compiler) qualified for DO-178C avionics certification in March 2026. CakeML for ML. The CertiCoq line of work for Coq. The track is small but growing as safety-critical and cryptographic deployment forces more rigorous guarantees. Prerequisites: a proof assistant (Coq/Rocq, Lean, Isabelle), operational semantics, the published verification literature. Most jobs here are in research labs (INRIA, MPI-SWS) or at companies with regulated safety profiles (AbsInt, Galois, Adelard).
+
+## Industry hiring landscape
+
+The CompilerJobs directory ([mgaudet.github.io/CompilerJobs](https://mgaudet.github.io/CompilerJobs/)) tracks more than 200 organisations with compiler teams. The headline employers in 2026:
+
+- Apple: Clang, LLVM, Swift, GPU compilers, JavaScriptCore. Multiple sites.
+- Google: Go, V8, Dart, MLIR, Tink, internal LLVM forks for production.
+- Meta: PyTorch compiler, HHVM, Cinder (Python), HipHop, BOLT, internal LLVM contributions.
+- Microsoft: MSVC, C#, F#, TypeScript, the Rust compiler, Python acceleration.
+- NVIDIA: PTX backend, Triton, MLIR, CUDA toolchain, deep-learning compilers. Listings open through 2026 for LLVM and MLIR engineers, with deep-learning compiler salaries quoted at 144k to 270k base for senior roles.
+- AMD: ROCm, Vivado HLS, internal LLVM work, GPU codegen.
+- Intel: oneAPI, ISPC, GPU compiler, classical x86 backend tuning.
+- ARM: LLVM/GCC backend tuning for Neoverse and Cortex, autovectorisation.
+- Qualcomm: NPU compiler stack, deep-learning toolchains, LLVM downstream.
+- Mozilla: SpiderMonkey, contributions to Rust.
+- Bytecode Alliance: Wasmtime, Cranelift, the WebAssembly Component Model. Cranelift is the entry-point recommendation for new compiler engineers in this Part because the codebase is small and the maintainers are welcoming.
+- Modular: Mojo, MAX. ML-compiler-first company.
+- Anthropic: language and compiler work supporting model serving and infrastructure.
+- Cerebras, Tenstorrent, Groq, Graphcore, SambaNova: ML accelerator compilers.
+- AWS Annapurna: Inferentia and Trainium toolchains.
+- Jane Street: OxCaml, the internal OCaml fork.
+- Embedded vendors: STMicro, NXP, Renesas, Espressif. Mostly GCC, increasingly LLVM.
+
+Role expectations layer roughly:
+
+- *Entry-level / new grad*: a CS degree (bachelor or master), an open-source contribution to a compiler or runtime project, comfort with C++ or Rust, and the textbook material from one of *Engineering a Compiler*, *Modern Compiler Implementation*, or a graduate course. Internships are the dominant pipeline; NVIDIA and Apple run large compiler-internship programmes, and most of the senior engineers came in that way. Total compensation in the US ranges roughly 130k to 200k for new-grad compiler roles at FAANG-tier companies, with stock and bonuses pushing the higher number.
+- *Mid-level (3 to 7 years)*: independent ownership of a subsystem (one inliner, one register allocator, one ISA backend), a track record of shipped patches reviewed by maintainers, and the ability to write design documents that hold up to scrutiny. Compensation 200k to 350k at established compilers companies, with a long tail higher at ML-compiler startups.
+- *Senior and staff*: cross-subsystem design ownership, RFC authorship, the ability to mentor mid-level engineers and hold the codebase's invariants in their head. The job is mostly review, design, and dispute resolution. Compensation 350k to 700k+ at FAANG, with ML-compiler equity packages occasionally outpacing the rest.
+
+The ratio of open positions to qualified candidates remains skewed toward demand. Compiler engineering is one of the few subfields where senior hires routinely command above-market offers because the supply of people who have shipped a working IR pass is small.
+
+## Reading academic papers effectively
+
+Compiler engineering is one of the few industrial fields where the production code and the research literature share authors. A patch in LLVM's loop vectoriser is often the implementation of a recent paper. The skill of reading papers fluently pays back through the rest of the career.
+
+### The conferences worth tracking
+
+- *PLDI* (Programming Language Design and Implementation): the flagship venue, annual. PLDI 2026 is in Boulder, Colorado, June 17 to 19. Compiler optimisations, IR designs, and implementation results dominate.
+- *POPL* (Principles of Programming Languages): more theoretical, type systems, semantics, verification. POPL 2026 is in Rennes, France.
+- *OOPSLA*: object-oriented, dynamic-language, GC and runtime work. Part of the SPLASH umbrella.
+- *CC* (Compiler Construction): smaller, more focused on compiler-engineering papers without the theoretical heft.
+- *CGO* (Code Generation and Optimization): backend, register allocation, instruction selection, profile-guided work. CGO 2026 is in Sydney, co-located with HPCA, PPoPP, and CC.
+- *ASPLOS*: architectural support for programming languages and operating systems. The cross-cut between hardware and compilers.
+- *MICRO*: microarchitecture. Less PL-focused but where many backend ideas originate.
+- *ICFP*: functional programming. The natural home for GHC and OCaml work, plus type-system advances.
+
+The PACMPL series ([dl.acm.org/journal/pacmpl](https://dl.acm.org/journal/pacmpl)) publishes accepted papers from PLDI, POPL, ICFP, and OOPSLA in open-access form. ACM SIGPLAN sponsors the major venues; member access is cheap relative to the value.
+
+### How to skim a paper
+
+The standard technique, attributed to S. Keshav, is the three-pass approach. The first pass takes ten minutes: read the title, abstract, introduction, section headings, conclusions, and skim the references. After this pass you should know what the paper claims, what kind of paper it is (theoretical, engineering, or empirical), and whether it is worth a second pass.
+
+The second pass takes an hour. Read the paper end to end, pay attention to figures and tables, mark passages you do not understand. After the second pass you should be able to summarise the main thrust of the paper and its supporting evidence to somebody else.
+
+The third pass takes several hours and is for papers you intend to implement or build on. Reconstruct the paper as if you were the author. Where would you have made different choices? What did the authors leave unsaid? At the end of the third pass you should be able to identify the paper's strengths and weaknesses and notice the assumptions the authors made implicitly.
+
+For a working compiler engineer, most papers stop at the first pass. A handful per year merit the second; one or two a year the third.
+
+### Finding the implementation
+
+Modern compiler papers usually come with code. The artifact-evaluation tracks at PLDI, POPL, OOPSLA and CGO publish reproducibility badges, and the artifacts themselves often live on GitHub or Zenodo. The conference's papers track lists each accepted paper with a separate "Artifact Available" badge; the badge links to the repository.
+
+Outside the artifact track, search GitHub for the paper title or the authors' names. Production compiler patches often cite the paper number directly in the commit message; `git log --grep="paper title"` against LLVM, rustc, or GHC frequently finds the implementation. The Cliff Click sea-of-nodes paper, the Cytron SSA paper, the Chaitin register-allocation paper all have multiple implementations findable this way.
+
+When the artifact does not run as advertised (a frequent outcome), the paper itself is usually still readable. The skill of reading the algorithm and reimplementing it from scratch is what most compiler-engineering work demands.
+
+## Open problems in compiler research circa 2026
+
+Five or six themes dominate the current research landscape. Reading work in any of them is a credible specialisation.
+
+### AI-driven compiler optimisation
+
+Meta released the LLM Compiler in 2024, a model trained on 546 billion tokens of LLVM IR and assembly, achieving 77% of the optimisation benefit of full autotuning search. Compiler-R1 and Reasoning Compiler, both from NeurIPS 2025, push reinforcement-learning agents into the pass-selection problem. The open question is whether LLM-driven optimisation can be made *correct enough* to ship in production toolchains; current systems generate incorrect code on large inputs frequently enough that human review or formal verification is required. The cross-pollination with verified-compiler research is active.
+
+### Verified runtime systems
+
+CompCert verifies the compiler. The runtime it links against is conventional C. Recent work pushes verification into the runtime: verified GC (CertiKOS line, the Iris-based work), verified concurrency primitives, verified memory allocators. The motivation is that an unverified runtime undermines the verified compiler's guarantees. CompCert 3.17, released February 2026, integrates with the Rocq proof assistant; Cornell researchers used clightgen to formally verify a modular-inverse implementation in libsecp256k1, the cryptographic library underpinning Bitcoin.
+
+### Heterogeneous compute
+
+CPUs, GPUs, TPUs, NPUs, FPGAs, and accelerators all coexist in modern systems. The compiler problem is taking a single high-level program and lowering it to multiple targets, partitioning work across them, and managing the data movement. MLIR is the platform of record; the open problems are how to express partitioning policies, how to schedule across heterogeneous memory hierarchies, and how to handle dynamic shape information without hand-tuning per target. ONNX Runtime, Apache TVM, IREE, and Modular MAX all sit in this space.
+
+### Energy-efficient codegen
+
+The IEEE study "Program energy efficiency: the impact of language, compiler, and implementation choices" remains the canonical empirical reference. Distributed Green Compiler approaches save 30 to 40% of clock cycles via scheduling adjustments; EnerJ-style approximate computing can save up to 90% on permissive workloads. The open question is how to expose energy as a first-class optimisation objective alongside speed and code size. Most production compilers still treat it as a side-effect of speed optimisation.
+
+### Post-quantum cryptography compilation
+
+NIST standardised Kyber, Dilithium, and SPHINCS+ between 2022 and 2024; deployment is now under way. The compiler problem is generating constant-time code for the new algorithms. The KyberSlash attack of late 2023 and the Clangover attack of 2024 both showed that compiler optimisations break constant-time guarantees written in source. liboqs (the Open Quantum Safe project) is the open-source reference implementation; production deployment requires careful coordination between the cryptographic implementation and the compiler. Active research targets compile-time verification that constant-time properties survive optimisation.
+
+### Formally-verified ABIs
+
+The C ABI is specified informally per platform. Mismatches cause real bugs (the recent zlib 1.3 ABI break, the historical libstdc++ ABI churn). Recent work formalises ABIs at the level of register usage, alignment, exception unwinding, and TLS access. The CompCert qualification for avionics included a partial ABI formalisation. The open problem is unifying these per-vendor formalisations into a verified contract that linkers and dynamic loaders honour.
+
+### Persistent-memory codegen
+
+Intel Optane shipped, then was discontinued; the persistent-memory programming model survives in CXL-attached storage and battery-backed DRAM. The compiler problem is reasoning about durability boundaries: which writes have committed to persistent storage, which have not, where to insert flush and fence instructions. PMDK and the C++ persistent memory programming model are the production targets.
+
+## War stories from production transitions
+
+A handful of historical cases hold most of the lessons compiler engineers need. The patterns repeat.
+
+### Python 2 to 3 (2008 to 2020, twelve years)
+
+The transition was announced with Python 3.0 in 2008 and effectively completed when Python 2.7 lost upstream support in January 2020. Twelve years from announcement to completion. The official rollout assumed the community would migrate quickly given automated tooling (`2to3`); the reality involved years of dual-version compatibility shims (`six`, `__future__` imports), a long period of community uncertainty over whether Python 3 was the future, and large industrial codebases (Dropbox, Instagram) carrying the migration cost late into the 2010s. Guido van Rossum's own 2018 retrospective acknowledged that Dropbox's migration was still under way a decade after Python 3.0 shipped. Lesson: a migration that breaks every working program at the language-syntax level cannot be hurried by tooling alone. The community must be convinced *and* supported with libraries that work on both versions long enough for the dependency graph to migrate.
+
+### Go's compatibility promise (2012 to ongoing)
+
+Go 1, released in March 2012, included an explicit compatibility promise: programs that compile against the Go 1 specification will continue to compile and run unchanged. Twelve years later the promise has held. The 2023 GODEBUG mechanism (Go 1.21) extends this further: subtle behavioural changes that the Go 1 promise permits are gated behind GODEBUG settings that programs can opt out of, with each setting maintained for at least two years and four releases. The result is that Go upgrades are routinely *boring*, which the team treats as the highest design virtue. Lesson: backward compatibility is not free; it requires a process for handling the genuine breaking changes that arise (security fixes, specification clarifications) without abandoning the promise. GODEBUG is the engineering mechanism that makes the philosophy work.
+
+### Rust 2018 edition (2018 onwards, ongoing)
+
+Rust introduced the *edition* mechanism in 2018 to allow non-source-compatible language changes (new keywords, syntax shifts) without forking the ecosystem. Each crate declares its edition; editions interoperate at the compiled-library level. Migration is via `cargo fix --edition`, which mechanically rewrites code where it can. The 2018 edition migration shipped largely successfully, but the postmortems documented real friction: doctests are not auto-migrated, idiom lints sometimes give wrong suggestions, macros can generate code that does not work in the new edition, and corner cases requiring manual edits were common. The Rust team explicitly acknowledged that organisational project-management around editions needed improvement. Subsequent editions (2021, 2024) refined the process. Lesson: the edition mechanism is genuine progress over the Python 2/3 model, but only if migration tooling is honest about its limitations and the project commits to keeping editions interoperable indefinitely. Rust did both.
+
+### Swift 5 ABI stability (2019)
+
+Swift 5 declared ABI stability on Apple platforms in March 2019. Before Swift 5, every app embedded the Swift standard library inside its bundle, because the runtime made no compatibility guarantee across compiler versions. After Swift 5, the runtime ships in the OS, app bundles shrank, and binary frameworks built with Swift 5.1 work in any project using Swift 5.1 or later (with the build settings configured for distribution). Module stability followed in Swift 5.1. Lesson: ABI stability is a one-way commitment with a long preparation phase. Apple spent years documenting the runtime layout, polishing the standard library, and writing the ABI Stability Manifesto before flipping the switch. The reward is permanent; the preparation is multi-year. Compilers that do not commit to ABI stability (rustc most prominently) cite the Swift example as the cost of doing it right.
+
+### C++ modules (2019 to ongoing)
+
+C++20 standardised modules in 2019. Six years later, adoption is still partial: a 2024 community survey found only 29% of respondents allowing modules in their projects. Tooling support across GCC, Clang, and MSVC remains inconsistent; build-system integration with CMake, Bazel, and Meson is fragmented; third-party libraries lag because users lag because libraries lag. By 2026 the major compilers can build module-using code, but the chicken-and-egg problem persists. Lesson: language-level features that change the build model (rather than just the source language) face an ecosystem-coordination problem that is qualitatively different from migrating syntax. The C++ committee can standardise; only build-system maintainers can deploy.
+
+### GCC's switch to C++ (2008 to 2012)
+
+GCC was implemented in C until version 4.8. The transition to C++ as an implementation language was announced in 2008, completed in 2012, and has been the status quo since. The move was contentious; long-time GCC contributors objected to the dependency on a more complex language. The benefits proved modest in performance (1 to 2% compile-time reduction on hash-table conversions) but significant in maintainability and contributor growth. Lesson: a compiler's own implementation language is a long-running political question, not just a technical one. The conversation took four years; the retroactive judgement is broadly that the move was correct, but the process taught GCC's leadership how to coordinate divisive changes through a community of long-tenured contributors.
+
+The recurring pattern across all these stories: every successful transition combined three ingredients. A clear technical mechanism for migration (cargo fix, GODEBUG, ABI stability manifesto). A long timeline measured in years, not releases. And a credible commitment from project leadership to sustain the migration through to completion. Transitions that lacked any one of these (the early Python 3 rollout, C++ modules so far) accumulated cost without paying off.
+
 ## Closing
 
 The skill of reading a compiler is a smaller skill than the skill of writing one from scratch. This book has tried to teach both, by writing one from scratch and explaining each piece in plain enough language that the same vocabulary works on a much larger codebase.

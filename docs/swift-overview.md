@@ -215,6 +215,50 @@ We have these optimisations today, but they live as ad-hoc passes over the parse
 
 The `ClangImporter/` deserves a footnote. Swift can import C and Objective-C headers directly: a Swift file can `import Foundation` and use Cocoa APIs. The ClangImporter does this by running an embedded Clang to parse the headers and translate the C/Objective-C declarations into AST nodes Swift's Sema can use. It is one of the engineering tour-de-forces of the compiler and the reason Swift can interoperate with the existing Apple platform code without a C-style FFI layer.
 
+## If you only read five files
+
+For getting oriented in Swift's compiler:
+
+1. `lib/SILGen/SILGenExpr.cpp`: AST to SIL.
+2. `lib/SIL/IR/SILFunction.cpp` and `include/swift/SIL/SILInstruction.h`: SIL data structures.
+3. `lib/SILOptimizer/Mandatory/DiagnoseLifetimeIssues.cpp`: OSSA verification.
+4. `lib/SILOptimizer/Transforms/ARCCodeMotion.cpp` and `lib/SILOptimizer/ARC/ARCOpts.cpp`: ARC optimisation.
+5. `lib/IRGen/GenCall.cpp`: SIL to LLVM IR.
+
+## Common contributor gotchas
+
+- SIL has two forms: OSSA (ownership) and lowered. Optimisations must declare which they accept; miscategorising deletes ownership info silently.
+- ARC optimisations rely on `RCIdentity` analysis. Breaking that gives you double-frees only at -O.
+- `sil-opt` is a separate binary that does not pick up driver flags. You must pass `-enable-sil-ownership` etc. explicitly.
+- The Swift compiler uses LLVM but heavily forks include paths. Do not bump LLVM directly.
+- Many SIL passes have `-enable-experimental-` flags that gate behaviour. Look at `swift_build_support` to see what is on by default.
+
+## Area specialists
+
+- Andrew Trick: SIL design, OSSA, ARC.
+- Erik Eckstein: SILOptimizer, ARC.
+- Michael Gottesman: ownership SSA.
+- Joe Groff: type system, runtime.
+- Slava Pestov: generics, witness tables.
+- Doug Gregor: Sema, macros.
+
+## Notable recent reads
+
+- Erik Eckstein commits touching `lib/SILOptimizer/Transforms/`: representative of how performance passes are written.
+- OSSA-by-default migration PRs (2024-2025).
+- Embedded Swift SIL changes 2024-2025.
+
+## Diagnostic flags worth knowing
+
+- `-Xllvm -sil-print-after=<pass>`, `-sil-print-before=<pass>`, `-sil-print-around=<pass>`: per-pass dumps.
+- `-Xllvm -sil-print-all`: every pass.
+- `-Xllvm -sil-opt-pass-count=N`: bisect by limiting passes run.
+- `-Xllvm -sil-print-types`: include type info in dumps.
+- `-Xllvm -sil-verify-all`: abort on first SIL verifier failure (defaults are non-fatal in optimiser).
+- `-Xfrontend -debug-cycles`, `-dump-ast`, `-emit-silgen`, `-emit-sil`: frontend dumps.
+
+For miscompiles: bisect with `-sil-opt-pass-count=N`; reduce with `bug_reducer` (Swift's `creduce` for SIL, in `utils/bug_reducer/`).
+
 ## Reading order
 
 A practical path:
