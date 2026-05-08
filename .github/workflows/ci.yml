@@ -83,6 +83,7 @@ jobs:
           zsh tests/test_peephole_rules.sh
           zsh tests/test_ignore_dce.sh
           zsh tests/test_label_dce.sh
+          zsh tests/test_inline_syslib.sh
 
       - name: Build self-hosted compiler
         run: |

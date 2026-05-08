@@ -1976,11 +1976,45 @@ codegen_next() {
   emit "  add w1, w1, #1"
   emit "  str w1, [x0]"
 
+  # Note [InlineSyslibPrimitives]
+  #   For short, hot syslib routines we emit the body inline at the
+  #   call site instead of 'b _rt_syslib_NNNN'. The pattern is
+  #   sound when:
+  #     - the routine has no internal NEXT/RESUME/STASH calls,
+  #     - it does not depend on the abstain flag (syslib_native skips
+  #       abstain checks anyway),
+  #     - its register clobbers stay within scratch (x0..x7).
+  #   syslib 1020 (in-place increment of .1) satisfies all of these.
+  #   The inline form skips the runtime's 'b _rt_resume_1' tail,
+  #   replacing the NEXT-stack push above with a no-op (we still pop
+  #   in the implied RESUME #1 that ends the syslib via _stmt_X_end).
+  #   ARM64 only; x86-64 codegen is handled in codegen_x86_64.sh.
   if [[ "$target_ref" == "syscall_666" ]]; then
     emit "  b _rt_syscall_666"
   elif [[ "$target_ref" == syslib_* ]]; then
     local syslib_num="${target_ref#syslib_}"
-    emit "  b _rt_syslib_${syslib_num}"
+    if [[ "$_INTERCAL_PLATFORM" != "linux_x86_64" ]] \
+       && [[ "$syslib_num" == "1020" ]] \
+       && opt_bisect_check "inline_syslib_1020"; then
+      # Inline body: increment .1 in place (16-bit wrap).
+      emit "  // inline syslib 1020"
+      emit "  adrp x0, _spot_1@PAGE"
+      emit "  add x0, x0, _spot_1@PAGEOFF"
+      emit "  ldr w1, [x0]"
+      emit "  add w1, w1, #1"
+      emit "  and w1, w1, #0xFFFF"
+      emit "  str w1, [x0]"
+      # Pop the NEXT stack (we pushed above as if calling).
+      emit "  adrp x0, _next_sp@PAGE"
+      emit "  add x0, x0, _next_sp@PAGEOFF"
+      emit "  ldr w1, [x0]"
+      emit "  sub w1, w1, #1"
+      emit "  str w1, [x0]"
+      # Fall through to _stmt_${i}_end, the address we pushed.
+      emit "  b _stmt_${i}_end"
+    else
+      emit "  b _rt_syslib_${syslib_num}"
+    fi
   else
     emit "  b _stmt_${target_ref}"
   fi
