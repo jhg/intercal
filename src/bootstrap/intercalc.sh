@@ -727,6 +727,65 @@ detect_syslib() {
 # ABSTAIN/REINSTATE statement targets it (by label or by gerund).
 # Statements that are never modified can skip the 4-instruction flag
 # load at their entry point: dead-flag elimination.
+# Note [IgnoreDCE]
+#   var_needs_ign[VARSPEC] = 1 if the program contains an IGNORE or
+#   REMEMBER statement referencing VARSPEC (spot_N, twospot_N, tail_N,
+#   hybrid_N). Variables not in the set are never IGNOREd, so the
+#   per-assignment runtime _ign-flag check is dead code and codegen
+#   skips it. See proposal 6 in docs/improvement-proposals.md.
+typeset -A var_needs_ign
+
+compute_ignore_checks() {
+  var_needs_ign=()
+  # Also flag everything if a gerund-based ABSTAIN/REINSTATE on
+  # IGNORING or REMEMBERING is present: the analysis cannot tell
+  # which specific variables become target without flow-sensitive
+  # data. Conservative: keep all checks. (This rarely matters in
+  # practice; gerund-based abstain on IGNORING is uncommon.)
+  local i
+  local conservative=0
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]}"
+    if [[ "$t" == "ABSTAIN" || "$t" == "REINSTATE" ]]; then
+      local body="${stmt_body[$i]}"
+      if [[ "$body" == *IGNORING* || "$body" == *REMEMBERING* ]]; then
+        conservative=1
+      fi
+    fi
+  done
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]}"
+    [[ "$t" != "IGNORE" && "$t" != "REMEMBER" ]] && continue
+    local body="${stmt_body[$i]}"
+    local items="${body#IGNORE }"
+    items="${items#REMEMBER }"
+    local -a var_list
+    parse_var_list "$items"
+    for item in "${var_list[@]}"; do
+      item="${item## }"
+      item="${item%% }"
+      if [[ "$item" =~ '^\.([0-9]+)$' ]]; then
+        var_needs_ign[spot_${match[1]}]=1
+      elif [[ "$item" =~ '^:([0-9]+)$' ]]; then
+        var_needs_ign[twospot_${match[1]}]=1
+      elif [[ "$item" =~ '^,([0-9]+)$' ]]; then
+        var_needs_ign[tail_${match[1]}]=1
+      elif [[ "$item" =~ '^;([0-9]+)$' ]]; then
+        var_needs_ign[hybrid_${match[1]}]=1
+      fi
+    done
+  done
+  # If conservative, mark every observed variable. We don't have a
+  # full variable list ahead of codegen, so the simpler conservative
+  # path is to disable the optimisation: var_needs_ign_any=1 acts as
+  # a global override consulted by codegen.
+  if (( conservative )); then
+    typeset -g var_needs_ign_any=1
+  else
+    typeset -g var_needs_ign_any=0
+  fi
+}
+
 typeset -a stmt_needs_flag
 compute_flag_checks() {
   local i j
@@ -1613,19 +1672,35 @@ codegen_assign() {
     emit "  mov w1, #65535"
     emit "  cmp w0, w1"
     emit "  b.hi _rt_error_E275"
-    emit "  adrp x1, _spot_${vnum}_ign@PAGE"
-    emit "  add x1, x1, _spot_${vnum}_ign@PAGEOFF"
-    emit "  ldrb w2, [x1]"
-    emit "  cbnz w2, _stmt_${i}_end"
+    # Note [IgnoreDCE]: skip the runtime _ign load+test when the
+    # program never IGNOREs this variable. compute_ignore_checks
+    # populates var_needs_ign; var_needs_ign_any forces the safe
+    # path when ABSTAIN/REINSTATE on IGNORING is present.
+    local needs_ign=0
+    if (( var_needs_ign_any )) || (( ${+var_needs_ign[spot_${vnum}]} )); then
+      needs_ign=1
+    fi
+    if (( needs_ign )); then
+      emit "  adrp x1, _spot_${vnum}_ign@PAGE"
+      emit "  add x1, x1, _spot_${vnum}_ign@PAGEOFF"
+      emit "  ldrb w2, [x1]"
+      emit "  cbnz w2, _stmt_${i}_end"
+    fi
     emit "  adrp x1, _spot_${vnum}@PAGE"
     emit "  add x1, x1, _spot_${vnum}@PAGEOFF"
     emit "  str w0, [x1]"
   elif [[ "$target" =~ '^:[0-9]+$' ]]; then
     local vnum="${target#:}"
-    emit "  adrp x1, _twospot_${vnum}_ign@PAGE"
-    emit "  add x1, x1, _twospot_${vnum}_ign@PAGEOFF"
-    emit "  ldrb w2, [x1]"
-    emit "  cbnz w2, _stmt_${i}_end"
+    local needs_ign=0
+    if (( var_needs_ign_any )) || (( ${+var_needs_ign[twospot_${vnum}]} )); then
+      needs_ign=1
+    fi
+    if (( needs_ign )); then
+      emit "  adrp x1, _twospot_${vnum}_ign@PAGE"
+      emit "  add x1, x1, _twospot_${vnum}_ign@PAGEOFF"
+      emit "  ldrb w2, [x1]"
+      emit "  cbnz w2, _stmt_${i}_end"
+    fi
     emit "  adrp x1, _twospot_${vnum}@PAGE"
     emit "  add x1, x1, _twospot_${vnum}@PAGEOFF"
     emit "  str w0, [x1]"
@@ -2417,6 +2492,7 @@ main() {
   time_phase come_from resolve_come_from
   time_phase syslib detect_syslib
   time_phase flag_checks compute_flag_checks
+  time_phase ignore_checks compute_ignore_checks
 
   if (( DIAGNOSE_MODE )); then
     diagnose

@@ -81,6 +81,7 @@ jobs:
           zsh tests/test_time_report.sh
           zsh tests/test_opt_bisect.sh
           zsh tests/test_peephole_rules.sh
+          zsh tests/test_ignore_dce.sh
 
       - name: Build self-hosted compiler
         run: |
