@@ -388,12 +388,13 @@ If any of these are not yet true, you are still in the preparation phase. Do not
 
 ## Cross-references to advanced techniques
 
-The two chapters that follow this one go much deeper into specific compiler techniques:
+The chapters that follow this one go much deeper into specific compiler techniques:
 
 - [techniques-we-use.md](techniques-we-use.md): every advanced technique present in this compiler, explained in production-compiler vocabulary. If you understand our `eval_const`, you understand a slice of LLVM's `InstCombine`. If you understand our `compute_flag_checks`, you understand a slice of GCC's tree-level DCE. The chapter names the correspondences.
 - [techniques-we-lack.md](techniques-we-lack.md): every advanced technique missing from this compiler, organised by phase. SSA construction, register allocation, garbage collection, JIT speculation, polyhedral optimisation. The chapter is a roadmap of the design space, with pointers into each production compiler that exemplifies a technique.
+- [improvement-proposals.md](improvement-proposals.md): twenty concrete proposals (eight Tier 1 quick wins, seven Tier 2 medium investments, five Tier 3 major undertakings) for which Part VII and Part VIII techniques to bring back to our compiler. Each proposal carries its own algorithm sketch, where in the codebase it would live, effort estimate, dependencies, test strategy, risks, educational value, and references.
 
-Treat the three chapters (this one plus those two) as the bridge in three layers: this one for the conceptual map, "we use" for "what you already know in production-compiler vocabulary", "we lack" for "what to read next".
+Treat the four chapters (this one plus the other three) as the bridge in four layers: this one for the conceptual map, "we use" for "what you already know in production-compiler vocabulary", "we lack" for "what to read next", "improvement-proposals" for "what to actually do".
 
 ## After the first patch: the medium term
 

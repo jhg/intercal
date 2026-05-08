@@ -79,6 +79,7 @@
 
 - [Advanced techniques we use](techniques-we-use.md)
 - [Advanced techniques we lack](techniques-we-lack.md)
+- [Improvement proposals](improvement-proposals.md)
 
 # Reference
 

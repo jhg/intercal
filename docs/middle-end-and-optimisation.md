@@ -178,4 +178,5 @@ None of these apply today. The compiler stays frontend-backend-only.
 - [self-hosting.md](self-hosting.md): why we are not in a position to add a middle end yet.
 - [techniques-we-use.md](techniques-we-use.md): every advanced technique present in our compiler, mapped to its production equivalents.
 - [techniques-we-lack.md](techniques-we-lack.md): every major technique missing from our compiler, organised by phase, with production references and reading pointers.
+- [improvement-proposals.md](improvement-proposals.md): twenty concrete proposals (Tier 1 quick wins, Tier 2 medium, Tier 3 major) for what we could bring back to our compiler from Part VII and Part VIII, with algorithm sketches, effort estimates, dependencies, test strategies, risks, and references per proposal.
 - [further-reading.md](further-reading.md): the books to read (Cooper & Torczon, Appel) if you want to implement one anyway.
