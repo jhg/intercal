@@ -73,10 +73,11 @@ jobs:
       - name: Pure syslib verification
         run: zsh tests/test_syslib_pure.sh
 
-      - name: IR inspection flags (--emit-cfg, --emit-3addr)
+      - name: IR inspection flags (--emit-cfg, --emit-3addr, --emit-tokens)
         run: |
           zsh tests/test_emit_cfg.sh
           zsh tests/test_emit_3addr.sh
+          zsh tests/test_emit_tokens.sh
 
       - name: Build self-hosted compiler
         run: |

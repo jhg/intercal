@@ -103,6 +103,31 @@ peephole_optimize() {
   asm=$(printf "%s\n" "${result[@]}")
 }
 
+emit_tokens() {
+  # Inspection-only: print a token-level statement table, the layer
+  # below --emit-3addr and --emit-cfg. Useful for confirming that the
+  # lexer is classifying each statement correctly before any later
+  # analysis runs.
+  local i
+  echo "=== Token table ==="
+  echo "platform:  $_INTERCAL_PLATFORM"
+  echo "stmts:     $stmt_count"
+  echo
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-?}"
+    local lbl="${stmt_label[$i]:-}"
+    local body="${stmt_body[$i]:-}"
+    local mods=""
+    (( stmt_polite[$i] )) && mods+=" PLEASE"
+    (( stmt_negated[$i] )) && mods+=" NOT"
+    [[ -n "$lbl" ]] && mods+=" (label ${lbl})"
+    # Truncate body for readability
+    local body_short="${body:0:60}"
+    [[ ${#body} -gt 60 ]] && body_short+="..."
+    printf "  stmt %3d:%-12s %-12s %s\n" "$i" "$mods" "$t" "$body_short"
+  done
+}
+
 emit_cfg() {
   # Inspection-only: print a control-flow graph view of the parsed
   # program. The shape is the same one LLVM, GCC, rustc, Go and the
@@ -2250,6 +2275,7 @@ EMIT_SYSLIB_MODE=0
 # do not emit assembly or invoke cc.
 EMIT_CFG_MODE=0
 EMIT_3ADDR_MODE=0
+EMIT_TOKENS_MODE=0
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
@@ -2258,6 +2284,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-syslib)  EMIT_SYSLIB_MODE=1; INTERCAL_ASM_ONLY=1; shift ;;
     --emit-cfg)     EMIT_CFG_MODE=1; shift ;;
     --emit-3addr)   EMIT_3ADDR_MODE=1; shift ;;
+    --emit-tokens)  EMIT_TOKENS_MODE=1; shift ;;
     *) shift ;;
   esac
 done
@@ -2308,6 +2335,11 @@ main() {
 
   if (( EMIT_3ADDR_MODE )); then
     emit_3addr
+    exit 0
+  fi
+
+  if (( EMIT_TOKENS_MODE )); then
+    emit_tokens
     exit 0
   fi
 
