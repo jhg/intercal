@@ -59,7 +59,9 @@ show_err() {
 
 if [[ ! -f "$CORE" ]]; then
   echo "Building intercal_core via bootstrap..."
-  zsh "$ROOT_DIR/src/bootstrap/intercalc.sh" < "$ROOT_DIR/src/compiler/compiler.i" > "$CORE" 2>&1 || {
+  # Stderr goes through to the user (warnings live there); stdout is
+  # the binary itself.
+  zsh "$ROOT_DIR/src/bootstrap/intercalc.sh" < "$ROOT_DIR/src/compiler/compiler.i" > "$CORE" || {
     echo "FAILED to build intercal_core"
     exit 1
   }
