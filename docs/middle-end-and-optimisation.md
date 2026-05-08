@@ -94,6 +94,48 @@ Several standard optimisations do not apply well to INTERCAL:
 
 The optimisations that apply best are the local ones: constant folding, peephole, dead-code elimination on runtime-flag checks. These are the ones already implemented above.
 
+## IR inspection flags: `--emit-cfg` and `--emit-3addr` (implemented)
+
+Following Part VII's chapters on LLVM, GCC, rustc, Go, and Cranelift, the bootstrap compiler now ships two inspection flags that print an IR-shaped view of the parsed program. Both are read-only; codegen still walks the parse tree directly. The flags exist for teaching and for compiler-internals debugging, not as input to a future pipeline.
+
+`--emit-cfg` prints the program's control-flow graph. The pass identifies basic-block leaders (the first statement, any labeled statement, any statement immediately after a `NEXT`, `RESUME`, or `GIVE UP`, any statement that is the source of a `COME FROM` to a labeled statement, and the statement after a labeled statement that has a `COME FROM`). Each block lists its statements and outgoing edges. Edge kinds: `fall-through`, `NEXT to label N` (with target block), `RESUME` (modelled as dynamic, since the target depends on the runtime stack), `COME FROM source` (the implicit edge inserted by `COME FROM`), and `exit` (after `GIVE UP` or running off the end).
+
+For the program
+
+    DO .1 <- #5
+    DO (10) NEXT
+    PLEASE GIVE UP
+    (10) DO .1 <- #3
+    PLEASE RESUME #1
+
+the dump is roughly:
+
+    === Control flow graph ===
+    blocks:    3
+    stmts:     5
+
+    B0: stmts 1..2
+      stmt   1: ASSIGN
+      stmt   2: NEXT
+      -> B2 (NEXT to label 10)
+
+    B1: stmts 3..3
+      stmt   3: GIVE_UP  PLEASE
+      -> exit
+
+    B2: stmts 4..5  [label 10]
+      stmt   4: ASSIGN  (label 10)
+      stmt   5: RESUME  PLEASE
+      -> dynamic (RESUME pops NEXT stack)
+
+The same shape, blocks plus statements plus edges, is what LLVM IR, MIR (rustc), Maglev (V8), and CLIF (Cranelift) all expose. Reading the dump after experimenting with INTERCAL programs is the smallest way to internalise the CFG concept that every chapter in Part VII depends on.
+
+`--emit-3addr` prints a flat three-address listing of statements. It is a GIMPLE-shaped view (Cooper and Torczon ch. 5; the same shape GCC's GIMPLE has, conceptually). Each statement appears as one line tagged with its operation (`ASSIGN`, `NEXT`, `RESUME`, `COME_FROM`, `GIVE_UP`, etc.) plus its body and any modifiers (PLEASE, NOT, label, COME FROM target).
+
+Both flags route through the same prepass machinery the codegen uses: tokenisation, politeness check, label resolution, COME FROM resolution, syslib detection, dead-flag analysis. The dumps thus reflect the compiler's actual model of the program, not a separate parse.
+
+The flags are deliberately scoped down. They do not print SSA form (we have no SSA), they do not print typed values (INTERCAL's "type system" is the prefix character on each variable), and they do not constitute an IR the rest of the compiler reads. They are inspection only. A future change that introduces a real IR would replace these flags with a richer dump driven from the IR data structure itself.
+
 ## The `INTERCAL_SYSLIB=cache` mode (implemented)
 
 When the compiler is invoked with `INTERCAL_SYSLIB=cache` (env var), the syslib's INTERCAL source is compiled once and reused. The flow is:

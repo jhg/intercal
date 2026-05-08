@@ -44,6 +44,17 @@ stderr and exit without producing a binary.
 .RB ( src/syslib/syslib.i )
 instead of the native assembly version. Significantly slower (~330x);
 intended for verification, not normal builds.
+.TP
+.B \-\-emit-cfg
+(Bootstrap only.) Print the program's control-flow graph (basic blocks
+plus edges) to stdout and exit. Inspection only; does not produce a
+binary. Useful for understanding INTERCAL programs in the same
+vocabulary LLVM, GCC, rustc and the rest use as their first-class IR.
+.TP
+.B \-\-emit-3addr
+(Bootstrap only.) Print a flat three-address listing of statements to
+stdout and exit. Conceptually GIMPLE-shaped. Inspection only; does not
+produce a binary.
 .SH ENVIRONMENT
 .TP
 .B INTERCAL_HOME

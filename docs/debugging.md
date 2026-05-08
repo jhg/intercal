@@ -124,6 +124,13 @@ For statement-level structural analysis, the compiler exposes a `--diagnose` fla
 
 This prints the tokenised statement table, type, polite flag, negation, label, body, without invoking the codegen. Useful when you want to confirm that the lexer is classifying statements the way you expect.
 
+For IR-shaped views of the program, the compiler also ships `--emit-cfg` and `--emit-3addr`. The first prints basic blocks plus edges (the same shape LLVM IR, MIR, CLIF and the rest expose). The second prints a flat three-address listing (GIMPLE-shaped). Both are inspection-only and skip codegen:
+
+    zsh src/bootstrap/intercalc.sh --emit-cfg < tests/test_come_from.i
+    zsh src/bootstrap/intercalc.sh --emit-3addr < tests/test_hello.i
+
+These are the cheapest way to see how the compiler models a particular program. Pair them with the relevant chapter in Part VII (LLVM, GCC, rustc, Go, ...) when learning what a CFG or three-address IR looks like in production.
+
 For performance regressions, `tools/bench.sh` measures compile and link timings on representative programs:
 
     tools/bench.sh                      # tabular output

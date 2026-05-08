@@ -103,6 +103,178 @@ peephole_optimize() {
   asm=$(printf "%s\n" "${result[@]}")
 }
 
+emit_cfg() {
+  # Inspection-only: print a control-flow graph view of the parsed
+  # program. The shape is the same one LLVM, GCC, rustc, Go and the
+  # rest use as their first-class IR; this dump is read-only and does
+  # not feed into codegen, which still emits per-statement templates.
+  local i
+
+  # Pass 1: identify basic-block leaders.
+  local -A is_leader
+  is_leader[1]=1
+  for (( i=1; i<=stmt_count; i++ )); do
+    [[ -n "${stmt_label[$i]:-}" ]] && is_leader[$i]=1
+    case "${stmt_type[$i]:-}" in
+      NEXT|RESUME|GIVE_UP)
+        (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
+        ;;
+    esac
+    # Statement at a label that has a COME FROM ends a block.
+    local lbl="${stmt_label[$i]:-}"
+    if [[ -n "$lbl" ]] && [[ -n "${come_from_target[$lbl]:-}" ]]; then
+      (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
+      is_leader[${come_from_target[$lbl]}]=1
+    fi
+  done
+
+  # Pass 2: assign block id to each leader.
+  local -A stmt_block
+  local blk=-1
+  for (( i=1; i<=stmt_count; i++ )); do
+    if (( ${is_leader[$i]:-0} )); then
+      blk=$((blk + 1))
+    fi
+    stmt_block[$i]=$blk
+  done
+
+  echo "=== Control flow graph ==="
+  echo "platform:  $_INTERCAL_PLATFORM"
+  echo "blocks:    $((blk + 1))"
+  echo "stmts:     $stmt_count"
+  echo
+
+  # Pass 3: emit each block.
+  local b
+  local -a blk_starts blk_ends
+  blk_starts[1]=1
+  blk=0
+  for (( i=2; i<=stmt_count; i++ )); do
+    if (( ${is_leader[$i]:-0} )); then
+      blk_ends[$((blk + 1))]=$((i - 1))
+      blk=$((blk + 1))
+      blk_starts[$((blk + 1))]=$i
+    fi
+  done
+  blk_ends[$((blk + 1))]=$stmt_count
+  local total_blocks=$((blk + 1))
+
+  for (( b=1; b<=total_blocks; b++ )); do
+    local s=${blk_starts[$b]}
+    local e=${blk_ends[$b]}
+    local first_label="${stmt_label[$s]:-}"
+    local hdr="B$((b - 1)): stmts ${s}..${e}"
+    [[ -n "$first_label" ]] && hdr+="  [label ${first_label}]"
+    echo "$hdr"
+    for (( i=s; i<=e; i++ )); do
+      local t="${stmt_type[$i]:-?}"
+      local note=""
+      (( stmt_polite[$i] )) && note+=" PLEASE"
+      (( stmt_negated[$i] )) && note+=" NOT"
+      [[ -n "${stmt_label[$i]:-}" ]] && note+=" (label ${stmt_label[$i]})"
+      printf "  stmt %3d: %-12s%s\n" "$i" "$t" "$note"
+    done
+
+    # Edges from this block: examine the last statement.
+    local last="${stmt_type[$e]:-}"
+    case "$last" in
+      GIVE_UP)
+        echo "  -> exit"
+        ;;
+      NEXT)
+        local target="${stmt_next_target[$e]:-}"
+        if [[ -n "$target" ]] && [[ -n "${label_to_stmt[$target]:-}" ]]; then
+          local target_stmt=${label_to_stmt[$target]}
+          local target_blk=${stmt_block[$target_stmt]}
+          echo "  -> B${target_blk} (NEXT to label ${target})"
+          # Implicit return path is dynamic (RESUME pops); not modelled.
+        else
+          echo "  -> ??? (NEXT to ${target:-unknown})"
+        fi
+        ;;
+      RESUME)
+        echo "  -> dynamic (RESUME pops NEXT stack)"
+        ;;
+      *)
+        # Fall-through. If the last statement has a label that has a
+        # COME FROM, control transfers to the COME FROM source after
+        # this stmt rather than falling through.
+        local last_label="${stmt_label[$e]:-}"
+        if [[ -n "$last_label" ]] && [[ -n "${come_from_target[$last_label]:-}" ]]; then
+          local cf_stmt=${come_from_target[$last_label]}
+          local cf_blk=${stmt_block[$cf_stmt]}
+          echo "  -> B${cf_blk} (COME FROM source)"
+        elif (( e + 1 <= stmt_count )); then
+          local fall_blk=${stmt_block[$((e + 1))]}
+          echo "  -> B${fall_blk} (fall-through)"
+        else
+          echo "  -> exit (fell off end -> E633 at runtime)"
+        fi
+        ;;
+    esac
+    echo
+  done
+}
+
+emit_3addr() {
+  # Inspection-only: emit a flat three-address view of each statement.
+  # This is conceptually GIMPLE-shaped (Cooper & Torczon ch. 5 / GCC's
+  # GIMPLE / LLVM-IR-style) but vastly simpler. The dump is for
+  # teaching the IR concept; codegen still walks the parse tree.
+  local i
+  echo "=== Three-address dump ==="
+  echo "platform:  $_INTERCAL_PLATFORM"
+  echo "stmts:     $stmt_count"
+  echo
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-?}"
+    local body="${stmt_body[$i]:-}"
+    local lbl="${stmt_label[$i]:-}"
+    local prefix="${i}:"
+    [[ -n "$lbl" ]] && prefix+="(${lbl})"
+    (( stmt_polite[$i] )) && prefix+=" PLEASE"
+    (( stmt_negated[$i] )) && prefix+=" NOT"
+    case "$t" in
+      ASSIGN)
+        echo "  ${prefix} ASSIGN  ${body}"
+        ;;
+      ASSIGN_ARRAY)
+        echo "  ${prefix} STORE   ${body}"
+        ;;
+      ARRAY_DIM)
+        echo "  ${prefix} DIM     ${body}"
+        ;;
+      NEXT)
+        echo "  ${prefix} NEXT    -> label ${stmt_next_target[$i]:-?}"
+        ;;
+      RESUME)
+        echo "  ${prefix} RESUME  ${body}"
+        ;;
+      FORGET)
+        echo "  ${prefix} FORGET  ${body}"
+        ;;
+      ABSTAIN|REINSTATE)
+        echo "  ${prefix} ${t}  ${body}"
+        ;;
+      COME_FROM)
+        echo "  ${prefix} COME_FROM <- label ${stmt_cf_target[$i]:-?}"
+        ;;
+      IGNORE|REMEMBER|STASH|RETRIEVE)
+        echo "  ${prefix} ${t}  ${body}"
+        ;;
+      READ_OUT|WRITE_IN)
+        echo "  ${prefix} ${t} ${body}"
+        ;;
+      GIVE_UP)
+        echo "  ${prefix} GIVE_UP"
+        ;;
+      *)
+        echo "  ${prefix} ${t}  ${body}"
+        ;;
+    esac
+  done
+}
+
 diagnose() {
   local polite=0 not_count=0
   local -A type_count
@@ -2074,12 +2246,18 @@ DIAGNOSE_MODE=0
 # to produce src/syslib/syslib_compiled/{platform}.s, which the normal
 # user build then concatenates instead of the hand-written native one.
 EMIT_SYSLIB_MODE=0
+# Inspection-only modes that print an IR view to stdout and exit. They
+# do not emit assembly or invoke cc.
+EMIT_CFG_MODE=0
+EMIT_3ADDR_MODE=0
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
     --pure-syslib)  USE_PURE_SYSLIB=1; shift ;;
     --diagnose)     DIAGNOSE_MODE=1; shift ;;
     --emit-syslib)  EMIT_SYSLIB_MODE=1; INTERCAL_ASM_ONLY=1; shift ;;
+    --emit-cfg)     EMIT_CFG_MODE=1; shift ;;
+    --emit-3addr)   EMIT_3ADDR_MODE=1; shift ;;
     *) shift ;;
   esac
 done
@@ -2120,6 +2298,16 @@ main() {
 
   if (( DIAGNOSE_MODE )); then
     diagnose
+    exit 0
+  fi
+
+  if (( EMIT_CFG_MODE )); then
+    emit_cfg
+    exit 0
+  fi
+
+  if (( EMIT_3ADDR_MODE )); then
+    emit_3addr
     exit 0
   fi
 

@@ -73,6 +73,11 @@ jobs:
       - name: Pure syslib verification
         run: zsh tests/test_syslib_pure.sh
 
+      - name: IR inspection flags (--emit-cfg, --emit-3addr)
+        run: |
+          zsh tests/test_emit_cfg.sh
+          zsh tests/test_emit_3addr.sh
+
       - name: Build self-hosted compiler
         run: |
           zsh src/bootstrap/intercalc.sh < src/compiler/compiler.i > intercal_core

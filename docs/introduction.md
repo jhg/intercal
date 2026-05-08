@@ -28,7 +28,7 @@ Already comfortable with compilers, here for INTERCAL specifically? Skim Part I 
 
 Here to modify this compiler? Your home is Part V (platforms, testing, debugging) plus the reference appendix. The map in Part II is where you find any specific routine.
 
-Here because you want to contribute to LLVM, rustc, or GCC, and you want the cheapest path? Read Parts I through V to acquire the vocabulary, then jump to Part VII. The capstone chapter [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md) names what you already know and what you do not, and points at the rest.
+Here because you want to contribute to a production compiler, LLVM, GCC, rustc, Go, GHC, OCaml, Cranelift, Zig, Swift, or V8, and you want the cheapest path? Read Parts I through V to acquire the vocabulary, then jump to Part VII. The capstone chapter [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md) names what you already know and what you do not. Each compiler has its own self-contained chapter; pick one and read just that.
 
 ## A note on the project
 

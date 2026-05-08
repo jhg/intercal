@@ -14,6 +14,11 @@ zsh tests/run_tests.sh
 echo "pre-push: test_syslib_pure.sh"
 zsh tests/test_syslib_pure.sh
 
+# IR inspection flags (--emit-cfg, --emit-3addr)
+echo "pre-push: test_emit_cfg.sh + test_emit_3addr.sh"
+zsh tests/test_emit_cfg.sh
+zsh tests/test_emit_3addr.sh
+
 # Self-hosted MVP (25 tests)
 echo "pre-push: run_self_tests.sh"
 rm -f intercal_core

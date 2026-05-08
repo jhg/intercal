@@ -69,6 +69,8 @@ There is **no intermediate representation** in this compiler. Each statement is 
 
 and read the assembly. See [code-generation.md](code-generation.md).
 
+For an IR-shaped view of a parsed program, the compiler ships read-only `--emit-cfg` (a basic-block and edge dump in the LLVM/MIR/CLIF style) and `--emit-3addr` (a flat three-address listing in the GIMPLE style). See [middle-end-and-optimisation.md](middle-end-and-optimisation.md) for the details. These do not change codegen; they expose the compiler's model of the program in the same vocabulary that Part VII's chapters on LLVM, GCC, rustc, Go, GHC, OCaml, Cranelift, Zig, Swift, and V8 use.
+
 ## Next reading
 
 - Want the language first? [intercal-primer.md](intercal-primer.md).
