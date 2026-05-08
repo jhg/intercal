@@ -14,12 +14,13 @@ zsh tests/run_tests.sh
 echo "pre-push: test_syslib_pure.sh"
 zsh tests/test_syslib_pure.sh
 
-# IR inspection flags + timing
-echo "pre-push: emit_cfg + emit_3addr + emit_tokens + time_report"
+# IR inspection flags + timing + bisect
+echo "pre-push: emit_cfg + emit_3addr + emit_tokens + time_report + opt_bisect"
 zsh tests/test_emit_cfg.sh
 zsh tests/test_emit_3addr.sh
 zsh tests/test_emit_tokens.sh
 zsh tests/test_time_report.sh
+zsh tests/test_opt_bisect.sh
 
 # Self-hosted MVP (25 tests)
 echo "pre-push: run_self_tests.sh"

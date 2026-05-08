@@ -90,10 +90,14 @@ peephole_optimize() {
     local skip=0
     if [[ "$cur" =~ '^[[:space:]]+b[[:space:]]+(_[a-zA-Z0-9_]+)[[:space:]]*$' ]]; then
       local target="${match[1]}"
-      [[ "$lookahead" == "${target}:"* ]] && skip=1
+      if [[ "$lookahead" == "${target}:"* ]]; then
+        opt_bisect_check "peephole_branch_to_next" && skip=1
+      fi
     elif [[ "$cur" =~ '^[[:space:]]+jmp[[:space:]]+(_[a-zA-Z0-9_]+)[[:space:]]*$' ]]; then
       local target="${match[1]}"
-      [[ "$lookahead" == "${target}:"* ]] && skip=1
+      if [[ "$lookahead" == "${target}:"* ]]; then
+        opt_bisect_check "peephole_jmp_to_next" && skip=1
+      fi
     fi
     if (( ! skip )); then
       result+=("$cur")
@@ -700,11 +704,19 @@ detect_syslib() {
 typeset -a stmt_needs_flag
 compute_flag_checks() {
   local i j
-  # Default: not modifiable.
+  # Default: every statement starts with needs_flag=1 (always check,
+  # the conservative answer). The optimisation below clears it for
+  # statements proven never to be modified. Each clearance is gated
+  # by opt_bisect_check so --opt-bisect-limit=0 retains every check.
   for (( i=1; i<=stmt_count; i++ )); do
-    stmt_needs_flag[$i]=0
+    stmt_needs_flag[$i]=1
+  done
+  for (( i=1; i<=stmt_count; i++ )); do
     if (( stmt_negated[$i] )); then
-      stmt_needs_flag[$i]=1
+      continue
+    fi
+    if opt_bisect_check "dead_flag_check_stmt_$i"; then
+      stmt_needs_flag[$i]=0
     fi
   done
 
@@ -2277,19 +2289,42 @@ EMIT_CFG_MODE=0
 EMIT_3ADDR_MODE=0
 EMIT_TOKENS_MODE=0
 TIME_REPORT=0
+# Note [OptBisect]
+#   --opt-bisect-limit=N caps the number of optional transformations
+#   that fire. Setting N=0 disables every optimisation; binary search
+#   pinpoints the offender behind a miscompile. --opt-bisect-verbose
+#   prints APPLY/SKIP per transformation, mirroring LLVM's
+#   -mllvm -opt-bisect-limit. The counter is GLOBAL across passes so
+#   transformation N is the same regardless of which pass owns it.
+typeset -i OPT_BISECT_LIMIT=-1
+typeset -i OPT_BISECT_COUNT=0
+OPT_BISECT_VERBOSE=0
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
-    --pure-syslib)  USE_PURE_SYSLIB=1; shift ;;
-    --diagnose)     DIAGNOSE_MODE=1; shift ;;
-    --emit-syslib)  EMIT_SYSLIB_MODE=1; INTERCAL_ASM_ONLY=1; shift ;;
-    --emit-cfg)     EMIT_CFG_MODE=1; shift ;;
-    --emit-3addr)   EMIT_3ADDR_MODE=1; shift ;;
-    --emit-tokens)  EMIT_TOKENS_MODE=1; shift ;;
-    --time-report)  TIME_REPORT=1; shift ;;
+    --pure-syslib)        USE_PURE_SYSLIB=1; shift ;;
+    --diagnose)           DIAGNOSE_MODE=1; shift ;;
+    --emit-syslib)        EMIT_SYSLIB_MODE=1; INTERCAL_ASM_ONLY=1; shift ;;
+    --emit-cfg)           EMIT_CFG_MODE=1; shift ;;
+    --emit-3addr)         EMIT_3ADDR_MODE=1; shift ;;
+    --emit-tokens)        EMIT_TOKENS_MODE=1; shift ;;
+    --time-report)        TIME_REPORT=1; shift ;;
+    --opt-bisect-limit=*) OPT_BISECT_LIMIT=${1#--opt-bisect-limit=}; shift ;;
+    --opt-bisect-verbose) OPT_BISECT_VERBOSE=1; shift ;;
     *) shift ;;
   esac
 done
+
+opt_bisect_check() {
+  local name=$1
+  OPT_BISECT_COUNT=$((OPT_BISECT_COUNT + 1))
+  if (( OPT_BISECT_LIMIT >= 0 && OPT_BISECT_COUNT > OPT_BISECT_LIMIT )); then
+    (( OPT_BISECT_VERBOSE )) && print -u2 "BISECT: SKIP  #$OPT_BISECT_COUNT $name"
+    return 1
+  fi
+  (( OPT_BISECT_VERBOSE )) && print -u2 "BISECT: APPLY #$OPT_BISECT_COUNT $name"
+  return 0
+}
 
 # Per-phase timing accumulator. zsh's $EPOCHREALTIME provides
 # microsecond precision since the epoch.

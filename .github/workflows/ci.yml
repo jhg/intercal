@@ -73,12 +73,13 @@ jobs:
       - name: Pure syslib verification
         run: zsh tests/test_syslib_pure.sh
 
-      - name: IR inspection + time report
+      - name: IR inspection + time report + opt bisect
         run: |
           zsh tests/test_emit_cfg.sh
           zsh tests/test_emit_3addr.sh
           zsh tests/test_emit_tokens.sh
           zsh tests/test_time_report.sh
+          zsh tests/test_opt_bisect.sh
 
       - name: Build self-hosted compiler
         run: |
