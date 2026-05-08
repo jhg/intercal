@@ -2276,6 +2276,7 @@ EMIT_SYSLIB_MODE=0
 EMIT_CFG_MODE=0
 EMIT_3ADDR_MODE=0
 EMIT_TOKENS_MODE=0
+TIME_REPORT=0
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
@@ -2285,9 +2286,42 @@ while [[ "${1:-}" == --* ]]; do
     --emit-cfg)     EMIT_CFG_MODE=1; shift ;;
     --emit-3addr)   EMIT_3ADDR_MODE=1; shift ;;
     --emit-tokens)  EMIT_TOKENS_MODE=1; shift ;;
+    --time-report)  TIME_REPORT=1; shift ;;
     *) shift ;;
   esac
 done
+
+# Per-phase timing accumulator. zsh's $EPOCHREALTIME provides
+# microsecond precision since the epoch.
+typeset -A phase_times
+typeset -a phase_order
+
+time_phase() {
+  local name=$1; shift
+  local start=$EPOCHREALTIME
+  "$@"
+  local rc=$?
+  local elapsed=$(( EPOCHREALTIME - start ))
+  if (( ! ${+phase_times[$name]} )); then
+    phase_order+=("$name")
+    phase_times[$name]=$elapsed
+  else
+    phase_times[$name]=$(( phase_times[$name] + elapsed ))
+  fi
+  return $rc
+}
+
+print_time_report() {
+  (( ! TIME_REPORT )) && return 0
+  print -u2 "=== Compile-time breakdown ==="
+  local total=0
+  for name in "${phase_order[@]}"; do
+    local v="${phase_times[$name]}"
+    total=$(( total + v ))
+    printf "  %-14s %.3f s\n" "$name" "$v" >&2
+  done
+  printf "  %-14s %.3f s\n" "total_phases" "$total" >&2
+}
 
 # Source platform-specific codegen overrides
 if [[ "$_INTERCAL_PLATFORM" == "linux_x86_64" ]]; then
@@ -2301,7 +2335,7 @@ main() {
     :
   fi
 
-  read_source
+  time_phase read_source read_source
 
   # Prepend syslib.i if --pure-syslib (after reading source but before tokenizing)
   if (( USE_PURE_SYSLIB )); then
@@ -2316,12 +2350,12 @@ main() {
     fi
   fi
 
-  tokenize
-  check_politeness
-  check_labels
-  resolve_come_from
-  detect_syslib
-  compute_flag_checks
+  time_phase tokenize tokenize
+  time_phase politeness check_politeness
+  time_phase labels check_labels
+  time_phase come_from resolve_come_from
+  time_phase syslib detect_syslib
+  time_phase flag_checks compute_flag_checks
 
   if (( DIAGNOSE_MODE )); then
     diagnose
@@ -2343,8 +2377,8 @@ main() {
     exit 0
   fi
 
-  codegen_program
-  peephole_optimize
+  time_phase codegen codegen_program
+  time_phase peephole peephole_optimize
 
   # If we are emitting a standalone syslib library, rewrite all internal
   # _stmt_* references to _syslib_stmt_* (so they don't collide with
@@ -2486,6 +2520,7 @@ main() {
   fi
 
   cat "$TMPBIN"
+  print_time_report
 }
 
 main
