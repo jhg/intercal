@@ -154,7 +154,7 @@ You want to know *why* something is the way it is.
 
 | File | Purpose |
 |------|---------|
-| [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md) | Capstone: maps the book's concepts onto all ten production compilers; reading plan to a first patch |
+| [from-intercal-to-real-compilers.md](from-intercal-to-real-compilers.md) | Capstone: maps the book's concepts onto all ten production compilers; week-by-week skill ladder; per-compiler bridge exercises; reading plan to a first patch |
 | [llvm-overview.md](llvm-overview.md) | LLVM: modular infrastructure, single SSA IR, TableGen, MLIR |
 | [gcc-overview.md](gcc-overview.md) | GCC: three-IR stack (GENERIC/GIMPLE/RTL), mailing-list culture |
 | [rustc-overview.md](rustc-overview.md) | rustc: four-IR stack (HIR/THIR/MIR/LLVM IR), borrow checker on MIR, query system |
@@ -166,6 +166,13 @@ You want to know *why* something is the way it is.
 | [swift-overview.md](swift-overview.md) | Swift: SIL with explicit ARC and witness tables, Mandatory vs Performance passes |
 | [v8-overview.md](v8-overview.md) | V8: tiered JIT, sea-of-nodes IR (TurboFan), speculation and deoptimisation |
 | [contributing-to-production-compilers.md](contributing-to-production-compilers.md) | How to build, find an issue, and submit to each of the ten |
+
+### Advanced techniques
+
+| File | Purpose |
+|------|---------|
+| [techniques-we-use.md](techniques-we-use.md) | Every advanced compiler technique present in our codebase, mapped to its production equivalents. Constant folding, dead-flag elimination, peephole, direct codegen, reproducible builds, self-hosting, differential testing, compile-time validation, IR inspection flags, cache mode, Label 666, hash-keyed dispatch, branchless conditional ADD. |
+| [techniques-we-lack.md](techniques-we-lack.md) | Every major compiler technique absent from our codebase, organised by phase. Front-end (macros, type inference, borrow checking, effects, dependent types), IR design (SSA, Sea of Nodes, CPS/ANF, multi-level IRs), middle-end (SCCP, GVN, loop opts, vectorisation, inlining, escape analysis, polyhedral, PGO, LTO), back-end (CFG, liveness, instruction selection, scheduling, register allocation, TCO), runtime (GC, ARC, exceptions, coroutines), execution model (JIT, tiered compilation, speculation, ICs, hidden classes), tooling (incremental compilation, parallel compilation, LSP, sanitizers, fuzzing). |
 
 ### Reference apparatus
 

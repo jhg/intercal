@@ -178,6 +178,223 @@ A few things this book deliberately does not cover. They become relevant only at
 
 Each of these is its own subfield. A reader who has finished this book and wants to dive into one of them has the conceptual background to read the relevant Wikipedia page, follow the references, and go from there.
 
+## A skill ladder, week by week
+
+The reading plan above answers "what". This section answers "what does my first month actually look like". Treat the schedule as a guide, not a contract. Some weeks compress; others stretch.
+
+**Week 1: vocabulary acquisition.** Read this book's Parts I-V if you have not already. Run through the exercises in [getting-started.md](getting-started.md). Compile a few of `tests/test_*.i` and trace the output back to the source through `intercalc.sh`. By the end of the week you should be able to point at any line in `intercalc.sh` and say which phase of compilation it belongs to. The goal is fluency in the vocabulary: lexer, parser, semantic analysis, codegen, runtime.
+
+**Week 2: pick a target and build it.** Choose one of the ten production compilers. Build the project from source as documented in [contributing-to-production-compilers.md](contributing-to-production-compilers.md). Set aside a full day; it will take longer than you expect. Run the project's test suite. Verify your build can compile a hello-world in the project's source language. The goal is having a development environment that works.
+
+**Week 3: read your way around.** Pick the corresponding overview chapter ([llvm-overview.md](llvm-overview.md), [gcc-overview.md](gcc-overview.md), [rustc-overview.md](rustc-overview.md), [go-overview.md](go-overview.md), [ghc-overview.md](ghc-overview.md), [ocaml-overview.md](ocaml-overview.md), [cranelift-overview.md](cranelift-overview.md), [zig-overview.md](zig-overview.md), [swift-overview.md](swift-overview.md), or [v8-overview.md](v8-overview.md)). Then read the project's own developer guide (rustc-dev-guide, gccint, LLVM docs, GHC Commentary). The goal is internal-vocabulary fluency: when you read "MIR" or "STG" or "SIL", you know what is meant.
+
+**Week 4: read source until something feels obvious.** Pick a small subsystem and read it line by line until you understand it. Good first targets per project: a single LLVM pass under `llvm/lib/Transforms/Scalar/`; a single GIMPLE pass in GCC; a single MIR transform in rustc; a single SSA pass under `cmd/compile/internal/ssa/` in Go; a single mandatory SIL pass in Swift; the regalloc2 spill heuristic in Cranelift; one Sema function in Zig. The goal is the moment when reading a function in the project's source feels like reading any other code, not like deciphering a foreign language.
+
+**Weeks 5-6: small contribution.** Find a `good first issue` (or equivalent label) that touches the subsystem you read. Reproduce the bug locally. Write a failing test (every project requires this). Implement the fix. Run the test suite. Open the PR (or send the patch). Iterate on review feedback. The goal is your first merged change.
+
+The whole sequence is six weeks of part-time work. Some people compress it to two; others stretch to six months. Either is fine.
+
+## Mental-model shifts
+
+Moving from this compiler's codebase to a production compiler requires several mental shifts. Naming them up front shortens the adjustment period.
+
+**From "every line is comprehensible" to "you only ever see the part you are working on".** Our `intercalc.sh` is 2,000 lines. You can read it in a sitting. LLVM, GCC, rustc are millions of lines. Nobody reads them top to bottom. Production-compiler work is "find the file, understand the function, leave the rest unread". The skill is locating the file fast. Project-internal documentation, dev guides, and `git log` for the area you care about are how you do this.
+
+**From "no IR" to "many IRs".** Our compiler turns the parse tree directly into assembly. Every production compiler has at least one IR; some have four (rustc, GHC). Each IR has a purpose: name resolution, type checking, optimisation, codegen. Tracking which IR you are looking at, and what it does and does not contain, is a constant low-grade effort. Asking "is this MIR or HIR?" should be a reflex.
+
+**From "shell script glue" to "library architecture".** Our compiler is a shell script with assembly templates. Production compilers are libraries with stable internal APIs, plugin points, and pass managers that orchestrate hundreds of transformations. The infrastructure is itself the bulk of the code; the actual transformations are often shorter. Reading "the architecture" is reading the pass manager, the IR builders, the analysis caches, the diagnostic system. The transformations sit on top.
+
+**From "one platform per build" to "every build is a target choice".** We compile on macOS ARM64 or Linux ARM64 or Linux x86-64; the choice is the platform we are running on. Production compilers cross-compile by construction. Every build picks a target triple. Backends are selected per target. Calling conventions, ABIs, and instruction set details parameterise everything. A change that "works on my machine" can break on a target you have never personally seen.
+
+**From "we test functionality" to "we test invariants".** Our tests run a compiled program and check stdout. Production compilers also do this, but layered on top of invariant tests: the IR after this pass is well-formed; the SSA invariants hold; the type checker accepts known-good programs and rejects known-bad; the borrow checker satisfies the formal properties of NLL. The bulk of the test infrastructure is invariant checking, not end-to-end functional testing. Adding a new pass means adding new invariant tests.
+
+**From "I understand every error" to "this error came from a system I have not seen".** When something fails in our compiler, you can trace it to a specific zsh function in 20 minutes. In production compilers, failures cross subsystem boundaries. A bug in instruction selection might surface as a misoptimised loop reported by a user who is debugging their game. Diagnostic tools (LLVM's `--debug-only=`, rustc's `-Z` flags, Go's `-d=ssa/<phase>=N`) become essential. Learning the diagnostic surface is a project of its own.
+
+**From "the language is small" to "the language has a 30-year history".** INTERCAL has fifteen statement types and four data types. C++ has hundreds of features, decades of accreted decisions, and ABI commitments to thirty years of binaries. The conservatism of production compilers reflects this. A change that "looks obvious" might break a kernel module compiled in 2010. The review process is calibrated for this risk.
+
+## Concrete bridges per compiler
+
+Each compiler has specific exercises that bridge from "I read the chapter" to "I can edit the source". The exercises below are deliberately small. Each is doable in an afternoon if you know where to look. None requires submitting a patch.
+
+### LLVM bridge exercise
+
+Goal: write your first LLVM pass.
+
+1. Build LLVM and Clang locally (see [contributing-to-production-compilers.md](contributing-to-production-compilers.md)).
+2. Pick `llvm/lib/Transforms/Utils/HelloPass.cpp` (or the equivalent template) and study it.
+3. Write a pass that counts the number of `add` instructions per function and prints the count.
+4. Run it on `clang -O0 -c -emit-llvm` output for a small C file.
+5. Verify the count matches what `opt -print-instructions` reports.
+
+The point is not the pass itself; it is the loop "edit C++, rebuild, run, iterate". By the time you have done this, you have absorbed the LLVM build system, the pass-manager API, the IR walking idioms, and the diagnostic flags. Future passes are variations on the same loop.
+
+The closest analog in our compiler: writing a new function in `intercalc.sh` that walks `stmt_*` arrays and prints something. Same shape, different language.
+
+### Cranelift bridge exercise
+
+Goal: write your first ISLE rule.
+
+1. Build Cranelift (`cargo build -p cranelift-codegen`).
+2. Open `cranelift/codegen/src/isa/x64/lower.isle` and read existing rules until they feel familiar.
+3. Pick a small operation (say, `iadd`) and add a rule that recognises a specific pattern (e.g., adding zero) and rewrites it to a no-op.
+4. Add a filetest in `cranelift/filetests/filetests/runtests/i32-add.clif` that triggers the rule.
+5. Run `cargo test -p cranelift-filetests` and watch your rule fire.
+
+The point is that ISLE is declarative: a pattern plus a result. Once one rule lands, every other rule is the same mental shape. Production-grade work in Cranelift is mostly adding such rules and refining heuristics.
+
+The closest analog in our compiler: adding a constant-folding case in `eval_const`. Same shape (pattern: input form → output form), different syntax.
+
+### Go bridge exercise
+
+Goal: write your first SSA optimisation rule.
+
+1. Build Go from source (`./make.bash`).
+2. Open `src/cmd/compile/internal/ssa/gen/generic.rules` and read the first 200 lines.
+3. Add a rule that simplifies a pattern (start with something like `(Mul64 x (Const64 [1])) => x`).
+4. Run `go run gen/*.go` to regenerate the rule-handler Go code.
+5. Build the compiler and run `go test -run TestSSA` to verify nothing breaks.
+6. Compile a small program that triggers your pattern and dump SSA with `-gcflags='-d=ssa/opt=2'` to see the rewrite happen.
+
+Go's `.rules` files are conceptually the same as ISLE. The dialect differs but the shape is identical.
+
+The closest analog in our compiler: adding a rule to the (currently small) peephole_optimize. We do peephole on emitted assembly text rather than on SSA, but the "match a pattern, rewrite it" idea is the same.
+
+### rustc bridge exercise
+
+Goal: write your first MIR transformation.
+
+1. Build rustc (`./x.py build`).
+2. Open `compiler/rustc_mir_transform/src/simplify.rs` and read it.
+3. Pick a tiny structural simplification (e.g., remove unreachable blocks). Either improve an existing pass or write a new one in the same directory.
+4. Wire it into the pipeline in `compiler/rustc_mir_transform/src/lib.rs`.
+5. Add a regression test under `tests/codegen/` that exercises the change.
+6. Run `./x.py test tests/codegen` and `./x.py test tests/ui`.
+
+rustc's MIR transforms are straightforward Rust. The barrier is build time (the bootstrap), not the code itself.
+
+The closest analog in our compiler: adding a new pass to the `main()` function in `intercalc.sh`. Same idea (transform after parsing, before codegen), production scale.
+
+### GHC bridge exercise
+
+Goal: add a Core simplifier rule.
+
+1. Build GHC (`hadrian/build`).
+2. Open `compiler/GHC/Core/Opt/Simplify.hs` and surrounding files.
+3. Find an existing rule and read it carefully. The simplifier has hundreds; pick one that is small and self-contained.
+4. Write a regression test in `testsuite/tests/simplify/` that exercises a simplification GHC currently does.
+5. Run `hadrian/build test --only=simplify`.
+
+The simplifier is the heart of GHC's optimiser. Once one rule is comprehensible, the rest become tractable.
+
+The closest analog in our compiler: `eval_const` constant-folding. Conceptually a tiny simplifier, operating on a tiny expression language.
+
+### OCaml bridge exercise
+
+Goal: trace type inference on a tricky program.
+
+1. Build OCaml (`./configure && make`).
+2. Open `typing/typecore.ml`. Find `type_expression`.
+3. Compile a small program with `-dtypedtree` to see the typed AST OCaml produced. Find an expression and trace it through `type_expression`.
+4. Now write a program that triggers a polymorphic generalisation (e.g., `let id x = x in ...`). Trace through the level mechanism in `typing/btype.ml`.
+5. Add a comment to the source explaining what you found.
+
+OCaml's type checker is the canonical Hindley-Milner implementation. Reading it is reading the algorithm.
+
+The closest analog in our compiler: `check_politeness` and `check_labels`. Conceptually they do the same kind of work (analyse properties of the parsed program), at a much simpler level.
+
+### Zig bridge exercise
+
+Goal: trace one comptime evaluation through Sema.
+
+1. Build Zig.
+2. Write a tiny comptime function: `fn double(comptime x: u32) u32 { return x * 2; }`.
+3. Compile with `-femit-zir` to see the ZIR.
+4. Open `src/Sema.zig` and find where `double` is called: search for the relevant operation handler.
+5. Add a `std.debug.print` call inside Sema's handler for `mul` and rebuild Zig.
+6. Recompile your test program. You should see the print fire when the comptime call evaluates `2 * 2`.
+
+The point is that comptime is just Sema interpreting the IR. Once you have done one trace, the rest of Sema is the same kind of code.
+
+The closest analog in our compiler: `eval_const`. We do a tiny version of Zig's comptime: walk the parse tree, evaluate sub-expressions where all operands are constant.
+
+### Swift bridge exercise
+
+Goal: trace a SIL optimisation pass.
+
+1. Build Swift (allocate hours and ~50 GB).
+2. Compile a small Swift file with `-emit-sil` and look at the output.
+3. Pick an optimisation (e.g., `lib/SILOptimizer/Transforms/SimplifyCFG.cpp`). Read the pass.
+4. Modify a Swift program until you can see the pass change SIL output. Add a `// CHECK:` comment for FileCheck.
+5. Add the regression test under `test/SILOptimizer/`.
+
+Swift's SIL is the most semantically rich IR in this Part. Reading SIL output for a generic function with protocol witnesses is a course in itself.
+
+The closest analog in our compiler: nothing direct. We have no IR. The lesson is conceptual: production IRs preserve language semantics, and passes operate on those semantics.
+
+### V8 bridge exercise
+
+Goal: see speculation in action.
+
+1. Build V8 (`fetch v8 && cd v8 && gn gen out/x64.optdebug && ninja -C out/x64.optdebug`).
+2. Run d8 (the standalone V8 shell) on a script that has a hot loop with a polymorphic property access.
+3. Watch with `--trace-opt --trace-deopt`.
+4. Modify the script to break the IC's assumption (suddenly write a different shape). Watch the deoptimisation fire.
+5. Adjust the script until it exercises tier promotion: Ignition → Sparkplug → Maglev → TurboFan.
+
+The point is to internalise that speculation is a compiler-runtime contract. The optimiser bets; the runtime collects the bet or pays out.
+
+The closest analog in our compiler: nothing. AOT compilers do not speculate. The lesson is purely conceptual.
+
+### GCC bridge exercise
+
+Goal: read one GIMPLE pass deeply.
+
+1. Build GCC (`./configure --enable-languages=c && make`).
+2. Open `gcc/tree-ssa-dce.cc`. Read it.
+3. Compile a small C program with `-fdump-tree-all` and find the dead-code-elimination dump.
+4. Modify the C source until you can see DCE remove a specific statement.
+5. Trace the removal in the GIMPLE dump.
+
+The point is to learn how dumps tie source code to the IR. Once you can read GIMPLE dumps, every later GIMPLE pass is approachable.
+
+The closest analog in our compiler: `compute_flag_checks`. We do a similar dataflow (per-statement analysis of "is this flag ever touched") with the result removing dead code.
+
+## What to read while building
+
+A reading list ordered by when you are likely to need each item.
+
+**While picking a target compiler**: each per-compiler chapter in this Part. They are deliberately self-contained.
+
+**While building the project**: the project's developer guide. rustc-dev-guide is the gold standard; LLVM has the docs at <https://llvm.org/docs/>; GCC has gccint; GHC has the Commentary; Go has the in-source READMEs.
+
+**While reading source**: the relevant overview chapter (in this book) plus the project's IR specification. LangRef.rst for LLVM. The MIR specification in rustc-dev-guide. The GHC Commentary's Core chapter. The SIL.md file in the Swift repo.
+
+**While writing your first patch**: the project's coding style guide and contribution guide. Not optional. Production compilers reject patches that violate style on first review. Save yourself the back-and-forth.
+
+**For the long run**: a textbook. *Engineering a Compiler* (Cooper and Torczon, 3rd edition 2023) is the modern reference. *Modern Compiler Implementation in ML* (Appel) is the academic counterpart. Read alongside the source as you encounter concepts in the wild.
+
+## Exit criteria for a first patch
+
+You are ready to submit a first patch when:
+
+- You can build the compiler in under five minutes from a clean tree (assuming a warm `ccache`/incremental cache).
+- You can run the test suite for the area you are touching.
+- You have read at least three previous patches in the same area, observed how they were structured, and learned the conventions.
+- You can explain, in two sentences, what your patch does and what test would fail without it.
+- You have a regression test that fails on `main` and passes with your patch.
+- You have read the project's contribution guide for the specific area.
+
+If any of these are not yet true, you are still in the preparation phase. Do not rush. The cost of a thoroughly-prepared first patch is a week. The cost of an under-prepared first patch is a month of review thread, a withdrawn contribution, and a bruised relationship with the maintainers.
+
+## Cross-references to advanced techniques
+
+The two chapters that follow this one go much deeper into specific compiler techniques:
+
+- [techniques-we-use.md](techniques-we-use.md): every advanced technique present in this compiler, explained in production-compiler vocabulary. If you understand our `eval_const`, you understand a slice of LLVM's `InstCombine`. If you understand our `compute_flag_checks`, you understand a slice of GCC's tree-level DCE. The chapter names the correspondences.
+- [techniques-we-lack.md](techniques-we-lack.md): every advanced technique missing from this compiler, organised by phase. SSA construction, register allocation, garbage collection, JIT speculation, polyhedral optimisation. The chapter is a roadmap of the design space, with pointers into each production compiler that exemplifies a technique.
+
+Treat the three chapters (this one plus those two) as the bridge in three layers: this one for the conceptual map, "we use" for "what you already know in production-compiler vocabulary", "we lack" for "what to read next".
+
 ## Closing
 
 The skill of reading a compiler is a smaller skill than the skill of writing one from scratch. This book has tried to teach both, by writing one from scratch and explaining each piece in plain enough language that the same vocabulary works on a much larger codebase.

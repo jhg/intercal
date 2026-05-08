@@ -176,4 +176,6 @@ None of these apply today. The compiler stays frontend-backend-only.
 
 - [code-generation.md](code-generation.md): the current direct-emission codegen.
 - [self-hosting.md](self-hosting.md): why we are not in a position to add a middle end yet.
+- [techniques-we-use.md](techniques-we-use.md): every advanced technique present in our compiler, mapped to its production equivalents.
+- [techniques-we-lack.md](techniques-we-lack.md): every major technique missing from our compiler, organised by phase, with production references and reading pointers.
 - [further-reading.md](further-reading.md): the books to read (Cooper & Torczon, Appel) if you want to implement one anyway.

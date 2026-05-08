@@ -75,6 +75,11 @@
 - [V8, in shape](v8-overview.md)
 - [Contributing to a production compiler](contributing-to-production-compilers.md)
 
+# Part VIII: Advanced techniques
+
+- [Advanced techniques we use](techniques-we-use.md)
+- [Advanced techniques we lack](techniques-we-lack.md)
+
 # Reference
 
 - [Statement cheatsheet](statement-cheatsheet.md)
