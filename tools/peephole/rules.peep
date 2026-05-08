@@ -1,0 +1,25 @@
+# Peephole rules in declarative form.
+#
+# Each rule is one of:
+#
+#   rule NAME match REGEX action drop
+#       Drop the matching line.
+#
+#   rule NAME match REGEX equal_groups M N action drop
+#       Drop the line if regex group M equals group N (e.g., identity move).
+#
+#   rule NAME match REGEX followed_by REGEX action drop
+#       Drop the line when the next non-blank line matches the second regex.
+#       The second regex may reference the first regex's first capture group
+#       via the literal token \1 (rewritten by the rule compiler).
+#
+# Comments start with '#'. Empty lines are ignored.
+
+# R1: ARM64 unconditional branch immediately followed by its target label.
+rule branch_to_next match '^[[:space:]]+b[[:space:]]+(_[a-zA-Z0-9_]+)[[:space:]]*$' followed_by '^\1:' action drop
+
+# R1b: x86-64 unconditional jmp immediately followed by its target label.
+rule jmp_to_next match '^[[:space:]]+jmp[[:space:]]+(_[a-zA-Z0-9_]+)[[:space:]]*$' followed_by '^\1:' action drop
+
+# R2: identity move "mov X, X". Match against ARM64 (w/x) and x86-64 (a/r/e/c/d) prefixes.
+rule identity_mov match '^[[:space:]]+mov[[:space:]]+([wxer][a-z0-9]+|al|ax|eax|rax|cx|ecx|rcx|dx|edx|rdx),[[:space:]]*([wxer][a-z0-9]+|al|ax|eax|rax|cx|ecx|rcx|dx|edx|rdx)[[:space:]]*$' equal_groups 1 2 action drop
