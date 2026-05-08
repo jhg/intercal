@@ -687,6 +687,54 @@ check_labels() {
   done
 }
 
+# Note [UnreferencedLabelWarning]
+#   Per AGENTS.md, ICLnnnW is the warning convention (vs ICLnnnI for
+#   fatal errors). After resolve_come_from we walk every labelled
+#   statement and check whether any other statement targets it via
+#   NEXT, ABSTAIN/REINSTATE (label form), or COME FROM. Labels with
+#   no static reference are warned about. The check is conservative
+#   for ABSTAIN/REINSTATE on gerunds: those affect statement TYPES,
+#   not individual labels, so they do not count as "referencing" a
+#   label. Same for syslib labels (1000-1999): they are external by
+#   convention and not warned.
+#   We use ICL197W as the warning code (W variant of E197 LABEL
+#   VALUE OUTSIDE PERMITTED RANGE; the 197 family is label-related).
+check_unreferenced_labels() {
+  local i
+  typeset -A label_referenced
+  # Walk all statements collecting label references.
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-}"
+    case "$t" in
+      NEXT)
+        local target="${stmt_next_target[$i]:-}"
+        [[ -n "$target" ]] && label_referenced[$target]=1
+        ;;
+      COME_FROM)
+        local target="${stmt_cf_target[$i]:-}"
+        [[ -n "$target" ]] && label_referenced[$target]=1
+        ;;
+      ABSTAIN|REINSTATE)
+        local body="${stmt_body[$i]:-}"
+        # Single-label form: ABSTAIN FROM (NN) or REINSTATE (NN)
+        if [[ "$body" =~ \(([0-9]+)\) ]]; then
+          label_referenced[${match[1]}]=1
+        fi
+        ;;
+    esac
+  done
+  # Walk labelled statements; warn on unreferenced ones.
+  for (( i=1; i<=stmt_count; i++ )); do
+    local lbl="${stmt_label[$i]:-}"
+    [[ -z "$lbl" ]] && continue
+    # Syslib range is treated as externally callable; skip.
+    if (( lbl >= 1000 && lbl <= 1999 )); then continue; fi
+    if (( ! ${+label_referenced[$lbl]} )); then
+      print -u2 "ICL197W LABEL ${lbl} IS UNREFERENCED"
+    fi
+  done
+}
+
 # Note [ComeFromUnique]
 #   INTERCAL's COME FROM creates an implicit edge from a labelled
 #   statement to the COME FROM source: after the labelled statement
@@ -2515,6 +2563,7 @@ main() {
   time_phase syslib detect_syslib
   time_phase flag_checks compute_flag_checks
   time_phase ignore_checks compute_ignore_checks
+  time_phase unref_labels check_unreferenced_labels
 
   if (( DIAGNOSE_MODE )); then
     diagnose

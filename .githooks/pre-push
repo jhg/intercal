@@ -23,6 +23,7 @@ zsh tests/test_time_report.sh
 zsh tests/test_opt_bisect.sh
 zsh tests/test_peephole_rules.sh
 zsh tests/test_ignore_dce.sh
+zsh tests/test_label_dce.sh
 
 # Self-hosted MVP (25 tests)
 echo "pre-push: run_self_tests.sh"
