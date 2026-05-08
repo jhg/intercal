@@ -148,7 +148,7 @@ The MC layer is a clean abstraction over "instruction in bytes vs instruction in
 
 ## MLIR: the IR generalised
 
-MLIR (Multi-Level IR) was added to the LLVM project in 2019. It is a framework for describing IRs, with multiple "dialects" coexisting in the same module.
+MLIR (Multi-Level IR) was added to the LLVM project in 2019 and is now the centre of LLVM's research and ML-systems work. It is a framework for describing IRs, with multiple "dialects" coexisting in the same module.
 
 The key ideas:
 
@@ -156,9 +156,20 @@ The key ideas:
 - Dialects can be lowered into other dialects. `linalg` lowers to `affine`, `affine` lowers to `scf`, `scf` lowers to standard control flow, eventually everything lowers to LLVM dialect, which is one-to-one with LLVM IR.
 - The same MLIR module can simultaneously contain multiple dialects, each capturing the right level of abstraction for the part of the program it describes.
 
-MLIR is used in TensorFlow (for tensor algebra), IREE (for ML compilation), Mojo (the language), Flang (the Fortran frontend). It is the framework people are reaching for when they want to build a domain-specific compiler that benefits from LLVM's infrastructure.
+Production users in 2024-2026:
 
-For a reader, MLIR is the next step beyond "IR design". It generalises the idea of "lower from one IR to another" into a framework, parametrising both the source and target IRs. The dialect and lowering machinery is a useful study even if you do not immediately need to use MLIR.
+- **TensorFlow/XLA**: tensor-algebra compilation, the original MLIR motivation.
+- **Mojo** (Modular's AI language): AOT compilation through MLIR all the way down.
+- **Clang IR (CIR)**: experimental MLIR-level representation of Clang's AST. The long-term play is for some Clang front-end work to operate on CIR rather than directly on the AST.
+- **Flang**: the Fortran frontend uses MLIR for its high-level IR (FIR dialect) and lowers to LLVM IR.
+- **IREE**: ML compiler that targets multiple backends through MLIR.
+- **CUDA Tile**: NVIDIA's tile-based GPU compilation.
+
+The most-influential built-in dialects: `arith`, `memref`, `affine`, `scf`, `func`, `gpu`, `tosa`, `linalg`, and `llvm` (the last is one-to-one with LLVM IR). The 2026 EuroLLVM round tables surfaced a series of design discussions on assembly/ISA-level dialects, MLIR canonicalisation, EmitC (lowering MLIR to readable C source), and early-exit semantics for regions, all of which point at MLIR being increasingly used for very low-level work that LLVM IR alone could not represent cleanly.
+
+A new **ABI library** started landing in 2026 with `ABITypeMapper` and `ABIRewriteContext` as dialect-agnostic bridges to LLVM's lowering. The motivation: ABI-correct lowering is target-specific complex code that has been duplicated across frontends; the new library centralises it.
+
+For a reader, MLIR is the next step beyond "IR design". It generalises the idea of "lower from one IR to another" into a framework, parametrising both the source and target IRs. The dialect and lowering machinery is a useful study even if you do not immediately need to use MLIR. The most accessible entry point is the official MLIR tutorial on building a Toy language.
 
 ## Subprojects
 

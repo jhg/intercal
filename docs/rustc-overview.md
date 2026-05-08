@@ -50,7 +50,7 @@ The history is worth knowing:
 
 - **Pre-2018**: lexical borrow checker on HIR (in `rustc_borrowck`'s old form). Borrows lived for the entire enclosing lexical scope. Infamously rejected programs that "felt" correct, like splitting a struct into two disjoint borrows.
 - **2018**: NLL (Non-Lexical Lifetimes) on MIR. Borrows live for as long as needed, computed via dataflow. Many previously-rejected programs become valid. The "NLL" name is historical; the system is now just "the borrow checker".
-- **In progress (2024-2026)**: **Polonius**, originally a Datalog reformulation of the borrow checker, currently being rewritten away from a pure Datalog engine while keeping the logic-based shape. The algorithm is fundamentally different from NLL (logic-based rather than dataflow-based), more permissive in edge cases, and easier to extend with new rules. Polonius is opt-in today (`-Zpolonius`), with NLL still the production default; gccrs has integrated Polonius as its production borrow checker since GCC 15.
+- **In progress (2024-2026)**: **Polonius**, originally a Datalog reformulation of the borrow checker, currently being rewritten as a "Polonius alpha" location-sensitive analysis that is a strict superset of NLL. It accepts the NLL "problem case 3" and lending iterators that NLL rejects. The 2026 project goal is to stabilise Polonius alpha behind a feature gate; the team will accept 10-20% borrow-checking compile-time overhead for the expressiveness gains. NLL remains the production default; gccrs uses a separate Polonius integration as its production borrow checker since GCC 15.
 
 How NLL works in outline:
 

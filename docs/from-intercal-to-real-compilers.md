@@ -395,6 +395,139 @@ The two chapters that follow this one go much deeper into specific compiler tech
 
 Treat the three chapters (this one plus those two) as the bridge in three layers: this one for the conceptual map, "we use" for "what you already know in production-compiler vocabulary", "we lack" for "what to read next".
 
+## After the first patch: the medium term
+
+The skill ladder above tops out at landing your first PR. Production-compiler engineering is a much longer game. The medium-term picture, organised by ambition.
+
+### The "ten patches" plateau
+
+Most contributors plateau here. You have landed a handful of changes, are subscribed to the right mailing lists or labels, the maintainers know your name. Your changes are typically incremental: a missing pattern in instruction selection, a small correctness fix in a pass, an improvement to a diagnostic message. The work is satisfying and the cadence is sustainable.
+
+The skill being honed at this stage is *navigating the codebase quickly*. By patch ten, you should be able to find any subsystem you have not yet touched in under five minutes via a combination of `grep`, mailing-list archives, `git log -p`, and the project's developer documentation. You should also have a rough mental map of who owns what, which areas welcome refactoring and which to leave alone, and what the maintainers' aesthetic preferences are (does this project like long names or short ones; does it run linters strictly; does the review process tolerate large diffs).
+
+How to deepen at this stage: read other contributors' patches, especially the ones that get extended review discussions. The friction in the discussion is where the project's values surface. A patch that gets immediate approval taught you what was correct; a patch that took ten rounds of review taught you what is contentious.
+
+### The "owns a subsystem" plateau
+
+A handful of contributors per project go further. They become the de facto owner of a subsystem: regalloc2 in Cranelift, the borrow checker in rustc, the inliner in LLVM, the constraint solver in Swift. The role is not formal in most projects (LLVM has no "owner" titles); the recognition emerges from sustained contribution.
+
+The skill at this stage is *system-level design*. Reviews you give are no longer "this looks right"; they are "this changes the contract between the inliner and the optimiser; have you considered the case where the inlined function has effects?". Patches you write are not bug fixes; they are architecture changes that might span thousands of lines and require coordinating with several other subsystems.
+
+How to reach this stage: pick a subsystem that is undersupported and adopt it. The path is not glamorous; you are reading old code, fixing technical debt, writing tests for things nobody tested, documenting things nobody documented. Two years of patient work in one subsystem usually produces ownership-level expertise; one year is rare.
+
+### The "designs a feature" plateau
+
+A few contributors design new compiler features end to end: a new optimiser pass that did not exist; a new IR layer; a new type-system extension. This is rare and high-stakes; it requires alignment with the project's leadership, not just the code reviewers.
+
+The skill at this stage is *organisational design*. You write an RFC. You convince several maintainers it is worth doing. You implement a prototype. You adjust based on review. You shepherd the feature to stable. The work is mostly meetings and writing, less coding.
+
+How to reach this stage: be one of the recognised owners of a related subsystem first. The trust required to land a major design comes from years of credibility. Some projects have a more open process (Rust's RFC procedure, GHC's Haskell Foundation tech proposal); others are more closed (Apple drives Swift evolution from inside).
+
+## Maintaining a fork
+
+A specific senior task that comes up often: maintaining a fork of a production compiler.
+
+Reasons companies fork:
+- **Vendor patches**: a chip vendor adds optimisations specific to their target before they are upstream.
+- **Stability lock-in**: a downstream project pins to a known-good revision and backports critical fixes.
+- **Feature divergence**: a product needs functionality not aligned with upstream priorities (e.g., heavy compile-time configuration).
+- **License-driven divergence**: less common, mostly historical.
+
+Notable forks in production:
+- Apple maintains a fork of LLVM/Clang for Xcode, with patches that go upstream eventually but lag main.
+- Google maintains internal LLVM/Clang forks, partly for stability and partly for security tooling.
+- Many embedded vendors fork GCC for specific instruction-set extensions.
+- Mozilla forked rustc briefly during the 2018 edition transition.
+
+The skills involved:
+- *Cherry-picking* upstream commits cleanly. `git cherry-pick -x` to record provenance.
+- *Conflict resolution* when downstream patches and upstream changes touch the same files.
+- *Re-baseline strategy*: how often do you rebase the fork on upstream `main`? Yearly? Per-LLVM-release? Continuous?
+- *Test infrastructure*: a fork needs its own CI, often inheriting upstream test counts plus fork-specific tests.
+- *Communication with upstream*: aim to land patches upstream over time so the fork shrinks.
+
+For our INTERCAL compiler the analog is small but real: when somebody packages our compiler in a Linux distro, they are effectively maintaining a fork (with a delta of distro-specific build flags). The principles transfer.
+
+Reading: Chromium's "How we maintain a fork of LLVM" blog posts; Apple's tracked fork in their public llvm-project mirror; GCC's vendor branches.
+
+## Backporting
+
+A subset of fork-maintenance: bringing fixes from one branch to another. Production compilers have multiple branches in flight: `main`, `release/X.Y` for the current stable, `release/X.Y-1` for the previous. A regression in stable means cherry-picking the fix from `main` to the release branch.
+
+Conventions vary:
+- LLVM has `release/<X>.x` branches with `[X.x]` prefixed PRs for backports.
+- rustc has stable, beta, and nightly. Most fixes land in nightly; some are explicitly nominated for backport via the `beta-nominated` and `stable-nominated` labels.
+- GHC has `ghc-X.Y-stable` branches.
+- Go's release process backports critical fixes to the previous two minor versions.
+
+The trade-off: backporting a fix improves the stable release, but every backport is a divergence from main and a risk of new regressions. Maintainers are conservative.
+
+For our INTERCAL compiler: we have one branch (`main`) and tags (`v0.1.0`). The lesson transfers if the project ever ships maintenance releases.
+
+## Designing new optimisations
+
+Designing an optimisation that has not been built before is the most senior compiler-engineering task. Most production compilers have a hundred optimisations; the rare twentieth-or-so addition is a serious project.
+
+The shape of the work:
+
+1. *Identify a class of programs that are slower than they should be*. Either by reading benchmarks (SPEC, PolyBench), profiling production code, or noticing a pattern that repeats in user-reported issues.
+2. *Hypothesise an optimisation*. The hypothesis must be both *correct* (preserves observable behaviour) and *profitable* (saves time or space measurably).
+3. *Build a prototype*. Single-pass implementation, narrow scope. Run on a small benchmark suite.
+4. *Measure carefully*. Optimisations almost always trade compile time for runtime. The trade-off must be net positive on representative code.
+5. *Generalise*. Handle all the edge cases the prototype skipped. Add tests for each.
+6. *Submit*. Expect deep review; the project's senior engineers will have opinions about whether your optimisation belongs in the canonical pipeline, with what cost model, in what phase order.
+
+Examples of recent optimisation additions and the work they entailed:
+- *LLVM's LoopVectorize*: years of incremental additions starting around 2013. Major rewrites multiple times. The current code is the work of dozens of contributors over a decade.
+- *rustc's GenericSpecialization improvements*: ongoing for years, with each release tightening the specialiser.
+- *Cranelift's egraph optimiser*: introduced in 2022 by Chris Fallin, replacing several smaller optimisers with one e-graph-based pass.
+- *Go's PGO support*: introduced in Go 1.21, refined incrementally.
+
+The lesson: senior optimisation work is a multi-year arc, not a single PR.
+
+## Influencing language design
+
+The deepest level. The compiler is the language's implementation; whoever owns the compiler also influences the language. In open-source projects, this influence is usually shared with a language-design committee or a benevolent dictator.
+
+How influence is exercised:
+- Publishing RFCs (Rust's RFC repo, Swift's evolution repo, Haskell's prime track).
+- Implementing experimental features behind unstable feature gates (rustc's `#![feature(...)]`, GHC's `{-# LANGUAGE ... #-}`).
+- Engaging in design discussions on the language's primary forum (rust-lang discourse, swift-evolution mailing list, haskell.org committee).
+- Authoring papers that propose new features with prototypes (common in OCaml and Haskell history).
+
+For somebody on this path, the compiler is the medium for a language-design conversation. The commits become arguments in the discussion. Effectiveness comes from the commits being correct, well-reviewed, and demonstrating the proposed feature works in practice.
+
+For our INTERCAL compiler: the language is fixed by the 1972 specification. We do not get to influence INTERCAL. The lesson is conceptual: in projects where language design is alive, the compiler is the front line.
+
+## Long-term reading
+
+A reading list for somebody who has reached the "owns a subsystem" stage and wants to deepen:
+
+- *Engineering a Compiler* (Cooper and Torczon, 3rd edition 2023). The modern textbook reference.
+- *Modern Compiler Implementation in ML* (Andrew Appel). The academic counterpart, goes deeper on type theory.
+- *Optimizing Compilers for Modern Architectures* (Allen and Kennedy 2001). The reference for loop optimisation and vectorisation.
+- *The Garbage Collection Handbook* (Jones, Hosking, Moss, 2nd edition 2023). The reference for runtime memory management.
+- *Advanced Compiler Design and Implementation* (Muchnick 1997). Pre-SSA but still the reference for many classical algorithms.
+- *Types and Programming Languages* (Pierce 2002). Type-system theory.
+- *Practical Foundations for Programming Languages* (Harper, 2nd edition 2016). The deeper theoretical grounding.
+
+Plus, depending on specialisation:
+- *Compiling with Continuations* (Appel 1992) for functional-language back ends.
+- *Hacker's Delight* (Warren 2nd ed.) for low-level bit manipulation, branchless code.
+- *Linkers and Loaders* (Levine 1999) for the post-codegen world.
+- *Computer Architecture: A Quantitative Approach* (Hennessy and Patterson 6th ed.) for the target side.
+- *Programming Language Pragmatics* (Scott 4th ed.) for survey-level breadth.
+
+Plus, conference proceedings:
+- *PLDI* (Programming Language Design and Implementation) annually.
+- *POPL* (Principles of Programming Languages).
+- *CC* (Compiler Construction).
+- *CGO* (Code Generation and Optimization).
+- *ICFP* for functional-language work.
+- *OOPSLA* for object-oriented and dynamic-language work.
+
+Most major compiler features were proposed in one of these venues before being engineered into production. Reading current proceedings is reading where the next decade's compilers will go.
+
 ## Closing
 
 The skill of reading a compiler is a smaller skill than the skill of writing one from scratch. This book has tried to teach both, by writing one from scratch and explaining each piece in plain enough language that the same vocabulary works on a much larger codebase.

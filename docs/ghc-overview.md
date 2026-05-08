@@ -201,6 +201,22 @@ The GC deserves a footnote. Generational copying with a minor GC tuned for very 
 
 For a reader, the RTS is the part of GHC most worth studying for understanding what a runtime has to provide for a high-level language. The contrast with Go's runtime (which has goroutines and a GC but no thunks) and with Rust's runtime (which has neither, beyond the stack and OS facilities) is sharp.
 
+## Concurrent (non-moving) garbage collector
+
+GHC 8.10 (2020) added an optional concurrent mark-and-sweep collector for the old generation. By 2026 it is the standard low-latency option for Haskell production deployments. Real-world adopters (Mercury, Pusher, the IOG team) report sub-millisecond pauses on large heaps at the cost of slightly higher CPU on a spare core. There is no public 2025-2026 set of benchmarks superseding Ben Gamari's original numbers; ongoing work in 2025 has been around finalisers and weak references rather than a redesign.
+
+A common production gotcha: `-with-rtsopts=-N` (use all cores) is poor as a library default because it grabs every core whether the consuming program wants that or not. Stack tracks an open issue (commercialhaskell/stack#680) about this.
+
+## JavaScript backend
+
+GHC has a JavaScript backend, still labelled "technology preview" in the GHC 9.14 user's guide and not shipped in bindists. Users must build a cross-compiler. The 2025 discussion focused on output size; compiled bundles are large compared to GHCJS (the older, separate Haskell-to-JS compiler).
+
+For somebody studying compilers, the GHC JS backend is interesting because it is a non-LLVM, non-NCG path: GHC's pipeline goes Cmm → JavaScript directly, treating JS as the target machine. Reading `compiler/GHC/StgToJS/` shows what that lowering looks like.
+
+## Plugin ecosystem
+
+GHC's plugin system supports plugins at several levels: parser plugins, renamer plugins, typechecker plugins, Core plugins, Cmm plugins. The most consequential plugin in production is **Liquid Haskell**, which adds refinement types to Haskell. Tweag's March 2025 release was a structural milestone: Liquid Haskell now consumes GHC's post-typecheck AST directly instead of re-parsing and re-typechecking the module. A GSoC 2025 project added qualified-import and alias resolution.
+
 ## Repo layout
 
     compiler/

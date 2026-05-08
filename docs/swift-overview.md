@@ -122,6 +122,38 @@ LLVM then optimises the resulting IR through its conventional pipeline. The opti
 
 This two-stage optimisation (SIL passes for language-level, LLVM passes for machine-level) is one of Swift's defining architectural choices. The benefit: each level optimises what it understands. The cost: more total compiler work, longer compile times, two optimisers to maintain.
 
+## Recent additions: ownership, noncopyable types, OSSA
+
+Swift 6 promoted ownership annotations from compiler-internal SIL concepts to first-class language features. The relevant proposals:
+
+- **SE-0377: parameter ownership modifiers** introduced `borrowing` and `consuming` as parameter modifiers, mutually exclusive with each other and with `inout`. `borrowing` is a temporary read-only reference. `consuming` transfers ownership; the original binding is invalidated, and the callee may even mutate the value.
+- **SE-0390: noncopyable types** (`~Copyable`) lets a type opt out of the implicit `Copyable` conformance every type otherwise has. Noncopyable types model resources whose ownership must not be silently duplicated (file handles, mutexes, hardware buffers).
+- **SE-0432: noncopyable pattern matching** added borrowing/consuming patterns in `switch`.
+
+For copyable types, `borrowing` and `consuming` are mostly compiler hints. For noncopyable types they are part of the API contract and the compiler enforces single-consumption on every path.
+
+**OSSA** (Ownership SSA) is the SIL form coming out of SILGen since Swift 6. Each non-trivial SIL value is statically tagged `@owned`, `@guaranteed`, `@unowned`, or `@none`, and the verifier proves that owned values are consumed exactly once on every path. OSSA is being pushed further down the optimiser pipeline (more passes operate on OSSA before OSSA is lowered to plain SSA), which catches use-after-free and leak bugs in the optimisation passes themselves rather than in user code. Noncopyable types are checked entirely in OSSA.
+
+The contrast with Rust:
+
+- Rust enforces ownership at the type level, in the borrow checker on MIR, before any IR transformation.
+- Swift enforces ownership at the IR level, in the OSSA verifier, after SILGen.
+- Both produce the same correctness guarantee for the user. The implementation strategies differ: Rust burns the cost in the type system; Swift burns it in the IR verifier.
+
+## Embedded Swift
+
+Embedded Swift is a *language subset* (not a separate dialect): code that compiles in Embedded Swift must also compile in regular Swift with identical behaviour. The compiler disables runtime reflection, library evolution, generics that need runtime metadata, and most of the dynamic-dispatch machinery to shrink the runtime footprint to fit microcontrollers.
+
+A common misreporting: "Embedded Swift removes ARC". Not quite. Refcount metadata is still 4 or 8 bytes per class instance; weak/unowned still uses side tables. The "no ARC" framing applies to specific embedded modes targeting microcontrollers where the user opts to use only value types and avoid classes. ARC itself is not removed from the language.
+
+Embedded Swift is positioned as a long-term subset, with active 2024-2026 work on better diagnostics and on Swift for embedded Linux (GSoC 2025 project).
+
+## Governance and the swiftlang migration
+
+Apple announced the move to the dedicated `github.com/swiftlang` organization on 10 June 2024. The migration was phased: `swift-evolution` first, then the rest of the repos. Governance now spans multiple steering groups: the Core Team augmented by Language, Platform (new in 2024), and the recently-formed Ecosystem steering group focused on developer experience. The split signals what Apple has stated explicitly: Swift is no longer an Apple-only language project.
+
+For somebody reading the chapter and wanting to contribute, the practical implication is that the repo URLs in older documentation are now stale; everything has moved to `swiftlang/*`. The `swift-driver` package is at `swiftlang/swift-driver`; SwiftPM is at `swiftlang/swift-package-manager`.
+
 ## The runtime
 
 Swift has a runtime, in C++, providing:

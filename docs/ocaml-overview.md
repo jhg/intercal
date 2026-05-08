@@ -174,6 +174,40 @@ For our INTERCAL compiler, the boot binary equivalent is `intercalc.sh` (the zsh
 
 The Caml family chain has been unbroken for roughly 35 years (depending on whether you count from Caml Light's 1990 bytecode self-hosting or earlier prototypes). That is a useful number to remember when thinking about how long a self-hosted compiler can persist.
 
+## OCaml 5 in production
+
+Multicore OCaml, released as OCaml 5.0 in December 2022, has crossed into production by 2026. Notable adopters:
+
+- **Jane Street** completed its production switch to the multicore runtime. Their internal OxCaml fork (an experimental "OCaml oxidised") is the testbed for new Flambda 2 capabilities.
+- **Docker Desktop** is rolling out direct-style Eio-based code, reaching "hundreds of millions of users" per Anil Madhavapeddy's ICFP 2025 notes.
+
+Pitfalls reported from real adoption:
+- GC pacing changed under the new runtime; latency regressions need tuning.
+- `Unix.fork` semantics with parallel domains remain a sharp edge.
+- Effect handlers have an "unhandled effect" trap when escaping a Domain.
+
+OCaml 5.3 (January 2025) re-enabled `statmemprof` with multicore awareness. PR #12309 introduced dedicated syntax for deep handlers (pattern-matching style), reducing the boilerplate that made handlers feel research-y in 5.0-5.2.
+
+## Flambda 2
+
+Flambda 2 is the optional middle-end optimiser for OCaml's native backend. By 2026 it is Jane Street's sole optimiser; the original Flambda and Closure passes are no longer in their pipeline. Flambda 2 supports both the OCaml 4 and OCaml 5 runtimes; OCaml 4 support is scheduled for removal in autumn 2025.
+
+It is selectable in OCaml 5.4.0 beta 2 via the standard `flambda2` switch (e.g., `opam switch create 5.4.0+beta2+flambda2`).
+
+The OxCaml fork is where new Flambda 2 capabilities are tested before upstreaming. The compilation pipeline differs in several places (loop optimisation, unboxing, inlining heuristics) but the rest of the compiler is upstream-compatible.
+
+## Platform tooling
+
+The OCaml platform (the curated set of canonical tooling) had a productive 2025-2026 cycle:
+
+- **Dune 3.21.0** added OxCaml support and copy-on-write file operations.
+- **Merlin 5.6.1-504** improved signature help and fixed completion for inlined record labels.
+- **OCaml-LSP 1.25.0** added `.mlx` file support with diagnostics, code actions, and formatting via `ocamlformat-mlx`.
+- **opam 2.5.0** is up to 70% faster on `opam update` operations.
+- **Relocatable OCaml** landed in late 2025, letting opam clone switches instead of rebuilding them. First available in OCaml 5.5 alpha.
+
+For somebody learning the OCaml ecosystem, this tooling is the visible surface. The compiler's stability over decades means the tooling is what changes year to year.
+
 ## Repo layout
 
     parsing/                    Lexer, parser, AST, Parsetree

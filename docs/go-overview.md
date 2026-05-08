@@ -84,6 +84,22 @@ The contrast with Rust is illuminating. Rust solves the same problem at type lev
 
 Reading both, side by side, gives a contributor a real intuition for how language design pushes complexity around: Rust pushes it to the type system, Go pushes it to the GC plus escape analyser. INTERCAL would push it nowhere because INTERCAL has no closures and no pointers, but the conceptual lesson transfers.
 
+## Profile-guided optimisation (PGO)
+
+PGO went GA in Go 1.21 (2023) and is fully production-ready by Go 1.24. Compiling with `-pgo=auto` consumes a `default.pgo` next to `main`, drives devirtualisation and inlining choices, and reports 2-14% gains on representative benchmarks. The Uber case study (spring 2025) reported roughly 24,000 cores saved across their largest services. Go 1.25 brings PGO further into the default toolchain. Remaining rough edges in 2026: profile freshness, build determinism, CI integration.
+
+## Generics: GCShape stenciling
+
+Go's generics use a hybrid called **GCShape stenciling** with a dictionary. The compiler emits one body per distinct GC shape (size, alignment, pointer mask) rather than per concrete type. Each call passes a dictionary of run-time type info that the body uses for type-dependent operations. This is a deliberate compromise between full monomorphisation (bigger binaries, faster code; rustc's choice) and pure dictionary passing (smaller binaries, slower code; GHC's choice).
+
+The dictionary indirection has a measurable cost: PlanetScale's 2022 post (still cited in 2025 discussion) showed that for cases like map keys with method calls, GCShape can be slower than equivalent non-generic code. There is no movement toward full monomorphisation.
+
+## Garbage collector evolution: Green Tea
+
+Go's GC is concurrent and not generational, the same shape since Go 1.5. Recent work, however, is significant: **Green Tea GC** ships in Go 1.25 behind `GOEXPERIMENT=greenteagc` and is slated to become the default in Go 1.26.
+
+The classic tri-color abstraction (white/gray/black) is preserved. The unit of work changes: older Go GC traced individual objects on a shared work queue; Green Tea traces at *span* granularity, with two bits per object (gray and black) on each span, and the shared work queue holding spans, not objects. Marking a span sweeps its objects in batches, which improves cache locality and parallel scan throughput. Reported wins are around 10% less GC time on typical workloads, up to 35-40% on allocation-heavy ones. Some workloads see no benefit (the DoltHub team reported neutral results), which is why the 1.25 default is opt-in.
+
 ## Inlining
 
 The inliner lives in `cmd/compile/internal/inline`. It is budget-based: each function carries a "complexity score" computed from its AST, and the inliner inlines callees while their score fits the caller's remaining budget.

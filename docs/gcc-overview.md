@@ -176,6 +176,34 @@ GCC ships with several runtime libraries:
 
 The libsanitizer share with LLVM is interesting: GCC and LLVM both emit calls into the same sanitizer runtime, with the runtime implementing the actual checking and reporting. The compiler-side instrumentation is independent; the runtime is shared. This is a mostly cooperative relationship between the two projects.
 
+## libgccjit and JIT users
+
+`libgccjit` is GCC's JIT API, a C-callable library for emitting code at runtime. As of GCC 11+ it is past alpha and ABI-stable. Active production users include the Ravi (Lua-derived language) JIT, an experimental Octave JIT, the Coconut JIT, and the rustc-codegen-gcc backend (which uses libgccjit even for AOT despite the name). Bindings exist for Python, Perl, and Rust.
+
+For a learner, libgccjit is the smaller alternative to LLVM's ORC for embedding GCC's optimiser as a JIT. It reuses GCC's middle-end (GIMPLE passes, IPA, RTL) and emits machine code directly to memory.
+
+## Reload and LRA
+
+GCC 4.8 (2013) introduced LRA (Local Register Allocator) as a planned successor to the older "reload" pass. In 2025 GCC 15 was the last release where the old reload code was still available; **LRA is now the only register allocator going into GCC 16 and onwards**. The migration was decade-long; the old reload pass had accumulated complexity that LRA simplifies dramatically.
+
+For a contributor, the lesson is that production register allocators rewrite themselves in place over years, with the old and new coexisting before the old is finally removed. LLVM had a similar arc with greedy replacing the linear-scan-on-MachineInstr allocator, though more incrementally.
+
+## New frontends in GCC 15-16
+
+GCC 16's frontend list (alongside the long-standing C, C++, Fortran, Ada, Go, D, Modula-2, Objective-C, Rust-via-gccrs):
+
+- **COBOL**: a new frontend, in tree.
+- **Algol 68**: continued maturation.
+- **Modula-2**: in-tree since GCC 13.1, healthy and maintained.
+
+The GCC Steering Committee formally widened the door for new language frontends in 2025. The result was COBOL and Algol 68 alongside the older work on Rust.
+
+## gccrs status update (GCC 15-16)
+
+gccrs (the GCC Rust frontend) had a productive 2025 cycle. GCC 15.1 (April 2025) merged about 145 gccrs patches; the headline was integration of the Polonius borrow checker. Through 2025, gccrs reached real-code milestones: `try` blocks, `while let` loops, and a working SipHash implementation pulled from `core`. Funding from Open Source Security Inc. extends through GCC 16.1 stage 1.
+
+gccrs is not expected to be production-ready in GCC 16 but is now a credible non-LLVM Rust path. The parallel route (using rustc with `rustc_codegen_gcc` to reach GCC's backends) is a different project; see [rustc-overview.md](rustc-overview.md).
+
 ## Plugins
 
 GCC has a formal plugin system. Plugins can:

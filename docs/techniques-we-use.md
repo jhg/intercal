@@ -329,6 +329,142 @@ Production-compiler equivalents:
 
 Where to read more: the Clippy book at <https://doc.rust-lang.org/clippy/>; our own lint scripts.
 
+## Manifest verification (template integrity)
+
+What it is: a content-hash manifest for the pre-generated assembly templates that the self-hosted MVP compiler dispatches to. Each template's SHA-256 is recorded in `tools/manifest.txt`; CI verifies that no template was modified since the manifest was generated.
+
+Where it lives in our code: `tools/gen_manifest.sh` produces the manifest, `tools/verify_manifest.sh` checks it. The pre-commit hook runs verification before allowing a commit.
+
+Why it matters here specifically: the MVP `compiler.i` is a hash-keyed dispatcher into pre-generated templates. If a template diverges from what the compiler expects (because someone hand-edited it without regenerating the manifest), the `cksum` lookup will succeed but the emitted assembly will be wrong. The manifest converts that silent divergence into a hard failure.
+
+Production-compiler equivalents:
+- Bazel and other content-addressed build systems do this everywhere: every artefact is keyed by hash of its inputs.
+- Reproducible builds projects use manifests to verify the published binary matches the source-derived expectation.
+- Linux distributions sign package manifests for similar reasons.
+
+Where to read more: `tools/gen_manifest.sh` itself; the Bazel documentation on content-addressed caching.
+
+## Bench infrastructure for performance regressions
+
+What it is: a microbenchmark suite that measures compile-time and run-time of representative programs, comparable across runs.
+
+Where it lives in our code: `tools/bench.sh`. Runs a small set of programs with known shapes (`tests/test_hello.i`, `tests/test_syslib.i`, etc.), times the compile and the resulting binary, prints a tabular summary or JSON.
+
+Usage:
+- `tools/bench.sh` for a one-shot table.
+- `tools/bench.sh --json > before.json` to save a baseline.
+- `tools/bench.sh --compare before.json` to diff against the baseline.
+
+Why it matters here specifically: when changing the codegen or adding a pass like `compute_flag_checks`, you want to know whether the change made anything faster or slower. Without bench infrastructure, the answer comes from "it feels fine" or "the test suite still passes", neither of which is a measurement.
+
+Production-compiler equivalents:
+- LLVM has a comprehensive benchmark suite at <https://llvm.org/docs/Benchmarking.html>, plus the LLVM perf-tracker site.
+- rustc has perf.rust-lang.org (`https://perf.rust-lang.org/`), which tracks compile-time across a curated set of crates against every commit to `main`.
+- Go has a benchmarking framework in the standard library (`go test -bench`).
+- Each compiler has both a "compile time" tracking infrastructure and a "runtime of compiled code" suite.
+
+Where to read more: the rustc-dev-guide chapter on perf; `tools/bench.sh` in our repo.
+
+## ICL error code convention
+
+What it is: a structured error-message format inherited from the INTERCAL-72 reference manual: every fatal condition prints `ICLnnnI` (or `ICLnnnW` for warnings) followed by an uppercase descriptive message, then exits with status 1.
+
+Where it lives in our code: error-emission helpers in `intercalc.sh` (`die_compile`, `die_runtime`) plus `_rt_error` in `src/runtime/<platform>.s`. Every error path goes through one of these.
+
+Why it matters here specifically: predictable error format is what enables the test suite to verify error behaviour. Tests like `test_error_e275.i` check that compiling-and-running this program produces exit code 1 with `ICL275I` on stderr. Without a structured format, error-test machinery would be more elaborate.
+
+Production-compiler equivalents:
+- Clang's `error: ...` plus the `-fdiagnostics-format=*` family of options.
+- rustc's `error[Ennnn]: ...` plus the explanation text and source-location pointers.
+- GCC's `error:` plus column-precise source spans.
+- The general principle is "errors are part of the compiler's output API; treat them as such".
+
+Where to read more: [error-messages.md](error-messages.md) for our convention; the rustc-dev-guide chapter on diagnostics for the production version of doing this well.
+
+## Three test suites with different scope
+
+What they are: separate test runners for separate phases of compiler functionality.
+
+Where they live:
+- `tests/run_tests.sh` (33 tests): bootstrap compiler, full language coverage. Compile each `.i` file, run the binary, check stdout against expected.
+- `tests/run_self_tests.sh` (25 tests): self-hosted MVP compiler. Compile a small set of programs through `compiler.i` (built once via `intercalc.sh < src/compiler/compiler.i > intercal_core`) and verify same expected outputs.
+- `tests/run_stage3_tests.sh` (4 tests): the evolving stage3 compiler. Each test exercises a probe-detector feature.
+- `tests/test_syslib_pure.sh` (3 tests): differential testing of pure-vs-native syslib.
+- `tests/test_emit_cfg.sh` and `tests/test_emit_3addr.sh` (3+3 tests): the IR inspection flags.
+
+Total: 71 tests across 6 scripts, each focused on a particular subsystem.
+
+Why this multi-suite structure: each subsystem has different entry points, different expected behaviour, and different failure modes. Mixing them into one runner would make failures harder to localise. Splitting them lets a contributor know whether a regression is in the bootstrap, the self-hosted compiler, the stage3 evolution, or the syslib equivalence.
+
+Production-compiler equivalents:
+- LLVM has `lit` (the test runner), `llvm-test-suite` (the larger benchmark suite), and per-subproject test directories.
+- rustc has `tests/ui`, `tests/codegen`, `tests/run-pass`, `tests/compile-fail`, plus crater for whole-ecosystem testing.
+- GCC has its own DejaGnu-based testsuite plus separate ones for libstdc++, glibc, etc.
+- Each compiler partitions tests by subsystem and behaviour.
+
+Where to read more: `tests/run_*.sh` themselves; `tests/cross_test.sh` for the Docker-based Linux reproduction; the LLVM lit documentation; the rustc-dev-guide chapter on testing.
+
+## Pre-push hook with full validation
+
+What it is: a `.githooks/pre-push` script (opt-in via `tools/install_hooks.sh`) that runs all four test suites before allowing a push to remote. Failed tests block the push.
+
+Why it matters here specifically: CI runs the same suites, but waiting for CI is slower than catching a regression locally. The hook is opt-in (not enforced) so that contributors who want the full validation can have it without forcing a 1-2 minute pre-push delay on everyone.
+
+Production-compiler equivalents:
+- LLVM, rustc, GCC, Go all have CI gating but typically not pre-push hooks. The pre-push idea is more common in smaller projects.
+- Pre-commit hooks for formatting are common everywhere.
+- The general pattern "lint locally, test in CI" is industry-standard.
+
+Where to read more: `.githooks/pre-push` and `tools/install_hooks.sh` in our repo.
+
+## CI matrix across three platforms
+
+What it is: GitHub Actions workflow that runs all test suites on macOS ARM64, Linux ARM64, and Linux x86-64 in parallel for every push to `main` and every PR.
+
+Where it lives: `.github/workflows/ci.yml`. The matrix has three rows; each row sets up `zsh`, builds the runtime+syslib, and runs all four test suites plus the IR-inspection-flag tests.
+
+Why it matters here specifically: bugs in cross-platform codegen (e.g., the SIGSEGV in Linux x86_64 documented in `memory/bugs_learned.md`) manifest only on the affected platform. CI is the only realistic way to catch them before release.
+
+Production-compiler equivalents:
+- LLVM's CI runs against many host/target combinations.
+- rustc's CI runs across all tier-1 platforms.
+- Go's CI infrastructure (build.golang.org) covers dozens of GOOS/GOARCH combinations.
+- The general principle is "if you support the platform, you must test on the platform".
+
+Where to read more: `.github/workflows/ci.yml`; the rustc-dev-guide chapter on CI and platforms.
+
+## Release artefact pipeline (9 artefacts × 3 platforms)
+
+What it is: a release workflow triggered by `v*` tags that builds and publishes 9 distinct artefacts (zip, tar.gz, deb, rpm) across the 3 supported platforms, plus a `SHA256SUMS` file for verification.
+
+Where it lives: `.github/workflows/release.yml`. The workflow has a 3-platform matrix; each platform produces multiple package formats. A separate `release-smoke.yml` validates each artefact in a clean container post-publish (10 container configs: deb on debian:12 + ubuntu:24.04, rpm on fedora:40 + rockylinux:9, tarball on alpine:3.19, plus macOS).
+
+Why it matters here specifically: a release that ships only source requires every user to bootstrap. Pre-built `intercal_core` binaries plus packaged artefacts mean users can install without the bootstrap step.
+
+Production-compiler equivalents:
+- LLVM ships pre-built binaries for major platforms via release pages.
+- rustup distributes pre-built rustc/cargo for all tier-1 targets.
+- GHC's bindists have been the user-facing distribution since the 1990s.
+- The pattern "tag + CI + multi-platform artefacts + signed sums" is industry-standard.
+
+Where to read more: `.github/workflows/release.yml` and `release-smoke.yml`; rustup's documentation on distribution channels.
+
+## TDD with red-green-refactor discipline
+
+What it is: the explicit project policy (in `AGENTS.md`) that any change to compiler behaviour must come with a test that fails before the change and passes after. Red, then green, then refactor.
+
+Where it lives: `AGENTS.md` documents the rule; `tests/run_tests.sh` and friends run the tests; the pre-commit hook enforces it.
+
+Why it matters here specifically: the compiler is large enough that ad-hoc verification ("I ran it on hello.i") misses bugs. A failing test before the fix proves the bug exists; the same test passing after proves the fix works; the test stays in the suite as regression armour. This is exactly how the IR inspection flags `--emit-cfg` and `--emit-3addr` were added in this very session.
+
+Production-compiler equivalents:
+- All major compilers require tests with PRs/patches.
+- LLVM specifically requires lit-based regression tests under `llvm/test/`.
+- rustc requires UI tests under `tests/ui/`.
+- The cultural norm is universal among production compilers, even when the specific test framework differs.
+
+Where to read more: `AGENTS.md` for our policy; the rustc-dev-guide chapter on writing tests; LLVM's "writing tests" documentation.
+
 ## Closing
 
 The techniques in this chapter are the visible advanced compiler engineering in our codebase. They are not the most sophisticated possible; they are the ones a 2,000-line shell script can reasonably carry. Each maps directly onto a slice of the production compilers in Part VII.

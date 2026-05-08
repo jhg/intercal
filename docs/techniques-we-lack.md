@@ -880,6 +880,422 @@ Why we do not have it: our differential testing is much smaller (pure-vs-native 
 
 Where to read more: the Csmith paper (Yang et al. 2011); Crater documentation; the OSS-Fuzz blog posts on compiler bugs.
 
+# Additional GC algorithms
+
+The GC section above covered the algorithm families. The taxonomy hides a lot of important specific algorithms each with distinct trade-offs.
+
+## ZGC (Z Garbage Collector)
+
+What it is: a scalable, low-latency collector for the JVM that performs nearly all work concurrently, achieving consistent pause times in the 0.1-0.5 ms range regardless of heap size, scaling to terabyte heaps. Uses 64-bit colored pointers (metadata stored in unused virtual address bits) plus load barriers to relocate objects while application threads run. JEP 439 added a generational variant.
+
+Production: OpenJDK (default for many low-latency Java workloads).
+
+Where to read more: JEP 333 and JEP 439 on openjdk.org; "Deep Dive into ZGC" (TOPLAS 2022).
+
+## Shenandoah
+
+What it is: Red Hat's region-based concurrent compacting collector that performs evacuation while application threads run, using Brooks-style forwarding pointers and read/write barriers; pauses are independent of live-set size.
+
+Production: OpenJDK since JDK 12, Red Hat Enterprise Linux Java workloads.
+
+Where to read more: Flood et al., "Shenandoah" (PPPJ 2016); Red Hat developer guide on Shenandoah.
+
+## G1 (Garbage First)
+
+What it is: region-partitioned, generational, mostly-concurrent collector that prioritises evacuating regions with the most garbage to meet a soft pause-time goal. Default in HotSpot since Java 9. The algorithmic ancestor of Shenandoah, ZGC, and Azul C4.
+
+Production: OpenJDK default for general-purpose workloads.
+
+Where to read more: Detlefs et al., "Garbage-First Garbage Collection" (ISMM 2004); Oracle's G1 tuning guide; "Deconstructing the Garbage-First Collector" (VEE 2020).
+
+## Immix (mark-region collector)
+
+What it is: a mark-region collector that allocates into contiguous lines (128 B) within blocks (32 KB), reclaims at line and block granularity, and opportunistically evacuates fragmented blocks in a single pass. Combines the throughput of mark-sweep with the locality of copying collectors.
+
+Production: Rubinius (Ruby), Crystal's experimental GC, MMTk (Memory Management Toolkit, used by V8 and OpenJDK research integrations).
+
+Where to read more: Blackburn and McKinley, "Immix" (PLDI 2008).
+
+## Boehm-Demers-Weiser GC
+
+What it is: a conservative mark-sweep collector for C/C++ that scans the stack and globals as untyped roots, treating any bit pattern that looks like a pointer as one. Trades precision for the ability to retrofit GC onto languages without type metadata.
+
+Production: Mono (legacy), GNU Objective-C, Crystal, GCJ, GNU Guile, many embedded language runtimes.
+
+Where to read more: hboehm.info/gc/ (the canonical site); Boehm and Weiser, "Garbage collection in an uncooperative environment" (SP&E 1988).
+
+## Deferred reference counting
+
+What it is: Deutsch-Bobrow's optimisation that omits RC updates for stack and register references, then periodically reconciles by scanning roots against a zero-count table. Cuts roughly 99% of RC operations in Lisp/ML-like workloads, at the cost of delayed reclamation.
+
+Production: original LISP implementations; conceptual basis for many modern RC systems.
+
+Where to read more: Deutsch and Bobrow, "An Efficient, Incremental, Automatic Garbage Collector" (CACM 1976).
+
+## Biased reference counting
+
+What it is: each object is "owned" by one thread; the owner uses non-atomic increments while other threads update a separate atomic counter, merged on ownership transfer. Halves RC cost in the common case where most updates come from one thread.
+
+Production: Swift runtime since iOS/macOS 14 timeframe.
+
+Where to read more: Choi, Shull, Torrellas, "Biased Reference Counting" (PACT 2018); Swift Forums design discussion.
+
+## Bacon cycle collection (trial deletion)
+
+What it is: a concurrent algorithm that detects cycles by colouring potential roots "purple" on RC decrement, then performing trial decrement traversal to find self-sustaining subgraphs unreachable from outside. Avoids global heap walks.
+
+Production: PHP since 5.3, IBM Recycler (Jalapeño JVM), conceptually CPython's `gc` module.
+
+Where to read more: Bacon and Rajan, "Concurrent Cycle Collection in Reference Counted Systems" (ECOOP 2001).
+
+# Additional execution-model techniques
+
+## Trace JIT vs method JIT
+
+What they are: two main JIT strategies. *Method JITs* (HotSpot C1/C2, V8 TurboFan) compile whole methods using profile data. *Trace JITs* (LuaJIT, early TraceMonkey, PyPy with tracing) compile linear hot paths starting at loop edges, inlining across function boundaries by following execution. Trace JITs excel at tight loops in dynamic languages but suffer at branch-heavy code.
+
+Production: LuaJIT (Mike Pall) is the canonical trace JIT; PyPy uses a meta-tracing approach; HotSpot and V8 are method-based.
+
+Where to read more: Mike Pall's LuaJIT design notes; Gal et al., "Trace-based Just-in-Time Type Specialization" (PLDI 2009).
+
+## Polymorphic inline caches (PICs)
+
+What they are: extension of monomorphic ICs that record several (receiver-type, target) pairs per call site, enabling fast dispatch for sites with multiple but bounded receiver types and exposing concrete type information to the recompiler.
+
+Production: Self, Strongtalk, HotSpot, V8, JavaScriptCore.
+
+Where to read more: Hölzle, Chambers, Ungar, "Optimizing Dynamically-Typed OO Languages with Polymorphic Inline Caches" (ECOOP 1991); the foundational paper.
+
+## Stack maps for precise GC
+
+What they are: per-call-site metadata recording exactly which stack slots and registers hold live GC pointers, enabling collectors to relocate objects without scanning untyped memory. The alternative (conservative scanning, Boehm-style) over-retains and forbids moving collectors.
+
+Production: HotSpot OopMaps, .NET CLR GCInfo, LLVM `gc.statepoint`.
+
+Where to read more: LLVM Statepoints documentation; LLVM GarbageCollection guide.
+
+## Safepoints
+
+What they are: compiler-inserted polls (typically a load from a page that is unmapped to trigger SIGSEGV when GC is needed) that let mutator threads cooperatively pause at known points where stack maps are valid. Loop back-edges and method entries/exits are typical poll sites.
+
+Production: HotSpot uses page-protected polling; V8 and .NET have similar mechanisms.
+
+Where to read more: Aleksey Shipilev's "JVM Anatomy Quark #22: Safepoint Polls"; LLVM Statepoints.
+
+## Class hierarchy analysis (CHA)
+
+What it is: static analysis of the loaded class graph that proves a virtual call has only one possible target (the method has no overrides), enabling devirtualisation. In dynamic systems it must be invalidated when classes are loaded.
+
+Production: HotSpot, GraalVM, Soot, Go's `golang.org/x/tools/go/callgraph/cha`.
+
+Where to read more: Dean, Grove, Chambers, "Optimization of Object-Oriented Programs Using Static Class Hierarchy Analysis" (ECOOP 1995).
+
+## Speculative devirtualisation
+
+What it is: inline a likely target guarded by a type check (or rely on CHA plus a deopt trap if a new class is loaded), backed by deoptimisation when speculation fails. Bridges PICs and full inlining.
+
+Production: HotSpot C2, GraalVM, V8 TurboFan.
+
+Where to read more: Ishizaki et al., "A Study of Devirtualization Techniques for a Java JIT Compiler" (OOPSLA 2000); Shipilev, "Black Magic of Java Method Dispatch".
+
+## Inline cache repair and IC miss handling
+
+What it is: on a cache miss, the runtime patches the call site (monomorphic to polymorphic to megamorphic) atomically, often by writing into JIT-generated stubs. Megamorphic sites may bail out to a method-table lookup.
+
+Production: V8 (feedback vectors), JavaScriptCore (LLInt + Baseline tiers), HotSpot.
+
+Where to read more: Brunthaler, "Inline caching meets quickening" (ECOOP 2010); Mathias Bynens's V8 ICs blog series.
+
+## Two-tier compilation (C1 + C2)
+
+What it is: methods start in the interpreter, get promoted to the fast-compiling C1 (client) for profiling, and only the hottest are recompiled by the slower-but-better C2 (server). HotSpot defines five levels (interpreter through full C2). Balances startup latency against peak throughput.
+
+Production: OpenJDK HotSpot (the original two-tier model), Azul Zing/Falcon, V8 with its four-tier extension (Ignition, Sparkplug, Maglev, TurboFan).
+
+Where to read more: Microsoft's "How Tiered Compilation works in OpenJDK"; InfoQ's "What the JIT!?".
+
+## AutoFDO
+
+What it is: sample-based PGO that consumes hardware counter (`perf record`) data from production, normalises it to a profile format, and feeds it into LLVM/GCC. No instrumented build needed.
+
+Production: Google datacentre fleet (5-15% wins), Android kernel (up to 10% gains), the LLVM toolchain itself.
+
+Where to read more: Chen et al., "AutoFDO: Automatic Feedback-Directed Optimization" (CGO 2016); Linux kernel AutoFDO docs.
+
+## Case studies in JIT compilation
+
+A few production JIT stories worth singling out, because they illustrate different points in the design space:
+
+**PHP JIT (PHP 8.0)**: implemented "as an almost independent part of OPcache" using DynASM, the lightweight code generator from LuaJIT. Rather than introducing a separate IR, the system generates native code directly from PHP bytecode combined with SSA-framework analysis. Supports x86, x86_64, ARM. Performance varies by workload: ~4x on Mandelbrot, ~2x on general microbenchmarks, ~1.3x on PHP-Parser, near-zero on WordPress (typical web workloads are I/O-bound, not CPU-bound). The approval vote was 50-2 for PHP 8.0; an earlier 7.4 attempt had failed (18-36) due to engine-stability concerns. Lesson: JIT is high-payoff for CPU-intensive workloads, low-payoff for typical web workloads, and the maintenance cost is real (debugging requires reading machine code dumps). See <https://wiki.php.net/rfc/jit>.
+
+**Octave JIT (removed 2021)**: an LLVM-based JIT for the Octave numerical-computing language, originally implemented in Google Summer of Code 2012 by Max Brister. The implementation built an intermediate IR for type inference before converting to LLVM IR, because Octave's untyped AST cannot lower to LLVM IR directly. JIT only triggered at loop entry points, with fallback to the interpreter on compilation failure. Removed in 2021 because of LLVM API instability (each LLVM version broke the build) and the maintenance burden of a niche component. Lesson: JIT-via-LLVM trades simplicity (you reuse the LLVM optimiser) for sustainability (you commit to chasing the LLVM API forever). See <https://wiki.octave.org/JIT>.
+
+**LuaJIT**: a from-scratch tracing JIT, no LLVM, no third-party backend. Hand-written x86/x64/ARM/ARM64/PPC/MIPS code generation with extreme attention to per-instruction quality. By many accounts the fastest JIT for any dynamic language, ahead of V8 on numerical workloads. Lesson: a full custom JIT can outperform LLVM-based ones if the language semantics are narrow enough that the optimiser can be tightly tuned to them.
+
+The general lesson across these three: there is no one JIT design. The right choice depends on language semantics, target user base, maintenance willingness, and what existing infrastructure you can lean on. JIT writeups in *The c2 Wiki* (<https://wiki.c2.com/?JustInTimeCompiler>) and the Wikipedia article are useful jumping-off points before reading the production sources.
+
+# Security techniques in production compilers
+
+Compilers are increasingly responsible for memory-safety enforcement at the binary level. Our INTERCAL compiler does none of these because INTERCAL has no memory-safety bugs to mitigate (no pointer arithmetic, no buffer overruns possible in the source language). But every modern toolchain ships them.
+
+## Stack canaries
+
+What it is: a random word placed between local variables and the return address; verified on function exit. `-fstack-protector` covers functions with char buffers; `-fstack-protector-strong` extends to any function with arrays, address-taken locals, or local register variables, covering ~20% of functions at ~2% size cost.
+
+Production: Linux kernel, glibc, every major distro, Chrome, Firefox.
+
+Where to read more: Red Hat's "Use compiler flags for stack protection"; Kees Cook's "-fstack-protector-strong" blog post.
+
+## Control Flow Integrity (CFI)
+
+What it is: at indirect calls, checks the target against a per-function-type bit vector built at LTO time; targets are rerouted through canonical jump-table entries. Defends against forward-edge hijacking.
+
+Production: Android (kernel + userspace), Chrome OS, parts of iOS.
+
+Where to read more: Clang's `ControlFlowIntegrity.html`; "CFI Design" doc in Clang source.
+
+## SafeStack
+
+What it is: splits the stack into a "safe stack" (return addresses, spills, scalars accessed safely) at a randomised hidden address, and an "unsafe stack" (buffers, address-taken locals). Backward-edge protection without runtime checks.
+
+Production: Clang's `-fsanitize=safe-stack`, Fuchsia OS.
+
+Where to read more: Clang SafeStack documentation; Kuznetsov et al., "Code-Pointer Integrity" (OSDI 2014).
+
+## Shadow stacks
+
+What it is: hardware- or compiler-maintained second stack holding only return addresses, checked on RET. Hardware variant (Intel CET SHSTK) has the CPU push to both stacks on CALL and trap on mismatch.
+
+Production: Intel CET on 11th gen Core / Zen 3+; Windows 10/11 Hardware-enforced Stack Protection; Linux 6.4+.
+
+Where to read more: Intel CET technical overview; Linux `shstk` docs.
+
+## ARM Pointer Authentication (PAC)
+
+What it is: ARMv8.3-A instructions (`PAC*`/`AUT*`) sign pointers with a tweak (typically the SP) and a key, storing a MAC in unused upper address bits. Tampered pointers fail authentication and fault.
+
+Production: Apple A12+/M1+ (arm64e ABI; XNU kernel uses a hardened variant), Linux kernel.
+
+Where to read more: ARM "Pointer Authentication" learn module; Project Zero "Examining Pointer Authentication on iPhone XS"; Liljestrand et al., "PAC it up" (USENIX Security 2019).
+
+## Branch Target Identification (BTI)
+
+What it is: ARMv8.5-A landing-pad scheme. Indirect branches (BR/BLR) trap unless the target is a `BTI` instruction of the matching kind (c/j/jc). Forward-edge counterpart to PAC.
+
+Production: aarch64 Linux since 5.8 with PROT_BTI; Fedora aarch64; Apple silicon. NSA reported a 50x reduction in usable ROP gadgets.
+
+Where to read more: LWN "ARMv8.5-A: Branch Target Identification support"; ARM developer guide on PAC, BTI, MTE.
+
+## ASLR and codegen interaction
+
+What it is: Address Space Layout Randomization works best when the compiler emits position-independent code (PIC/PIE) and avoids absolute addresses; codegen must materialise globals via GOT/PLT or PC-relative `lea`. Static initialisers, JIT-emitted code, and TLS interact in subtle ways.
+
+Production: every modern OS userspace, KASLR in Linux/Windows kernels.
+
+Where to read more: PaX team's original design document; glibc Hardening manual.
+
+## RELRO and full RELRO
+
+What it is: linker reorders ELF segments so relocations sit in a region that is `mprotect`'d read-only after dynamic loading. Partial RELRO protects `.got` but not `.got.plt`; full RELRO (`-Wl,-z,relro,-z,now`) resolves all PLT entries eagerly and freezes the entire GOT, blocking GOT overwrite attacks.
+
+Production: every major distribution's hardened build flags.
+
+Where to read more: Red Hat's "Hardening ELF binaries using RELRO"; Tk's original RELRO article.
+
+## Stack-clash mitigation
+
+What it is: the compiler emits a probe (`mov` to `[sp]` or similar) every page when allocating large stack frames or `alloca`, ensuring the kernel guard page is touched and a stack-heap collision fails fast.
+
+Production: GCC `-fstack-clash-protection` since 8; Clang since 12 on x86/SystemZ/PPC; default in RHEL 8+, Fedora 27+.
+
+Where to read more: Red Hat's "Stack clash mitigation in GCC"; LLVM blog "Bringing Stack Clash Protection to Clang/X86".
+
+## -fcf-protection (Intel CET in GCC/Clang)
+
+What it is: inserts ENDBR64 at all indirect-branch targets (IBT) and emits shadow-stack-aware prologues/epilogues. On non-CET CPUs ENDBR is a NOP, so binaries are forward-compatible.
+
+Production: Linux kernel (IBT enforced since 6.2), Fedora, Ubuntu, Windows.
+
+Where to read more: GCC Instrumentation Options manual page; Intel CET overview.
+
+# Additional middle-end optimisations
+
+## CSSPGO (Context-Sensitive Sample PGO)
+
+What it is: extends AutoFDO with synchronised LBR + stack sampling to reconstruct calling contexts, plus pseudo-instrumentation pseudo-probes that make sample-to-IR mapping precise without runtime overhead. Roughly +2% over AutoFDO at -4% text size on SPEC2006.
+
+Production: Meta uses CSSPGO on >75% of datacentre cycles; upstream LLVM.
+
+Where to read more: He, Yu et al., "Revamping Sampling-Based PGO with Context-Sensitivity and Pseudo-instrumentation" (CGO 2024).
+
+## Propeller (post-link block reordering)
+
+What it is: emits one ELF section per basic block (`-fbasic-block-sections`), then relinks using a fresh profile to lay out hot blocks contiguously, split cold blocks out, and reorder functions. Avoids binary rewriting (unlike BOLT).
+
+Production: Google datacentre fleet, Clang itself (~7%), MySQL (~1%), kernels.
+
+Where to read more: Shen et al., "Propeller" (ASPLOS 2023); google/llvm-propeller on GitHub.
+
+## Spectre mitigations: retpoline and LFENCE
+
+What they are: *Retpoline* replaces indirect call/jmp with a return-trap that traps speculation in an infinite loop on the BTB-poisoning path. *LFENCE-after-load* serialises load address resolution before dependent branches.
+
+Production: Linux kernel (`CONFIG_MITIGATION_RETPOLINE`), Windows kernel, hypervisors. Compiler flags: `-mretpoline` (Clang), `-mindirect-branch=thunk` (GCC).
+
+Where to read more: Intel's "Retpoline" whitepaper; LWN "Retpoline" coverage; Linux Spectre kernel docs.
+
+## Branch divergence analysis (GPU)
+
+What it is: dataflow analysis classifying values as *uniform* (same across a warp/wavefront) or *divergent*; branches on divergent conditions force SIMT serialisation. Used to skip divergence-handling code, drive control-flow linearisation, and inform register allocation.
+
+Production: NVCC/PTX, AMD ROCm/HIPCC, LLVM `LegacyDivergenceAnalysis` and the newer `UniformityAnalysis`.
+
+Where to read more: Han and Abdelrahman, "Reducing Branch Divergence in GPU Programs" (GPGPU 2011); LLVM UniformityAnalysis docs.
+
+## Memory dependence analysis
+
+What it is: per-instruction queries answering "which prior store could this load see?" built on top of alias analysis. LLVM's `MemoryDependenceAnalysis` (and the newer `MemorySSA`) underpins GVN, DSE, LICM, and memcpy optimisation. SCEV-AA improves precision inside loops by reasoning about induction variables symbolically.
+
+Production: LLVM, GCC's tree-SSA, Java HotSpot C2 (ideal graph).
+
+Where to read more: LLVM Alias Analysis Infrastructure; LLVM MemorySSA documentation.
+
+# Concurrency primitives
+
+## Memory ordering models (SC, TSO, RC)
+
+What they are: *Sequential Consistency* (textbook, expensive on hardware), *Total Store Order* (x86, SPARC: stores can be buffered past loads), *Relaxed/Release-Consistency* (ARM, POWER, RISC-V: loads and stores reorder freely without barriers). C++11/C/Rust atomics expose these via `memory_order_*`; the compiler picks the cheapest implementation per target.
+
+Production: every multi-core compiler.
+
+Where to read more: Sewell et al., "x86-TSO: A Rigorous and Usable Programmer's Model"; Boehm-Adve mappings to processors.
+
+## Atomics codegen: cmpxchg vs LL/SC
+
+What it is: on x86 (TSO + locked instructions) the compiler emits `LOCK CMPXCHG` and `XCHG`; on ARM/POWER/RISC-V (LL/SC) it emits a load-exclusive / store-conditional retry loop, often expanded late (after register allocation) to satisfy hardware constraints on the loop body. Acquire/release become barriers (`DMB ISH` on ARMv7, `LDAR/STLR` on ARMv8).
+
+Production: LLVM `AtomicExpandPass`, GCC `__atomic_*` builtins.
+
+Where to read more: LLVM Atomics Concurrency Guide; Boehm-Adve C++0x mappings.
+
+## Lock elision / hardware transactional memory (TSX)
+
+What it is: hardware speculatively executes a critical section without taking the lock; on conflict it aborts and retries non-speculatively. Compiler exposed via `XACQUIRE`/`XRELEASE` prefixes (HLE) or `_xbegin`/`_xend` intrinsics (RTM). HLE is now deprecated by Intel; RTM remains but has been disabled or sandboxed by microcode in many parts after MDS-class attacks.
+
+Production: glibc had `pthread_mutex` HLE paths; mostly removed in 2019+.
+
+Where to read more: Intel TSX Wikipedia summary with microcode-disable history.
+
+# Embedded and specialised techniques
+
+## -Oz code-size optimisation
+
+What it is: Clang's most aggressive size pass. Like `-Os` (which is `-O2` with size-tuned inliner and merge thresholds) but trades further runtime for smaller text. Disables loop unrolling, prefers `tail-call` over inlining, enables outliner. Roughly 15% smaller than `-Os` typically, with measurable perf loss.
+
+Production: iOS apps default to `-Os`; embedded firmware uses `-Oz`.
+
+Where to read more: Clang command guide; LLVM machine-outliner docs.
+
+## ROM placement
+
+What it is: linker scripts and section attributes (`__attribute__((section(".rodata.foo")))`) place constants and code in flash/ROM regions, with RAM reserved for `.data`/`.bss`. Toolchain support includes copy-to-RAM stubs in startup code and XIP (execute-in-place) flash configurations.
+
+Production: every embedded GCC/LLVM target; ARM Keil, IAR, Zephyr, FreeRTOS.
+
+Where to read more: GCC linker script docs; Zephyr linker script architecture.
+
+## Link-time DCE for embedded (`--gc-sections`)
+
+What it is: `-ffunction-sections -fdata-sections -Wl,--gc-sections` puts each function/variable in its own section so the linker can prove unreferenced ones unreachable and drop them. Combined with `--print-gc-sections` to audit.
+
+Production: every embedded GCC build, Linux kernel (LTO mode), Android NDK.
+
+Where to read more: MaskRay's "Linker garbage collection"; LWN "Shrinking the kernel with link-time garbage collection".
+
+## Fixed-point arithmetic
+
+What it is: embedded DSP code uses Q-format integers (`Q15`, `Q31`) representing fractional values; compilers expose this via `_Fract`/`_Accum` types from ISO/IEC TR 18037 (Embedded C), or library intrinsics. Codegen emits scaled multiply-shift sequences and saturating ops.
+
+Production: GCC fixed-point, TI C2000 codegen, ARM CMSIS-DSP.
+
+Where to read more: ISO/IEC TR 18037 Embedded C; GCC fixed-point types docs.
+
+## Saturating arithmetic intrinsics
+
+What they are: LLVM's `@llvm.sadd.sat`, `@llvm.usub.sat`, `@llvm.ssub.sat`, and target-specific intrinsics clamp on overflow rather than wrapping. Lower to `SSAT`/`USAT`/`QADD`/`QSUB` on ARM, `PADDSB`/`PSUBSB` on x86 SIMD, dedicated DSP ops on Hexagon.
+
+Production: image/audio codecs, neural network kernels (XNNPACK, ARM Compute Library).
+
+Where to read more: LLVM LangRef saturation intrinsics; ARM ACLE saturation.
+
+# WebAssembly-specific techniques
+
+## Wasm-specific optimisations
+
+What they are: beyond MVP, the toolchain now exploits *relaxed-SIMD* (implementation-defined fast paths for FMA, swizzle), *exception handling* (lowering to native EH instead of branchy returncodes), and the *GC proposal* (typed `(ref struct)`/`(ref array)` instead of linear-memory shadow heaps).
+
+Production: Binaryen (wasm-opt), Emscripten, Kotlin/Wasm, Dart Wasm backend; WasmGC enabled in V8/SpiderMonkey/JavaScriptCore and Wasmtime.
+
+Where to read more: WebAssembly proposals tracker on GitHub; Binaryen optimisation docs.
+
+## Wasm Component Model
+
+What it is: typed interfaces, resources, and a binary "component" format that wraps multiple core modules with strongly-typed shared-nothing linking driven by the Canonical ABI and WIT (Wasm Interface Types). Cross-language linking without C ABI compromises.
+
+Production: Wasmtime (full support, late 2024), `wit-bindgen` for Rust/Go/Python/JS, jco.
+
+Where to read more: component-model.bytecodealliance.org; WebAssembly/component-model repo.
+
+## WASI evolution
+
+What it is: *Preview 1* (snapshot of POSIX-flavoured syscalls) is now legacy; *Preview 2* (WASI 0.2, January 2024) is built on the Component Model with capability-typed worlds (`wasi:cli`, `wasi:http`, `wasi:io`); *Preview 3* (0.3, in flight 2025) adds native async via component-model streams and futures.
+
+Production: Wasmtime, JCo, Spin, Wasmer; cloud platforms (Fastly, Fermyon).
+
+Where to read more: WASI 0.2 announcement; WebAssembly/WASI repo.
+
+# Modern frontend infrastructure
+
+## Token-based diagnostic localisation
+
+What it is: older compilers report errors by `(file, line, column)` derived from raw character offsets, which break on multibyte UTF-8 and re-tokenisation. Modern frontends attach diagnostics to *token ranges* (Roslyn `SyntaxToken`, Clang `SourceRange`, rust-analyzer `TextRange`), letting IDEs map them back through edits and macros.
+
+Production: Roslyn, Clang/LLVM, rust-analyzer, swift-syntax.
+
+Where to read more: Clang SourceManager design; Roslyn syntax overview.
+
+## Recovery parsing for IDE responsiveness
+
+What it is: "resilient" parsers (Tree-sitter's GLR, Roslyn's hand-written, rust-analyzer's `ungrammar`-driven) produce a partial tree even with syntax errors using approaches like phrase-level recovery, synchronisation tokens, and inserted dummy nodes. Critical for syntax highlighting, completion, and inlay hints during typing.
+
+Production: Tree-sitter (GitHub semantic, Neovim, Helix, Atom), Roslyn, rust-analyzer, swift-syntax.
+
+Where to read more: Aleksey Kladov's "Resilient LL Parsing Tutorial"; Tree-sitter creator's design notes.
+
+## Semantic highlighting
+
+What it is: LSP's `textDocument/semanticTokens` lets servers annotate tokens with type-derived categories (`parameter`, `enumMember`, `unusedVariable`) instead of relying on the editor's regex-based highlighter. Requires the type checker to emit per-token classification and supports incremental delta updates.
+
+Production: clangd, rust-analyzer, gopls, OmniSharp, the TypeScript language server.
+
+Where to read more: LSP `semanticTokens` spec; VS Code semantic highlight guide.
+
+## Macro hygiene algorithms
+
+What they are: the *Kohlbecker-Friedman-Felleisen-Duba* (KFFD) timestamp algorithm renames identifiers introduced by a macro so they cannot capture user names; *syntax-case* (Dybvig) records syntax objects with marks; *Set of Scopes* (Flatt, Racket 6.3+) replaces linear timestamps with a set of scope tags per identifier. Rust uses a hygienic but simpler `SyntaxContext`-based scheme for `macro_rules!`.
+
+Production: Racket, Chez Scheme, Rust, Clojure, Scala 3 macros.
+
+Where to read more: Flatt, "Bindings as Sets of Scopes" (POPL 2016); KFFD original (ACM 1986).
+
+## Effect inference (research)
+
+What it is: type-and-effect systems annotate function types with the side effects they perform (`io`, `exn`, `div`, `alloc`, user-defined). Koka uses row-polymorphic effects with Hindley-Milner-style inference, so most effect annotations are inferred. Algebraic effect handlers generalise exceptions, generators, and async.
+
+Production: Koka (research/Microsoft), Eff, Frank, Effekt; OCaml 5 (handlers without inference).
+
+Where to read more: Leijen, "Koka: Programming with Row-polymorphic Effect Types" (MSFP 2014); Leijen, "Type Directed Compilation of Row-Typed Algebraic Effects" (POPL 2017); Pretnar tutorial on algebraic effects.
+
 # What we deliberately exclude
 
 Some techniques are not just absent but actively out of scope. Naming them prevents future confusion.

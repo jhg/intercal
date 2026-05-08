@@ -143,6 +143,8 @@ The current state varies per architecture. x86-64 self-hosted is the most mature
 
 Code-quality tradeoff: self-hosted backends produce code that is functionally correct but not optimised the way LLVM optimises. There is no inlining heuristic, no vectorisation, no loop unrolling, no aggressive instruction scheduling. For debug builds, this is fine. For release builds, LLVM remains the production choice in 2026.
 
+The 2025 milestone: the self-hosted x86_64 backend became the default in Debug mode on Linux and macOS. It passes around 1,987 behaviour tests (more complete in language coverage than the LLVM backend in some areas) and produces 5-50% faster wall-clock builds depending on the project. Windows still defaults to LLVM because the COFF linker work is incomplete. A new from-scratch aarch64 backend was merged in July 2025 (PR 24536) and will benefit from a recently added Legalize pass shared across backends. Release mode still uses LLVM on every architecture; production-ready self-hosted Release is the next milestone.
+
 The architectural lesson: a project can pre-emptively build the alternative to its current dependency, and migrate gradually. This is rare. Most compilers commit to LLVM (Crystal, Rust, Swift, Julia) or commit to their own backend (Go, Haskell's NCG, OCaml's native, GCC) without gradual transition. Zig is one of the few that is mid-transition in production.
 
 ## `zig cc` and cross-compilation

@@ -177,6 +177,14 @@ The GC has had multiple major rewrites over V8's lifetime, each named (Mark-Swee
 
 For a reader, the GC is one of the cleanest examples of "concurrent algorithms in production". Every detail (write barriers, marker termination, snapshot-at-the-beginning, work-stealing) has been wrestled with in V8.
 
+## Recent additions: speculative inlining for WebAssembly
+
+A 2025 development worth highlighting: bringing the *speculation framework* (deopt + IC-style feedback) into the WASM pipeline. Historically WASM optimisation in V8 was static; without runtime feedback there was nothing to speculate on. Chrome M137 changed that.
+
+V8 now records call targets for indirect calls during Liftoff execution. Then TurboFan, when promoting a function, can speculatively inline up to four targets, with deopt fallback if the assumption breaks. Reported speedups: over 50% on Dart microbenchmarks and 1-8% on real WasmGC apps.
+
+The implication: WebAssembly is no longer a purely-static target in V8. The same speculation/deopt machinery that makes JavaScript fast is now applied to WASM hot code. Browsers are increasingly running WasmGC programs (Dart, Kotlin/Wasm, soon others) where speculative inlining is the difference between competitive and non-competitive performance.
+
 ## WebAssembly support: a parallel pipeline
 
 V8 also runs WebAssembly. The pipeline is separate but shares much of the infrastructure.

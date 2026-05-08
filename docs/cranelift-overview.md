@@ -53,13 +53,42 @@ Cranelift's optimiser is intentionally minimal. The passes that run by default:
 - Simple dead-code elimination
 - Branch threading (jump-to-jump elimination)
 - Simple CSE (common subexpression elimination)
-- Egraph-based simplification (`cranelift_codegen::egraph`, since 2022): a single pass that combines GVN, simplification, and limited rewriting through an e-graph data structure
+- Egraph-based simplification (`cranelift_codegen::opts/`, in production): a single pass that combines GVN, simplification, and limited rewriting through an e-graph data structure
 
 What is missing, by design: aggressive inlining, loop optimisations, vectorisation, polyhedral, profile-guided. Cranelift is not the place to do those; LLVM is.
 
-The egraph rewriter deserves a footnote. E-graphs (equivalence graphs) are a data structure where each node represents an equivalence class of values, and rewrites add to the class without losing the original form. After applying rewrites, an "extraction" phase picks the cheapest representative from each class. Cranelift's optimiser uses a custom implementation tailored for SSA, with rewrites declared in `.isle` rule files (see below). The whole thing is a single pass that does the work of several conventional passes.
+The egraph rewriter is the most distinctive recent addition. The 2026 design write-up by Chris Fallin, "The acyclic e-graph: Cranelift's mid-end optimizer", is the canonical reference. Cranelift uses an *acyclic* variant of the standard e-graph data structure: this avoids the saturation explosion that classical e-graphs (egg, equality saturation) can hit, while keeping the engineering benefits. The optimiser is on by default, and ISLE rewrite rules drive it. As of 2026, around seventeen contributors have added or tweaked rules over the last three years; the codebase is small enough that adding a single rule is a focused contribution.
 
-Reading `cranelift/codegen/src/opts/` is a way to learn about e-graphs without diving into egg or other research libraries. It is a production e-graph applied to a real backend.
+E-graphs (equivalence graphs) are a data structure where each node represents an equivalence class of values, and rewrites add to the class without losing the original form. After applying rewrites, an "extraction" phase picks the cheapest representative from each class. Cranelift's implementation is tailored for SSA. The whole thing is a single pass that does the work of several conventional passes.
+
+Reading `cranelift/codegen/src/opts/` is a way to learn about e-graphs without diving into the academic egg library. It is a production e-graph applied to a real backend.
+
+## Three execution tiers in Wasmtime
+
+A 2024-2025 development worth highlighting: Wasmtime now ships three execution backends instead of just Cranelift.
+
+- **Cranelift**: the optimising backend covered above. Default for production hot code.
+- **Winch**: a single-pass baseline compiler, 15-20x faster compile time than Cranelift, 1.1-1.5x slower runtime. The answer for serverless cold-start workloads where compile time dominates.
+- **Pulley**: a portable bytecode interpreter that runs on platforms without a Cranelift backend, including security-restricted environments where the W^X (write-xor-execute) constraint forbids JIT. Pulley reuses CLIF and the mid-end, then emits Pulley bytecode instead of native code.
+
+The three-tier story is itself a teaching moment. The same compiler infrastructure (CLIF, ISLE, the mid-end optimiser) feeds three different output styles, each tuned for a different deployment scenario. The split is the right reflection of "compile-time vs run-time vs portability" trade-offs.
+
+## ISA support and recent additions
+
+By 2026, Cranelift supports as full backends:
+
+- x86-64
+- AArch64
+- RISC-V (RV64GC)
+- IBM z/Architecture (s390x)
+
+Plus the Pulley portable bytecode target. New ISA work clusters around RISC-V vector extensions and ISLE rewrites for SIMD lowering on x86-64.
+
+## Component model and WASI
+
+A nearby (not-Cranelift but worth knowing about) development: WASI Preview 2 stabilised in 2024 and the Component Model shipped through 2025. Wasmtime is the reference implementation. Wasmtime 37.0 added experimental `map<K,V>` support and an opt-in `wasip3` flag for Preview 3 (async components). Browser support is still in W3C process Phase 2/3.
+
+For Cranelift specifically, the Component Model means the compiler is now compiling component-typed WebAssembly, not just plain WebAssembly. The component-vs-module distinction propagates through the compilation pipeline.
 
 ## Lowering via ISLE
 
