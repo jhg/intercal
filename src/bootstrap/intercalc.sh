@@ -1475,6 +1475,41 @@ detect_syslib() {
 # ABSTAIN/REINSTATE statement targets it (by label or by gerund).
 # Statements that are never modified can skip the 4-instruction flag
 # load at their entry point: dead-flag elimination.
+# Note [E275Elim]
+#   Per-statement static check: an ASSIGN of a #N constant where N
+#   is in [0, 65535] for spot or [0, 4294967295] for twospot CANNOT
+#   raise E275. We pre-compute stmt_e275_safe[i] for those cases and
+#   codegen_assign skips the cmp+b.hi check. Each elision is gated
+#   by opt_bisect_check so --opt-bisect-limit can disable it.
+#   Conservative: anything other than a literal #N is treated as
+#   maybe-overflow.
+typeset -A stmt_e275_safe
+
+compute_e275_safety() {
+  stmt_e275_safe=()
+  local i
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-}"
+    [[ "$t" != "ASSIGN" ]] && continue
+    local body="${stmt_body[$i]:-}"
+    local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
+    local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
+    # Strip outer grouping markers like ' or " for the simplest case.
+    local r="$rhs"
+    r="${r## }"; r="${r%% }"
+    if [[ "$r" =~ '^#([0-9]+)$' ]]; then
+      local val="${match[1]}"
+      if [[ "$target" =~ '^\.[0-9]+$' ]]; then
+        # 16-bit target: safe if val <= 65535
+        (( val <= 65535 )) && stmt_e275_safe[$i]=1
+      elif [[ "$target" =~ '^:[0-9]+$' ]]; then
+        # 32-bit target: always safe (values fit in u32)
+        (( val <= 4294967295 )) && stmt_e275_safe[$i]=1
+      fi
+    fi
+  done
+}
+
 # Note [IgnoreDCE]
 #   var_needs_ign[VARSPEC] = 1 if the program contains an IGNORE or
 #   REMEMBER statement referencing VARSPEC (spot_N, twospot_N, tail_N,
@@ -2417,9 +2452,17 @@ codegen_assign() {
 
   if [[ "$target" =~ '^\.[0-9]+$' ]]; then
     local vnum="${target#.}"
-    emit "  mov w1, #65535"
-    emit "  cmp w0, w1"
-    emit "  b.hi _rt_error_E275"
+    # Note [E275Elim]: skip the cmp+b.hi when the static analysis
+    # proves the RHS cannot exceed 65535 (e.g., literal small const).
+    local emit_e275_check=1
+    if (( ${+stmt_e275_safe[$i]} )) && opt_bisect_check "elim_e275_stmt_$i"; then
+      emit_e275_check=0
+    fi
+    if (( emit_e275_check )); then
+      emit "  mov w1, #65535"
+      emit "  cmp w0, w1"
+      emit "  b.hi _rt_error_E275"
+    fi
     # Note [IgnoreDCE]: skip the runtime _ign load+test when the
     # program never IGNOREs this variable. compute_ignore_checks
     # populates var_needs_ign; var_needs_ign_any forces the safe
@@ -3285,6 +3328,7 @@ main() {
   time_phase syslib detect_syslib
   time_phase flag_checks compute_flag_checks
   time_phase ignore_checks compute_ignore_checks
+  time_phase e275_safety compute_e275_safety
   time_phase unref_labels check_unreferenced_labels
 
   if (( DIAGNOSE_MODE )); then
