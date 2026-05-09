@@ -1083,6 +1083,9 @@ emit_sccp_wz() {
       local target="${stmt_next_target[$i]:-}"
       local v1="${incoming[spot_1]:-TOP}"
       local v2="${incoming[spot_2]:-TOP}"
+      # 32-bit twospot inputs for the 1500-series labels.
+      local tv1="${incoming[twospot_1]:-TOP}"
+      local tv2="${incoming[twospot_2]:-TOP}"
       sccp_const_value() {
         if [[ "$1" =~ '^CONST\(([0-9]+)\)$' ]]; then REPLY="${match[1]}"; return 0; fi
         return 1
@@ -1133,6 +1136,74 @@ emit_sccp_wz() {
             else incoming[spot_3]="BOTTOM"
             fi
           else incoming[spot_3]="BOTTOM"
+          fi
+          ;;
+        1500)
+          # :3 = (:1 + :2) mod 2^32; errors on overflow (no-overflow
+          # path only).
+          if sccp_const_value "$tv1"; then local c1=$REPLY
+            if sccp_const_value "$tv2"; then local c2=$REPLY
+              local sum=$(( c1 + c2 ))
+              if (( sum <= 4294967295 )); then
+                incoming[twospot_3]="CONST($sum)"
+              else
+                incoming[twospot_3]="BOTTOM"
+              fi
+            else incoming[twospot_3]="BOTTOM"
+            fi
+          else incoming[twospot_3]="BOTTOM"
+          fi
+          ;;
+        1509)
+          # :3 = (:1 + :2) mod 2^32; :4 = #1 (no overflow) or #2.
+          if sccp_const_value "$tv1"; then local c1=$REPLY
+            if sccp_const_value "$tv2"; then local c2=$REPLY
+              local sum=$(( (c1 + c2) & 0xFFFFFFFF ))
+              local of=$(( (c1 + c2) > 4294967295 ? 2 : 1 ))
+              incoming[twospot_3]="CONST($sum)"
+              incoming[twospot_4]="CONST($of)"
+            else incoming[twospot_3]="BOTTOM"; incoming[twospot_4]="BOTTOM"
+            fi
+          else incoming[twospot_3]="BOTTOM"; incoming[twospot_4]="BOTTOM"
+          fi
+          ;;
+        1510)
+          # :3 = (:1 - :2) mod 2^32 (unsigned wrap).
+          if sccp_const_value "$tv1"; then local c1=$REPLY
+            if sccp_const_value "$tv2"; then local c2=$REPLY
+              local diff=$(( (c1 - c2 + 4294967296) & 0xFFFFFFFF ))
+              incoming[twospot_3]="CONST($diff)"
+            else incoming[twospot_3]="BOTTOM"
+            fi
+          else incoming[twospot_3]="BOTTOM"
+          fi
+          ;;
+        1520)
+          # :1 = .1 $ .2 (mingle 16-bit + 16-bit -> 32-bit).
+          if sccp_const_value "$v1"; then local c1=$REPLY
+            if sccp_const_value "$v2"; then local c2=$REPLY
+              # Bit-level mingle: bits of .1 to odd positions (1,3,5...),
+              # bits of .2 to even positions (0,2,4...). Match runtime.
+              local result=0 j=0
+              for (( j=0; j<16; j++ )); do
+                local b1=$(( (c1 >> j) & 1 ))
+                local b2=$(( (c2 >> j) & 1 ))
+                result=$(( result | (b1 << (2*j + 1)) | (b2 << (2*j)) ))
+              done
+              incoming[twospot_1]="CONST($result)"
+            else incoming[twospot_1]="BOTTOM"
+            fi
+          else incoming[twospot_1]="BOTTOM"
+          fi
+          ;;
+        1530)
+          # :1 = .1 * .2 (16x16 -> 32-bit; cannot overflow).
+          if sccp_const_value "$v1"; then local c1=$REPLY
+            if sccp_const_value "$v2"; then local c2=$REPLY
+              incoming[twospot_1]="CONST($(( c1 * c2 )))"
+            else incoming[twospot_1]="BOTTOM"
+            fi
+          else incoming[twospot_1]="BOTTOM"
           fi
           ;;
       esac
