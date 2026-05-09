@@ -40,6 +40,7 @@ zsh tests/test_emit_ir_real.sh
 zsh tests/test_effect_elim_more.sh
 zsh tests/test_new_ir.sh
 zsh tests/test_regalloc_hints.sh
+zsh tests/test_emit_sccp_wz.sh
 
 # Csmith-INTERCAL differential testing (10 random programs)
 echo "pre-push: csmith differential (10 programs)"

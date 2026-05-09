@@ -773,6 +773,183 @@ emit_sccp() {
   done
 }
 
+# Note [WegmanZadeckSCCP]
+#   Full Wegman-Zadeck SCCP applied to a simplified INTERCAL model.
+#   Per the 1991 paper:
+#     - Three-element lattice TOP < CONST(c) < BOTTOM.
+#     - A CFG worklist of (pred, succ) edges plus an SSA worklist of
+#       (def_stmt) entries. Edges are not visited until they are
+#       proven executable; defs are not re-evaluated until an edge
+#       into them is found executable.
+#     - A monotone meet at every statement with multiple incoming
+#       executable edges. INTERCAL has only one such confluence: the
+#       statement after a COME FROM target.
+#
+#   Simplifications kept from the existing emit_sccp:
+#     - Variable lattice tracked at the *source-language* level
+#       (.N or :N), not per SSA name. The output reports the final
+#       lattice value at each statement boundary.
+#     - RHS evaluation handles only literal-and-copy chains; any
+#       computed expression yields BOTTOM.
+#
+#   This is still a teaching dump but with proper executable-edge
+#   gating and worklist semantics.
+emit_sccp_wz() {
+  echo "=== Wegman-Zadeck SCCP ==="
+  echo "platform:    $_INTERCAL_PLATFORM"
+  echo "stmts:       $stmt_count"
+
+  # outgoing_<i>_<vk> = "TOP" | "CONST(N)" | "BOTTOM"
+  typeset -A outgoing
+  # exec_into[i] = 1 if any incoming edge has been proven executable.
+  typeset -A exec_into
+  exec_into[1]=1
+
+  # Predecessors. For most i, pred is i-1. For the statement after a
+  # labelled stmt that has an incoming COME FROM, the predecessor set
+  # is { i-1, come_from_source }. We model a NEXT or NEXT_FROM target
+  # as also having edge from the NEXT site.
+  typeset -A preds
+  local i
+  for (( i=1; i<=stmt_count; i++ )); do
+    local plist=""
+    if (( i > 1 )); then plist="$((i-1))"; fi
+    # NEXT and NEXT_FROM targets receive an edge from the source.
+    if [[ -n "${stmt_label[$i]:-}" ]]; then
+      local lbl="${stmt_label[$i]}"
+      local s
+      for (( s=1; s<=stmt_count; s++ )); do
+        local st="${stmt_type[$s]:-}"
+        if [[ "$st" == "NEXT" || "$st" == "NEXT_FROM" ]] \
+           && [[ "${stmt_next_target[$s]:-}" == "$lbl" ]]; then
+          plist+=" $s"
+        fi
+      done
+    fi
+    preds[$i]="$plist"
+  done
+
+  # Meet of two lattice values; result placed in REPLY.
+  meet_lattice() {
+    local a=$1 b=$2
+    if [[ "$a" == "TOP" ]]; then REPLY="$b"; return; fi
+    if [[ "$b" == "TOP" ]]; then REPLY="$a"; return; fi
+    if [[ "$a" == "BOTTOM" || "$b" == "BOTTOM" ]]; then REPLY="BOTTOM"; return; fi
+    if [[ "$a" == "$b" ]]; then REPLY="$a"; return; fi
+    REPLY="BOTTOM"
+  }
+
+  # Process statement i: compute outgoing from the meet of its
+  # executable preds' outgoing values, then evaluate RHS for ASSIGN.
+  # Return non-zero in $? if outgoing changed.
+  process_stmt() {
+    local i=$1
+    typeset -A incoming
+    local p_str="${preds[$i]:-}"
+    local p
+    for p in ${=p_str}; do
+      [[ -z "$p" ]] && continue
+      (( ${exec_into[$p]:-0} )) || continue
+      # Merge p's outgoing into incoming via meet.
+      local k=""
+      for k in ${(k)outgoing}; do
+        if [[ "$k" == "${p}_"* ]]; then
+          local vk="${k#${p}_}"
+          local v="${outgoing[$k]}"
+          local prev="${incoming[$vk]:-TOP}"
+          meet_lattice "$prev" "$v"
+          incoming[$vk]="$REPLY"
+        fi
+      done
+    done
+
+    local body="${stmt_body[$i]:-}"
+    local t="${stmt_type[$i]:-}"
+    if [[ "$t" == "ASSIGN" ]]; then
+      local lhs="${body%%<-*}"; lhs="${lhs## }"; lhs="${lhs%% }"
+      local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
+      local lkey=""
+      if [[ "$lhs" =~ '^\.([0-9]+)$' ]]; then lkey="spot_${match[1]}"
+      elif [[ "$lhs" =~ '^:([0-9]+)$' ]]; then lkey="twospot_${match[1]}"
+      fi
+      if [[ -n "$lkey" ]]; then
+        local r="${rhs//\'/}"; r="${r//\"/}"; r="${r## }"; r="${r%% }"
+        local lat="BOTTOM"
+        if [[ "$r" =~ '^#([0-9]+)$' ]]; then
+          lat="CONST(${match[1]})"
+        elif [[ "$r" =~ '^\.([0-9]+)$' ]]; then
+          lat="${incoming[spot_${match[1]}]:-TOP}"
+        elif [[ "$r" =~ '^:([0-9]+)$' ]]; then
+          lat="${incoming[twospot_${match[1]}]:-TOP}"
+        fi
+        incoming[$lkey]="$lat"
+      fi
+    fi
+
+    # Compare with previous outgoing[i_*]; record changes.
+    local changed=0
+    local k=""
+    for k in ${(k)incoming}; do
+      local oldv="${outgoing[${i}_${k}]:-UNSET}"
+      local newv="${incoming[$k]}"
+      if [[ "$oldv" != "$newv" ]]; then
+        outgoing[${i}_${k}]="$newv"
+        changed=1
+      fi
+    done
+    return $((1 - changed))
+  }
+
+  # CFG worklist of statement indices.
+  typeset -a worklist
+  worklist=(1)
+
+  while (( ${#worklist[@]} > 0 )); do
+    local cur="${worklist[1]}"
+    worklist=("${worklist[@]:1}")
+    if process_stmt "$cur"; then
+      # Outgoing changed: enqueue successors and mark them executable.
+      local succ=0
+      for succ in $((cur+1)); do
+        (( succ > stmt_count )) && continue
+        exec_into[$succ]=1
+        worklist+=("$succ")
+      done
+      # NEXT/NEXT_FROM/COME FROM successors.
+      local t="${stmt_type[$cur]:-}"
+      if [[ "$t" == "NEXT" || "$t" == "NEXT_FROM" ]]; then
+        local lbl="${stmt_next_target[$cur]:-}"
+        local i2
+        for (( i2=1; i2<=stmt_count; i2++ )); do
+          if [[ "${stmt_label[$i2]:-}" == "$lbl" ]]; then
+            exec_into[$i2]=1
+            worklist+=("$i2")
+            break
+          fi
+        done
+      fi
+    fi
+  done
+
+  # Output: per-statement final lattice for tracked variables.
+  echo "executable statements: ${#exec_into[@]}"
+  echo
+  echo "lattice at each statement boundary:"
+  for (( i=1; i<=stmt_count; i++ )); do
+    local printed=0
+    local k=""
+    for k in ${(ko)outgoing}; do
+      if [[ "$k" == "${i}_"* ]]; then
+        local vk="${k#${i}_}"
+        printf "  stmt %2d: %-12s = %s\n" "$i" "$vk" "${outgoing[$k]}"
+        printed=1
+      fi
+    done
+    (( ! printed )) && (( ${exec_into[$i]:-0} )) \
+      && printf "  stmt %2d: (no tracked vars)\n" "$i"
+  done
+}
+
 emit_ssa() {
   # Note [SSAAnalysis]
   #   Analysis-only SSA construction following Braun et al. (2013):
@@ -3788,6 +3965,7 @@ EMIT_TOKENS_MODE=0
 EMIT_IR_FULL_MODE=0
 EMIT_SSA_MODE=0
 EMIT_SCCP_MODE=0
+EMIT_SCCP_WZ_MODE=0
 EMIT_REGALLOC_MODE=0
 EMIT_EFFECTS_MODE=0
 EMIT_IR_REAL_MODE=0
@@ -3814,6 +3992,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-ir-full)       EMIT_IR_FULL_MODE=1; shift ;;
     --emit-ssa)           EMIT_SSA_MODE=1; shift ;;
     --emit-sccp)          EMIT_SCCP_MODE=1; shift ;;
+    --emit-sccp-wz)       EMIT_SCCP_WZ_MODE=1; shift ;;
     --emit-regalloc)      EMIT_REGALLOC_MODE=1; shift ;;
     --emit-effects)       EMIT_EFFECTS_MODE=1; shift ;;
     --emit-ir-real)       EMIT_IR_REAL_MODE=1; shift ;;
@@ -3937,6 +4116,11 @@ main() {
 
   if (( EMIT_SCCP_MODE )); then
     emit_sccp
+    exit 0
+  fi
+
+  if (( EMIT_SCCP_WZ_MODE )); then
+    emit_sccp_wz
     exit 0
   fi
 
