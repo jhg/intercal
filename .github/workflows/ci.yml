@@ -104,6 +104,7 @@ jobs:
           zsh tests/test_stage3_substage1.sh
           zsh tests/test_ir_coverage.sh
           zsh tests/test_bytecode_equiv.sh
+          zsh tests/test_sccp_wz_feed.sh
 
       - name: Csmith-INTERCAL differential (5 programs)
         run: zsh tests/run_csmith_diff.sh 5

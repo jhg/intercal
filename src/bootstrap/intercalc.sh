@@ -1081,9 +1081,12 @@ emit_sccp() {
 #   This is still a teaching dump but with proper executable-edge
 #   gating and worklist semantics.
 emit_sccp_wz() {
-  echo "=== Wegman-Zadeck SCCP ==="
-  echo "platform:    $_INTERCAL_PLATFORM"
-  echo "stmts:       $stmt_count"
+  local _SCCP_WZ_QUIET="${_SCCP_WZ_QUIET:-0}"
+  if (( ! _SCCP_WZ_QUIET )); then
+    echo "=== Wegman-Zadeck SCCP ==="
+    echo "platform:    $_INTERCAL_PLATFORM"
+    echo "stmts:       $stmt_count"
+  fi
 
   # outgoing_<i>_<vk> = "TOP" | "CONST(N)" | "BOTTOM"
   typeset -A outgoing
@@ -1453,6 +1456,39 @@ emit_sccp_wz() {
     fi
   done
 
+  # Feed CONST results into stmt_var_const for codegen-side const
+  # folding. Only update entries the simpler analysis didn't catch.
+  # SCCP-WZ doesn't model STASH/RETRIEVE, so vars touched by them
+  # could carry stale CONST values; skip the feed entirely when the
+  # program uses STASH/RETRIEVE.
+  if (( _SCCP_WZ_QUIET )); then
+    local _has_stash_retrieve=0 _ck=0
+    for (( _ck=1; _ck<=stmt_count; _ck++ )); do
+      local _ct="${stmt_type[$_ck]:-}"
+      if [[ "$_ct" == "STASH" ]] || [[ "$_ct" == "RETRIEVE" ]]; then
+        _has_stash_retrieve=1
+        break
+      fi
+    done
+    if (( _has_stash_retrieve )); then
+      return
+    fi
+    local _ki=""
+    for _ki in ${(k)outgoing}; do
+      if [[ "${outgoing[$_ki]}" =~ '^CONST\(([0-9]+)\)$' ]]; then
+        local _val="${match[1]}"
+        # Key shape: <stmt>_<varspec> -> stmt_var_const[<stmt>:<varspec>].
+        if [[ "$_ki" =~ '^([0-9]+)_(spot_[0-9]+|twospot_[0-9]+)$' ]]; then
+          local _stmt="${match[1]}" _vs="${match[2]}"
+          if [[ -z "${stmt_var_const[${_stmt}:${_vs}]:-}" ]]; then
+            stmt_var_const[${_stmt}:${_vs}]="$_val"
+          fi
+        fi
+      fi
+    done
+    return
+  fi
+
   # Output: per-statement final lattice for tracked variables.
   echo "executable statements: ${#exec_into[@]}"
   echo
@@ -1470,6 +1506,14 @@ emit_sccp_wz() {
     (( ! printed )) && (( ${exec_into[$i]:-0} )) \
       && printf "  stmt %2d: (no tracked vars)\n" "$i"
   done
+}
+
+# Silent variant: run the analysis and merge CONST results into
+# stmt_var_const. Hooked into the analysis pipeline after
+# compute_var_constants when INTERCAL_SCCP_WZ_FEED=1 is set.
+compute_sccp_wz_feed() {
+  local _SCCP_WZ_QUIET=1
+  emit_sccp_wz
 }
 
 emit_ssa() {
@@ -4745,6 +4789,9 @@ main() {
   # stmt_var_const to elide checks that the cross-statement constant
   # propagation proves redundant.
   time_phase var_constants compute_var_constants
+  if [[ "${INTERCAL_SCCP_WZ_FEED:-0}" == "1" ]]; then
+    time_phase sccp_wz_feed compute_sccp_wz_feed
+  fi
   time_phase e275_safety compute_e275_safety
   time_phase unref_labels check_unreferenced_labels
 

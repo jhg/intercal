@@ -45,6 +45,7 @@ zsh tests/test_emit_opt_summary.sh
 zsh tests/test_stage3_substage1.sh
 zsh tests/test_ir_coverage.sh
 zsh tests/test_bytecode_equiv.sh
+zsh tests/test_sccp_wz_feed.sh
 
 # Csmith-INTERCAL differential testing (10 random programs)
 echo "pre-push: csmith differential (10 programs)"
