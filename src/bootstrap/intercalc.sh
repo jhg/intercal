@@ -209,6 +209,130 @@ emit_effects() {
   done
 }
 
+# Note [RealIR]
+#   Three-address IR represented as parallel arrays. The IR is built
+#   by build_ir() walking the expression trees of every statement and
+#   linearising them into a flat sequence of operations with explicit
+#   temporary names (t0, t1, ...). codegen does not yet consume this
+#   IR (the tree-walk codegen path remains in place); instead the
+#   IR is exposed via --emit-ir-real for inspection, and is the data
+#   structure that a future codegen-from-IR rewrite would consume.
+#
+#   The vocabulary:
+#     CONST <dst> <val>           dst = literal
+#     LOADV <dst> <varspec>       dst = load(varspec)
+#     STORE <varspec> <src>       varspec = src
+#     MINGLE <dst> <a> <b>        dst = mingle(a, b)
+#     SELECT <dst> <val> <mask>   dst = select(val, mask)
+#     UNARY_AND <dst> <src>       dst = unary_and(src)
+#     UNARY_OR  <dst> <src>       dst = unary_or(src)
+#     UNARY_XOR <dst> <src>       dst = unary_xor(src)
+#     STMT      <stmt_idx> <type> separator op marking statement boundary
+
+typeset -a ir_ops
+typeset -i _ir_next_temp=0
+
+ir_new_temp() {
+  REPLY="t${_ir_next_temp}"
+  _ir_next_temp=$((_ir_next_temp + 1))
+}
+
+# Walk an expression node (id), append IR ops to ir_ops, return the
+# name of the SSA-temp that holds the result in REPLY.
+build_ir_expr() {
+  local id=$1
+  local t="${expr_type[$id]:-?}"
+  case "$t" in
+    CONST)
+      ir_new_temp; local d="$REPLY"
+      ir_ops+=("CONST $d ${expr_val[$id]}")
+      REPLY="$d"
+      ;;
+    VAR_SPOT)
+      ir_new_temp; local d="$REPLY"
+      ir_ops+=("LOADV $d spot_${expr_val[$id]}")
+      REPLY="$d"
+      ;;
+    VAR_TWOSPOT)
+      ir_new_temp; local d="$REPLY"
+      ir_ops+=("LOADV $d twospot_${expr_val[$id]}")
+      REPLY="$d"
+      ;;
+    OP_AND|OP_OR|OP_XOR)
+      build_ir_expr "${expr_child[$id]}"; local s="$REPLY"
+      ir_new_temp; local d="$REPLY"
+      local op="UNARY_AND"
+      [[ "$t" == "OP_OR" ]] && op="UNARY_OR"
+      [[ "$t" == "OP_XOR" ]] && op="UNARY_XOR"
+      ir_ops+=("$op $d $s")
+      REPLY="$d"
+      ;;
+    OP_MINGLE)
+      build_ir_expr "${expr_left[$id]}"; local a="$REPLY"
+      build_ir_expr "${expr_right[$id]}"; local b="$REPLY"
+      ir_new_temp; local d="$REPLY"
+      ir_ops+=("MINGLE $d $a $b")
+      REPLY="$d"
+      ;;
+    OP_SELECT)
+      build_ir_expr "${expr_left[$id]}"; local v="$REPLY"
+      build_ir_expr "${expr_right[$id]}"; local m="$REPLY"
+      ir_new_temp; local d="$REPLY"
+      ir_ops+=("SELECT $d $v $m")
+      REPLY="$d"
+      ;;
+    *)
+      # Fallback: unknown expression type. Use placeholder.
+      ir_new_temp; local d="$REPLY"
+      ir_ops+=("OPAQUE $d $t")
+      REPLY="$d"
+      ;;
+  esac
+}
+
+build_ir() {
+  ir_ops=()
+  _ir_next_temp=0
+  local i
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-?}"
+    ir_ops+=("STMT $i $t")
+    if [[ "$t" == "ASSIGN" ]]; then
+      local body="${stmt_body[$i]:-}"
+      local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
+      local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
+      # Parse RHS into expression tree (reusing the existing parser).
+      parse_text="$rhs"
+      parse_pos=0
+      parse_expr ""
+      local node=$parse_result
+      build_ir_expr $node
+      local s="$REPLY"
+      local vs=""
+      if [[ "$target" =~ '^\.([0-9]+)$' ]]; then
+        vs="spot_${match[1]}"
+      elif [[ "$target" =~ '^:([0-9]+)$' ]]; then
+        vs="twospot_${match[1]}"
+      fi
+      if [[ -n "$vs" ]]; then
+        ir_ops+=("STORE $vs $s")
+      fi
+    fi
+  done
+}
+
+emit_ir_real() {
+  build_ir
+  echo "=== IR (three-address) ==="
+  echo "platform:    $_INTERCAL_PLATFORM"
+  echo "ir_ops:      ${#ir_ops[@]}"
+  echo
+  local op
+  for op in "${ir_ops[@]}"; do
+    echo "  $op"
+  done
+}
+
 emit_regalloc() {
   # Note [LinearScanDemo]
   #   Poletto-Sarkar linear-scan over SSA-versioned variables. We
@@ -3372,6 +3496,7 @@ EMIT_SSA_MODE=0
 EMIT_SCCP_MODE=0
 EMIT_REGALLOC_MODE=0
 EMIT_EFFECTS_MODE=0
+EMIT_IR_REAL_MODE=0
 TIME_REPORT=0
 # Note [OptBisect]
 #   --opt-bisect-limit=N caps the number of optional transformations
@@ -3397,6 +3522,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-sccp)          EMIT_SCCP_MODE=1; shift ;;
     --emit-regalloc)      EMIT_REGALLOC_MODE=1; shift ;;
     --emit-effects)       EMIT_EFFECTS_MODE=1; shift ;;
+    --emit-ir-real)       EMIT_IR_REAL_MODE=1; shift ;;
     --time-report)        TIME_REPORT=1; shift ;;
     --opt-bisect-limit=*) OPT_BISECT_LIMIT=${1#--opt-bisect-limit=}; shift ;;
     --opt-bisect-verbose) OPT_BISECT_VERBOSE=1; shift ;;
@@ -3527,6 +3653,11 @@ main() {
 
   if (( EMIT_EFFECTS_MODE )); then
     emit_effects
+    exit 0
+  fi
+
+  if (( EMIT_IR_REAL_MODE )); then
+    emit_ir_real
     exit 0
   fi
 

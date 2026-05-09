@@ -95,6 +95,7 @@ jobs:
           zsh tests/test_lsp.sh
           zsh tests/test_effect_elim.sh
           zsh tests/test_sccp_codegen.sh
+          zsh tests/test_emit_ir_real.sh
 
       - name: Csmith-INTERCAL differential (5 programs)
         run: zsh tests/run_csmith_diff.sh 5
