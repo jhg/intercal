@@ -12,6 +12,7 @@ typeset -A array_data    # key: '<pfx><num>:<flat_idx>' -> value
 typeset -A array_dim     # key: '<pfx><num>' -> size (legacy 1D, set when ndims=1)
 typeset -A array_dims    # key: '<pfx><num>' -> 'd1 d2 d3 ...' (per-dim sizes)
 typeset -i ttm_out_pos=0 # output tape head (Turing Text Model)
+typeset -i ttm_in_pos=0  # input tape head (Turing Text Model)
 typeset -a stack
 
 push() { stack+=("$1") }
@@ -79,6 +80,7 @@ do_unary() {
 }
 
 typeset -A spot_stash_depth twospot_stash_depth
+typeset -A bc_fd_open    # tracks open fds opened by Label 666 syscall 1
 stash_push() {
   local kind=$1 var=$2 val=$3
   # Enforce per-variable stash depth limit (1024 entries, matching
@@ -425,6 +427,67 @@ while (( pc < ${#ops_buf[@]} )); do
             # Label 666: dispatch by .1 (syscall number).
             local _syscall=${spot[1]:-0}
             case "$_syscall" in
+              1)
+                # open: read filename from ,65535 (count via array_dim).
+                local _fname=""
+                if [[ -z "${array_dims[,65535]:-}" ]]; then
+                  echo "ICL000I syscall 1 needs ,65535 dimensioned" >&2
+                  exit 1
+                fi
+                local -a _ndl
+                _ndl=(${=array_dims[,65535]})
+                local _flen=${_ndl[1]}
+                local _fi=0
+                for (( _fi=0; _fi<_flen; _fi++ )); do
+                  local _bv=${array_data[,65535:${_fi}]:-0}
+                  _fname+=$(printf "\\x$(printf '%02x' $_bv)")
+                done
+                local _mode=${spot[2]:-0}
+                local _fd=0
+                if (( _mode == 0 )); then
+                  exec {_fd}<"$_fname" 2>/dev/null
+                else
+                  exec {_fd}>"$_fname" 2>/dev/null
+                fi
+                spot[3]=$_fd
+                bc_fd_open[$_fd]=1
+                ;;
+              2)
+                # read: from fd .2, up to .3 bytes; .4 = bytes read;
+                # auto-dim ,65535 to result.
+                local _fd=${spot[2]:-0}
+                local _max=${spot[3]:-0}
+                local _content=""
+                _content=$(dd bs=1 count=$_max <&$_fd 2>/dev/null) || true
+                local _clen=${#_content}
+                spot[4]=$_clen
+                array_dims[,65535]="$_clen"
+                array_dim[,65535]=$_clen
+                local _ci=0
+                for (( _ci=0; _ci<_clen; _ci++ )); do
+                  local _ch="${_content[$((_ci + 1))]}"
+                  array_data[,65535:${_ci}]=$(printf '%d' "'$_ch")
+                done
+                ;;
+              3)
+                # write: to fd .2, .3 bytes from ,65535; .4 = bytes
+                # written.
+                local _fd=${spot[2]:-0}
+                local _cnt=${spot[3]:-0}
+                local _i=0
+                local _wn=0
+                for (( _i=0; _i<_cnt; _i++ )); do
+                  local _bv=${array_data[,65535:${_i}]:-0}
+                  printf "\\x$(printf '%02x' $_bv)" >&$_fd 2>/dev/null && _wn=$((_wn + 1))
+                done
+                spot[4]=$_wn
+                ;;
+              4)
+                local _fd=${spot[2]:-0}
+                exec {_fd}>&- 2>/dev/null
+                exec {_fd}<&- 2>/dev/null
+                unset "bc_fd_open[$_fd]"
+                ;;
               5)
                 # argc: count of program args (excluding the VM
                 # script path). With our harness 'vm < bytecode',
@@ -741,6 +804,44 @@ while (( pc < ${#ops_buf[@]} )); do
         exit 1
       fi
       push "${array_data[${2}:${_idx}]:-0}"
+      ;;
+    WRITEIN_ARR)
+      # TTM input: read one digit-name line per element. Each
+      # parsed value is the (positive) tape advance; new tape pos =
+      # (old + delta) mod 256; the byte typed at that position
+      # (bit-reversed) gives the character. Inverse of READOUT_ARR.
+      local _arr="$2"
+      if [[ -z "${array_dims[$_arr]:-}" ]]; then
+        echo "ICL241I undimensioned array in WRITE IN" >&2
+        exit 1
+      fi
+      local -a _ddl
+      _ddl=(${=array_dims[$_arr]})
+      local _total=1 _di=0
+      for _di in "${_ddl[@]}"; do _total=$(( _total * _di )); done
+      local _i=0
+      typeset -A _digit
+      _digit[OH]=0 _digit[ZERO]=0
+      _digit[ONE]=1 _digit[TWO]=2 _digit[THREE]=3
+      _digit[FOUR]=4 _digit[FIVE]=5 _digit[SIX]=6
+      _digit[SEVEN]=7 _digit[EIGHT]=8 _digit[NINE]=9
+      for (( _i=0; _i<_total; _i++ )); do
+        local _line=""
+        if { true >&3; } 2>/dev/null; then
+          IFS= read -r -u 3 _line
+        else
+          IFS= read -r _line < /dev/tty 2>/dev/null || _line=""
+        fi
+        local _val=0 _word=""
+        for _word in ${(s: :)${(U)_line}}; do
+          if (( ! ${+_digit[$_word]} )); then
+            echo "ICL579I WHAT IS ALL THIS RACKET?" >&2
+            exit 1
+          fi
+          _val=$(( _val * 10 + _digit[$_word] ))
+        done
+        array_data[${_arr}:${_i}]=$_val
+      done
       ;;
     READOUT_ARR)
       # Turing Text Model: per element, ttm_out_pos = (ttm_out_pos -

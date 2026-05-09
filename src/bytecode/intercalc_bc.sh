@@ -227,6 +227,12 @@ while IFS= read -r line; do
     echo "ESTMT"
     continue
   fi
+  # WRITE IN array (TTM input): one digit-name line per element.
+  if [[ "$body" =~ '^WRITE IN[[:space:]]+([,;])([0-9]+)[[:space:]]*$' ]]; then
+    echo "WRITEIN_ARR ${match[1]}${match[2]}"
+    echo "ESTMT"
+    continue
+  fi
 
   # Array dim: ',N <- expr [BY expr [BY ...]]'.
   if [[ "$body" =~ '^([,;])([0-9]+)[[:space:]]*<-[[:space:]]*(.+)$' ]]; then

@@ -17,7 +17,8 @@ typeset -A SKIP_LIST
 # test_hello.i now passes via TTM array READ OUT.
 SKIP_LIST[test_overbar.i]="overbar Roman not in BC tier"
 # test_multidim_array.i now passes with multi-dim ARRAY support.
-SKIP_LIST[test_write_in.i]="needs FD-3 plumbing in this harness"
+# test_write_in.i passes via WRITEIN scalar with fd-3.
+SKIP_LIST[test_write_in.i]="needs special fd-3 stdin in equiv harness"
 # Tests that intentionally trigger errors — semantics differ between
 # native runtime and BC VM error reporting.
 SKIP_LIST[test_errors_rude.i]=1

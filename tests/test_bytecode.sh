@@ -309,6 +309,45 @@ else
 fi
 rm -f "$SRC_GER"
 
+# Test: Label 666 syscalls 1+2+4 — open, read, close.
+SRC_FILE=$(mktemp /tmp/test_bc_file.XXXXXX)
+echo -n "AB" > "$SRC_FILE"
+SRC_OPEN=$(mktemp /tmp/test_bc.XXXXXX)
+{
+  echo "DO ,65535 <- #${#SRC_FILE}"
+  i=1
+  while (( i <= ${#SRC_FILE} )); do
+    ch="${SRC_FILE[$i]}"
+    ord=$(printf '%d' "'$ch")
+    echo "DO ,65535 SUB #${i} <- #${ord}"
+    i=$((i + 1))
+  done
+  cat <<'EOF'
+PLEASE DO .1 <- #1
+DO .2 <- #0
+DO (666) NEXT
+PLEASE DO .10 <- .3
+DO .1 <- #2
+PLEASE DO .2 <- .10
+DO .3 <- #2
+PLEASE DO (666) NEXT
+DO READ OUT .4
+PLEASE DO .1 <- #4
+DO .2 <- .10
+PLEASE DO (666) NEXT
+DO GIVE UP
+EOF
+} > "$SRC_OPEN"
+out=$(zsh "$BC_COMPILER" < "$SRC_OPEN" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "II" ]]; then
+  echo "PASS bytecode Label 666 open+read+close (read 2 bytes)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL Label 666 file IO: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_FILE" "$SRC_OPEN"
+
 # Test: Label 666 syscall 8 (exit) returns the requested code.
 SRC_666=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC_666" <<'EOF'
