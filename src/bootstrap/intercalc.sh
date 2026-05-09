@@ -144,7 +144,7 @@ emit_opt_summary() {
   echo "stmts:       $stmt_count"
   echo
   local n_assign=0 n_e275_safe=0 n_e621_safe=0 n_e436_safe=0
-  local n_e123_safe=0 n_e240_safe=0 n_e241_safe=0
+  local n_e123_safe=0 n_e240_safe=0 n_e241_safe=0 n_e632_safe=0
   local n_no_flag=0 n_var_const=0
   local n_resume=0 n_retrieve=0 n_next=0 n_arrdim=0
   local i=0
@@ -163,6 +163,7 @@ emit_opt_summary() {
     (( ${+stmt_e123_safe[$i]} )) && n_e123_safe=$((n_e123_safe + 1))
     (( ${+stmt_e240_safe[$i]} )) && n_e240_safe=$((n_e240_safe + 1))
     (( ${+stmt_e241_safe[$i]} )) && n_e241_safe=$((n_e241_safe + 1))
+    (( ${+stmt_e632_safe[$i]} )) && n_e632_safe=$((n_e632_safe + 1))
     (( ! ${stmt_needs_flag[$i]:-1} )) && n_no_flag=$((n_no_flag + 1))
   done
   # Count stmt_var_const entries (each entry is one stmt:varspec pair).
@@ -171,6 +172,7 @@ emit_opt_summary() {
   echo "  E275 elided (cmp+b.hi skipped):   $n_e275_safe / $n_assign"
   echo "RESUME stmts:                       $n_resume"
   echo "  E621 elided (cbz skipped):        $n_e621_safe / $n_resume"
+  echo "  E632 elided (b.mi skipped):       $n_e632_safe / $n_resume"
   echo "RETRIEVE stmts:                     $n_retrieve"
   echo "  E436 elided (empty-stash skip):   $n_e436_safe / $n_retrieve"
   echo "NEXT stmts:                         $n_next"
@@ -2719,6 +2721,62 @@ compute_e275_safety() {
       [[ "${stmt_type[$_i_e123]:-}" == "NEXT" ]] && stmt_e123_safe[$_i_e123]=1
     done
   fi
+
+  # Note [E632Elim]
+  #   E632 fires when RESUME tries to pop more entries than the NEXT
+  #   stack holds. Sound subset: a RESUME #N inside a labelled block
+  #   that is ONLY reached via NEXT (i.e., is a NEXT target) AND has
+  #   no fall-through entry can prove the stack has at least 1
+  #   pending entry — so RESUME #1 is e632_safe.
+  #   Conditions:
+  #   - RESUME's argument is a literal #1 (we only handle this case).
+  #   - The RESUME stmt is preceded (in its labelled block) by a
+  #     statement that is NOT reachable via fall-through from
+  #     stmt_count (i.e., the previous stmt is a labelled stmt).
+  #   - No COME FROM / NEXT FROM / REINSTATE in the program (these
+  #     would invalidate the entry-only-via-NEXT assumption).
+  if (( ! _has_loop )); then
+    local _i_e632=0
+    for (( _i_e632=1; _i_e632<=stmt_count; _i_e632++ )); do
+      [[ "${stmt_type[$_i_e632]:-}" == "RESUME" ]] || continue
+      local _rb="${stmt_body[$_i_e632]:-}"
+      local _ra="${_rb#RESUME }"
+      _ra="${_ra## }"; _ra="${_ra%% }"
+      # Only literal #1 RESUME is currently classified e632_safe.
+      [[ "$_ra" == "#1" ]] || continue
+      # Walk backwards from this stmt to find a labelled statement
+      # that is the entry point for this block. If the immediately
+      # preceding stmt sequence eventually reaches a labelled stmt
+      # whose label appears as a NEXT target somewhere in the
+      # program, the block was entered via NEXT and stack is non-
+      # empty.
+      local _j=0 _block_label=""
+      for (( _j=_i_e632-1; _j>=1; _j-- )); do
+        local _l="${stmt_label[$_j]:-}"
+        if [[ -n "$_l" ]]; then
+          _block_label="$_l"
+          break
+        fi
+        # If we cross a GIVE_UP or another RESUME, the chain breaks.
+        local _jt="${stmt_type[$_j]:-}"
+        case "$_jt" in
+          GIVE_UP|RESUME) break ;;
+        esac
+      done
+      if [[ -n "$_block_label" ]]; then
+        # Verify some NEXT in the program targets _block_label.
+        local _k=0 _is_next_target=0
+        for (( _k=1; _k<=stmt_count; _k++ )); do
+          if [[ "${stmt_type[$_k]:-}" == "NEXT" ]] \
+             && [[ "${stmt_next_target[$_k]:-}" == "$_block_label" ]]; then
+            _is_next_target=1
+            break
+          fi
+        done
+        (( _is_next_target )) && stmt_e632_safe[$_i_e632]=1
+      fi
+    done
+  fi
   local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-}"
@@ -4205,7 +4263,9 @@ codegen_resume() {
   emit "  add x1, x1, _next_sp@PAGEOFF"
   emit "  ldr w2, [x1]"
   emit "  subs w3, w2, w0"
-  emit "  b.mi _rt_error_E632"
+  if ! ( (( ${+stmt_e632_safe[$i]} )) && opt_bisect_check "elim_e632_stmt_$i" ); then
+    emit "  b.mi _rt_error_E632"
+  fi
   emit "  str w3, [x1]"
   emit "  adrp x4, _next_stack@PAGE"
   emit "  add x4, x4, _next_stack@PAGEOFF"

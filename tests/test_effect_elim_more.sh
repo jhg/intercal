@@ -192,6 +192,48 @@ else
 fi
 rm -f "$SRC_E241B"
 
+# Test 10: RESUME #1 in a NEXT-target block elides E632.
+SRC_E632=$(mktemp /tmp/test_eff_more.XXXXXX)
+cat > "$SRC_E632" <<'EOF'
+DO .1 <- #5
+PLEASE DO (10) NEXT
+DO READ OUT .1
+PLEASE DO GIVE UP
+(10) PLEASE DO .1 <- #42
+DO RESUME #1
+EOF
+asm=$(INTERCAL_ASM_ONLY=1 zsh "$COMPILER" < "$SRC_E632" 2>/dev/null)
+n=$(echo "$asm" | grep -c "_rt_error_E632" 2>/dev/null)
+n=${n:-0}
+if (( n == 0 )); then
+  echo "PASS RESUME #1 in NEXT target elides E632"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL E632 not elided: $n references"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_E632"
+
+# Test 11: RESUME #1 NOT in a NEXT target keeps E632 check.
+SRC_E632B=$(mktemp /tmp/test_eff_more.XXXXXX)
+cat > "$SRC_E632B" <<'EOF'
+DO .1 <- #5
+PLEASE DO RESUME #1
+DO READ OUT .1
+DO GIVE UP
+EOF
+asm=$(INTERCAL_ASM_ONLY=1 zsh "$COMPILER" < "$SRC_E632B" 2>/dev/null)
+n=$(echo "$asm" | grep -c "_rt_error_E632" 2>/dev/null)
+n=${n:-0}
+if (( n >= 1 )); then
+  echo "PASS top-level RESUME keeps E632 check ($n)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL top-level RESUME should keep E632"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_E632B"
+
 echo ""
 echo "Total: $PASS passed, $FAIL failed"
 exit $((FAIL > 0))
