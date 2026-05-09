@@ -29,7 +29,20 @@ tag; in-progress work appears under "Unreleased".
   sites for future register-keeping work.
 - Wegman-Zadeck SCCP behind `--emit-sccp-wz`: faithful executable-edge
   gating, CFG worklist, monotone meet at confluence points,
-  TOP/CONST/BOTTOM lattice.
+  TOP/CONST/BOTTOM lattice. Models syslib 1009/1010/1020/1030 add/sub
+  and includes COME FROM source edges in the predecessor map.
+- `--emit-opt-summary`: diagnostic dump showing the cumulative effect
+  of every static analysis pass (counts of E275/E621/E436 elisions,
+  abstain-flag eliminations, constant-propagation entries).
+- IR-driven codegen now handles literal-RHS ASSIGN and var-to-var
+  copy through `lower_ir_for_stmt`. Per-statement-type fallback
+  unchanged.
+- E275 elision recognises spot-to-twospot widening (always safe) and
+  SCCP-bounded var copies. `compute_var_constants` now runs before
+  `compute_e275_safety` so the latter can consult the constant map.
+- LSP server v0.4.0: `textDocument/documentSymbol` for outline view.
+  Editors render labelled statements in the document outline panel.
+- LSP hover docs cover COME FROM, READ OUT, WRITE IN, FROM keywords.
 - `docs/learning-by-extending.md`: a guided tour of three landings from
   this session, each chosen to mirror a different shape of
   production-compiler work (frontend feature, IR migration, dataflow
@@ -43,6 +56,16 @@ tag; in-progress work appears under "Unreleased".
   three separate times in this session before the audit; the fix
   prepends an empty assignment so the loop variable is initialised
   on the declaration line rather than at the for-loop init.
+- LSP `$'\n'`-inside-parameter-expansion bug: the document text
+  unescape was producing literal `$'\n'` 4-char sequences instead
+  of real newlines, silently corrupting multi-line documents on
+  every didOpen/didChange. Fixed by hoisting the newline to a
+  local variable. This was load-bearing for documentSymbol,
+  semantic tokens, and hover position calculations.
+- `emit_sccp_wz` was unconditionally enqueuing the next statement
+  as a successor of GIVE_UP and unconditional NEXT_FROM, which
+  marked dead code as executable. Fixed; new test covers
+  dead-code-after-GIVE_UP.
 - E436 conservative analysis treats NEXT FROM as a control-flow
   stopper for STASH/RETRIEVE soundness.
 - `check_unreferenced_labels` now treats NEXT FROM as a label

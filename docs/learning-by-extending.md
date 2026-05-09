@@ -204,6 +204,41 @@ new path alongside the old path, regression test that proves the
 new path works on at least one input. The reviewers will thank
 you. The bisect log will be cleaner. The rollback is one boolean.
 
+## Inspection flags worth knowing about
+
+While extending the compiler you will often want to see what an
+analysis pass actually produced. Each flag below answers a specific
+question, exits before codegen, and prints to stdout so you can
+pipe to grep or save for diff.
+
+| Flag | Question it answers |
+|------|---------------------|
+| `--diagnose` | How many statements? Politeness ratio? Label and syslib summary? |
+| `--emit-tokens` | What did the lexer see? Token stream by category. |
+| `--emit-3addr` | What does each statement become at the GIMPLE-shaped flat IR level? |
+| `--emit-cfg` | Basic blocks and their edges, in the LLVM/MIR vocabulary. |
+| `--emit-ir-real` | The real three-address IR (CONST, LOADV, STORE, MINGLE, etc.) used by the IR-driven codegen path. |
+| `--emit-ssa` | Block-parameter SSA form (Cranelift-style). |
+| `--emit-sccp` | Linear-walk lattice values (simpler teaching dump). |
+| `--emit-sccp-wz` | Faithful Wegman-Zadeck SCCP with executable-edge gating and meet at confluence points. Models syslib 1009/1010/1020/1030 in the lattice. |
+| `--emit-regalloc` | Linear-scan register allocation trace (live intervals, spills). |
+| `--emit-effects` | Per-statement set of ICL error codes the statement could raise. |
+| `--emit-opt-summary` | Summary counts: how many E275/E621/E436 elisions fired, abstain-flag eliminations, constant-prop entries. |
+| `--time-report` | Per-phase timing breakdown. |
+| `--opt-bisect-limit=N` | Disable any optimisation past the N-th, for finding miscompile by bisection. |
+
+Two environment variables also gate behaviour:
+
+| Variable | Effect |
+|----------|--------|
+| `INTERCAL_NEW_IR=1` | Try the IR-driven lowering path before legacy. |
+| `INTERCAL_REGALLOC_HINTS=1` | Emit `// regalloc:` comments at variable assignments. |
+
+The pattern is the same for every flag: run the analysis, dump
+what it computed, exit. No flag changes generated code (with the
+sole exception of the two environment variables, which gate
+opt-in codegen paths).
+
 ## What to read next
 
 If you finish all three "now do this" exercises, you have a
