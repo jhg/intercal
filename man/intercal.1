@@ -56,6 +56,13 @@ vocabulary LLVM, GCC, rustc and the rest use as their first-class IR.
 stdout and exit. Conceptually GIMPLE-shaped. Inspection only; does not
 produce a binary.
 .TP
+.B \-\-emit-opt-summary
+(Bootstrap only.) Print a one-page summary of optimisation
+decisions: counts of E275/E621/E436 runtime-check elisions,
+abstain-flag eliminations, and constant-propagation entries
+populated by the analyses. Useful for understanding what the
+static passes proved without reading the assembly.
+.TP
 .B \-\-emit-sccp-wz
 (Bootstrap only.) Print the result of a Wegman-Zadeck Sparse Conditional
 Constant Propagation analysis: per-statement lattice values

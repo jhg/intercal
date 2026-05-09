@@ -133,6 +133,45 @@ peephole_optimize() {
   asm=$(printf "%s\n" "${result[@]}")
 }
 
+emit_opt_summary() {
+  # Note [OptSummary]
+  #   Diagnostic dump showing the cumulative effect of every static
+  #   analysis pass. Counts how many statements each elision proved
+  #   redundant. The analyses must run before this is called; the
+  #   dispatch in main() arranges that.
+  echo "=== Optimisation summary ==="
+  echo "platform:    $_INTERCAL_PLATFORM"
+  echo "stmts:       $stmt_count"
+  echo
+  local n_assign=0 n_e275_safe=0 n_e621_safe=0 n_e436_safe=0
+  local n_no_flag=0 n_var_const=0
+  local n_resume=0 n_retrieve=0
+  local i=0
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-}"
+    case "$t" in
+      ASSIGN) n_assign=$((n_assign + 1)) ;;
+      RESUME) n_resume=$((n_resume + 1)) ;;
+      RETRIEVE) n_retrieve=$((n_retrieve + 1)) ;;
+    esac
+    (( ${+stmt_e275_safe[$i]} )) && n_e275_safe=$((n_e275_safe + 1))
+    (( ${+stmt_e621_safe[$i]} )) && n_e621_safe=$((n_e621_safe + 1))
+    (( ${+stmt_e436_safe[$i]} )) && n_e436_safe=$((n_e436_safe + 1))
+    (( ! ${stmt_needs_flag[$i]:-1} )) && n_no_flag=$((n_no_flag + 1))
+  done
+  # Count stmt_var_const entries (each entry is one stmt:varspec pair).
+  local n_const_pairs=${#stmt_var_const[@]}
+  echo "ASSIGN stmts:                       $n_assign"
+  echo "  E275 elided (cmp+b.hi skipped):   $n_e275_safe / $n_assign"
+  echo "RESUME stmts:                       $n_resume"
+  echo "  E621 elided (cbz skipped):        $n_e621_safe / $n_resume"
+  echo "RETRIEVE stmts:                     $n_retrieve"
+  echo "  E436 elided (empty-stash skip):   $n_e436_safe / $n_retrieve"
+  echo
+  echo "Abstain-flag check elided:          $n_no_flag / $stmt_count stmts"
+  echo "Constant-propagation entries:       $n_const_pairs (stmt × varspec)"
+}
+
 emit_effects() {
   # Note [EffectAnalysis]
   #   Per-statement static analysis of which ICL runtime errors a
@@ -4158,6 +4197,7 @@ EMIT_SCCP_MODE=0
 EMIT_SCCP_WZ_MODE=0
 EMIT_REGALLOC_MODE=0
 EMIT_EFFECTS_MODE=0
+EMIT_OPT_SUMMARY_MODE=0
 EMIT_IR_REAL_MODE=0
 TIME_REPORT=0
 # Note [OptBisect]
@@ -4185,6 +4225,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-sccp-wz)       EMIT_SCCP_WZ_MODE=1; shift ;;
     --emit-regalloc)      EMIT_REGALLOC_MODE=1; shift ;;
     --emit-effects)       EMIT_EFFECTS_MODE=1; shift ;;
+    --emit-opt-summary)   EMIT_OPT_SUMMARY_MODE=1; shift ;;
     --emit-ir-real)       EMIT_IR_REAL_MODE=1; shift ;;
     --time-report)        TIME_REPORT=1; shift ;;
     --opt-bisect-limit=*) OPT_BISECT_LIMIT=${1#--opt-bisect-limit=}; shift ;;
@@ -4324,6 +4365,11 @@ main() {
 
   if (( EMIT_EFFECTS_MODE )); then
     emit_effects
+    exit 0
+  fi
+
+  if (( EMIT_OPT_SUMMARY_MODE )); then
+    emit_opt_summary
     exit 0
   fi
 

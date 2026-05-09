@@ -100,6 +100,7 @@ jobs:
           zsh tests/test_new_ir.sh
           zsh tests/test_regalloc_hints.sh
           zsh tests/test_emit_sccp_wz.sh
+          zsh tests/test_emit_opt_summary.sh
 
       - name: Csmith-INTERCAL differential (5 programs)
         run: zsh tests/run_csmith_diff.sh 5
