@@ -297,6 +297,10 @@ build_ir() {
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-?}"
     ir_ops+=("STMT $i $t")
+    if [[ "$t" == "GIVE_UP" ]]; then
+      ir_ops+=("GIVE_UP")
+      continue
+    fi
     if [[ "$t" == "ASSIGN" ]]; then
       local body="${stmt_body[$i]:-}"
       local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
@@ -319,6 +323,60 @@ build_ir() {
       fi
     fi
   done
+}
+
+# Note [LowerIRForStmt]
+#   IR-driven codegen for proposal #11. The IR for statement i is the
+#   subsequence of ir_ops bracketed by "STMT i ..." and the next
+#   "STMT j ..." marker (or end of stream).  We dispatch by op
+#   keyword. A statement whose IR is unsupported returns 1 so the
+#   caller falls back to legacy tree-walk codegen.
+lower_ir_for_stmt() {
+  local i=$1
+  local op start=-1 end=-1 k
+  for (( k=0; k<${#ir_ops[@]}; k++ )); do
+    if [[ "${ir_ops[$((k+1))]}" == "STMT $i "* ]]; then
+      start=$k
+    elif (( start >= 0 )) && [[ "${ir_ops[$((k+1))]}" == "STMT "* ]]; then
+      end=$k
+      break
+    fi
+  done
+  (( start < 0 )) && return 1
+  (( end < 0 )) && end=${#ir_ops[@]}
+  local handled=0
+  local j
+  for (( j=start+1; j<end; j++ )); do
+    op="${ir_ops[$((j+1))]}"
+    case "$op" in
+      "GIVE_UP")
+        case "$_INTERCAL_PLATFORM" in
+          macos_arm64)
+            emit "  mov x0, #0"
+            emit "  mov x16, #1"
+            emit "  svc #0x80"
+            ;;
+          linux_arm64)
+            emit "  mov x0, #0"
+            emit "  mov x8, #93"
+            emit "  svc #0"
+            ;;
+          linux_x86_64)
+            emit "  mov rdi, 0"
+            emit "  mov rax, 60"
+            emit "  syscall"
+            ;;
+        esac
+        handled=1
+        ;;
+      *)
+        # Any unsupported op aborts IR-driven lowering for this stmt.
+        return 1
+        ;;
+    esac
+  done
+  (( handled )) && return 0
+  return 1
 }
 
 emit_ir_real() {
@@ -2518,6 +2576,10 @@ codegen_program() {
     emit ""
   fi
 
+  if [[ "${INTERCAL_NEW_IR:-0}" == "1" ]]; then
+    build_ir
+  fi
+
   local i
   for (( i=1; i<=stmt_count; i++ )); do
     codegen_statement $i
@@ -2565,6 +2627,21 @@ codegen_statement() {
     codegen_probability $i
   fi
 
+  # Note [NewIROptIn]
+  #   When INTERCAL_NEW_IR=1 is set, the IR-driven lowering path is
+  #   tried first for the statement types it supports (currently:
+  #   GIVE_UP). lower_ir_for_stmt returns 0 (success) if it handled
+  #   the statement; non-zero means fall through to the legacy
+  #   tree-walk codegen below. This is the incremental migration
+  #   scaffold for proposal #11 in docs/improvement-proposals.md.
+  #   The flag must never be on by default; the legacy path remains
+  #   the source of truth until migration completes.
+  local lowered_via_ir=0
+  if [[ "${INTERCAL_NEW_IR:-0}" == "1" ]] && lower_ir_for_stmt $i; then
+    lowered_via_ir=1
+  fi
+
+  if (( ! lowered_via_ir )); then
   case "${stmt_type[$i]}" in
     GIVE_UP)    codegen_give_up ;;
     READ_OUT)   codegen_read_out $i ;;
@@ -2584,6 +2661,7 @@ codegen_statement() {
     RETRIEVE)   codegen_retrieve $i ;;
     UNKNOWN)    emit "  b _rt_error_E000" ;;
   esac
+  fi
 
   emit "_stmt_${i}_end:"
 
