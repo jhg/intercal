@@ -2298,6 +2298,21 @@ compute_e275_safety() {
         if [[ "$r" =~ '^:[0-9]+$' ]] && [[ "$target" =~ '^:[0-9]+$' ]]; then
           stmt_e275_safe[$i]=1
         fi
+        # Widening: 16-bit spot to 32-bit twospot is always safe.
+        if [[ "$r" =~ '^\.[0-9]+$' ]] && [[ "$target" =~ '^:[0-9]+$' ]]; then
+          stmt_e275_safe[$i]=1
+        fi
+        # SCCP-driven: if cross-statement constant analysis proves the
+        # RHS variable is bounded, the assignment is safe. The
+        # stmt_var_const[i:VARSPEC] map (when populated by
+        # compute_var_constants) gives the value.
+        if [[ "$r" =~ '^\.([0-9]+)$' ]]; then
+          local _src="spot_${match[1]}"
+          local _v="${stmt_var_const[${i}:${_src}]:-}"
+          if [[ -n "$_v" ]] && [[ "$target" =~ '^\.[0-9]+$' ]]; then
+            (( _v <= 65535 )) && stmt_e275_safe[$i]=1
+          fi
+        fi
         ;;
       RESUME)
         # RESUME #N where N is a literal nonzero -> E621 unreachable.
@@ -4255,8 +4270,11 @@ main() {
   time_phase syslib detect_syslib
   time_phase flag_checks compute_flag_checks
   time_phase ignore_checks compute_ignore_checks
-  time_phase e275_safety compute_e275_safety
+  # var_constants must run before e275_safety: the latter consults
+  # stmt_var_const to elide checks that the cross-statement constant
+  # propagation proves redundant.
   time_phase var_constants compute_var_constants
+  time_phase e275_safety compute_e275_safety
   time_phase unref_labels check_unreferenced_labels
 
   if (( DIAGNOSE_MODE )); then
