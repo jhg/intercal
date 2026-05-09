@@ -284,6 +284,14 @@ while (( pc < ${#ops_buf[@]} )); do
       # native runtime + the SCCP-WZ lattice already encodes.
       if (( target_lbl >= 1000 && target_lbl < 2000 )); then
         case "$target_lbl" in
+          1000)
+            # .3 = .1 + .2; per AGENTS.md the runtime does NOT
+            # actually error on overflow (the (1801) no-overflow
+            # path always wins per Note in bugs_learned). Match
+            # native behaviour: silent wrap.
+            local _v1=${spot[1]:-0} _v2=${spot[2]:-0}
+            spot[3]=$(( (_v1 + _v2) & 0xFFFF ))
+            ;;
           1009)
             local _v1=${spot[1]:-0} _v2=${spot[2]:-0}
             local _sum=$(( _v1 + _v2 ))

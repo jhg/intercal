@@ -21,6 +21,7 @@
 #   EXIT           terminate
 
 set -euo pipefail
+setopt EXTENDED_GLOB
 
 src=$(cat)
 src=${src//$'\n'/ }
@@ -139,8 +140,9 @@ typeset -A bc_label_to_id
 typeset -A bc_id_to_type   # for gerund-based ABSTAIN
 typeset _pending_label=""  # carries (N) across empty-body lines
 while IFS= read -r line; do
-  line="${line## }"
-  line="${line%% }"
+  # Trim all leading/trailing whitespace (zsh's '*' pattern with [[:space:]]).
+  line="${line##[[:space:]]##}"
+  line="${line%%[[:space:]]##}"
   [[ -z "$line" ]] && continue
   body="$line"
   # Capture (N) prefix but defer emission until we have a real body —
@@ -288,6 +290,25 @@ while IFS= read -r line; do
   if [[ "$body" =~ '^READ OUT[[:space:]]+:([0-9]+)[[:space:]]*$' ]]; then
     echo "VPUSH2 :${match[1]}"
     echo "READOUT2"
+    echo "ESTMT"
+    continue
+  fi
+  # READ OUT of any other expression (e.g., #N literal or full expr).
+  if [[ "$body" =~ '^READ OUT[[:space:]]+(.+)$' ]]; then
+    local _rhs="${match[1]}"
+    _rhs="${_rhs## }"; _rhs="${_rhs%% }"
+    # Multi-token READ OUT (.1 .2 .3) or array-bare (,N) stays
+    # unsupported in this subset.
+    if [[ "$_rhs" =~ '^[,;][0-9]+$' ]]; then
+      echo "ERROR: bare-array READ OUT not yet in bytecode subset: $line" >&2
+      exit 1
+    fi
+    if [[ "$_rhs" =~ '[[:space:]](\.[0-9]+|:[0-9]+|#[0-9]+)' ]]; then
+      echo "ERROR: multi-item READ OUT not yet in bytecode subset: $line" >&2
+      exit 1
+    fi
+    compile_expr "$_rhs"
+    echo "READOUT"
     echo "ESTMT"
     continue
   fi
