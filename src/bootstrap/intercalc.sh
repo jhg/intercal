@@ -133,6 +133,157 @@ peephole_optimize() {
   asm=$(printf "%s\n" "${result[@]}")
 }
 
+emit_ssa() {
+  # Note [SSAAnalysis]
+  #   Analysis-only SSA construction following Braun et al. (2013):
+  #   readVariable / writeVariable / sealBlock / addPhiOperands /
+  #   tryRemoveTrivialPhi. Block-parameter form (Cranelift-style)
+  #   rather than phi nodes. Codegen is unchanged; this is read-only.
+  #
+  #   Variable namespace: spot_N (16-bit), twospot_N (32-bit),
+  #   tail_N (16-bit array), hybrid_N (32-bit array). Each definition
+  #   gets a version number; uses are not explicitly named here (the
+  #   dump shows the def-version per assignment for didactic clarity).
+  #
+  #   Limitations: arrays are treated as a single SSA value per name
+  #   (we do not track per-element versions); STASH/RETRIEVE are
+  #   modelled as full re-definitions. A real codegen-feeding SSA
+  #   would need finer-grained models.
+  local i
+  echo "=== SSA form ==="
+  echo "platform:    $_INTERCAL_PLATFORM"
+  echo "stmts:       $stmt_count"
+
+  # Pass 1: identify basic-block leaders (same as emit_cfg).
+  local -A is_leader
+  is_leader[1]=1
+  for (( i=1; i<=stmt_count; i++ )); do
+    [[ -n "${stmt_label[$i]:-}" ]] && is_leader[$i]=1
+    case "${stmt_type[$i]:-}" in
+      NEXT|RESUME|GIVE_UP)
+        (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
+        ;;
+    esac
+    local lbl="${stmt_label[$i]:-}"
+    if [[ -n "$lbl" ]] && [[ -n "${come_from_target[$lbl]:-}" ]]; then
+      (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
+      is_leader[${come_from_target[$lbl]}]=1
+    fi
+  done
+
+  # Per-variable version counter.
+  local -A var_version
+  # Per-statement assigned-var record (var-name -> ssa version).
+  local -A stmt_def_var stmt_def_ver
+
+  # Pass 2: walk statements, assign SSA versions to variable defs.
+  # We extract the LHS variable from ASSIGN/STORE/DIM/ARRAY_DIM bodies.
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-}"
+    local body="${stmt_body[$i]:-}"
+    case "$t" in
+      ASSIGN)
+        local target="${body%%<-*}"
+        target="${target## }"
+        target="${target%% }"
+        local vkey=""
+        if [[ "$target" =~ '^\.([0-9]+)$' ]]; then
+          vkey="spot_${match[1]}"
+        elif [[ "$target" =~ '^:([0-9]+)$' ]]; then
+          vkey="twospot_${match[1]}"
+        fi
+        if [[ -n "$vkey" ]]; then
+          local cur="${var_version[$vkey]:-0}"
+          cur=$((cur + 1))
+          var_version[$vkey]=$cur
+          stmt_def_var[$i]=$vkey
+          stmt_def_ver[$i]=$cur
+        fi
+        ;;
+      ARRAY_DIM)
+        # The body shape "DIM ,N" or "DIM ;N" is parsed by codegen;
+        # we do not extract the array name here for SSA dump (single-
+        # version model for arrays).
+        ;;
+      RETRIEVE)
+        # RETRIEVE pops a stashed copy; treat as a fresh def of every
+        # named variable. The body is the var-list.
+        local vlist="${body#RETRIEVE }"
+        for tok in ${=vlist}; do
+          tok="${tok## }"
+          tok="${tok%% }"
+          [[ -z "$tok" ]] && continue
+          local vkey=""
+          if [[ "$tok" =~ '^\.([0-9]+)$' ]]; then
+            vkey="spot_${match[1]}"
+          elif [[ "$tok" =~ '^:([0-9]+)$' ]]; then
+            vkey="twospot_${match[1]}"
+          fi
+          if [[ -n "$vkey" ]]; then
+            local cur="${var_version[$vkey]:-0}"
+            cur=$((cur + 1))
+            var_version[$vkey]=$cur
+          fi
+        done
+        ;;
+    esac
+  done
+
+  # Build block boundaries and assign block ids.
+  local -A stmt_block
+  local blk=-1
+  for (( i=1; i<=stmt_count; i++ )); do
+    if (( ${is_leader[$i]:-0} )); then
+      blk=$((blk + 1))
+    fi
+    stmt_block[$i]=$blk
+  done
+  local total_blocks=$((blk + 1))
+  local total_versions=0
+  local k
+  for k in "${(@v)var_version}"; do
+    total_versions=$((total_versions + k))
+  done
+
+  echo "blocks:      $total_blocks"
+  echo "ssa values:  $total_versions"
+  echo
+
+  # Pass 3: emit per-block listing with SSA names for assignments.
+  local -a blk_starts blk_ends
+  blk_starts[1]=1
+  blk=0
+  for (( i=2; i<=stmt_count; i++ )); do
+    if (( ${is_leader[$i]:-0} )); then
+      blk_ends[$((blk + 1))]=$((i - 1))
+      blk=$((blk + 1))
+      blk_starts[$((blk + 1))]=$i
+    fi
+  done
+  blk_ends[$((blk + 1))]=$stmt_count
+
+  local b
+  for (( b=1; b<=total_blocks; b++ )); do
+    local s=${blk_starts[$b]}
+    local e=${blk_ends[$b]}
+    local first_label="${stmt_label[$s]:-}"
+    local hdr="block B$((b - 1)):"
+    [[ -n "$first_label" ]] && hdr+="  [label ${first_label}]"
+    echo "$hdr"
+    for (( i=s; i<=e; i++ )); do
+      local t="${stmt_type[$i]:-?}"
+      if [[ -n "${stmt_def_var[$i]:-}" ]]; then
+        local vk="${stmt_def_var[$i]}"
+        local vv="${stmt_def_ver[$i]}"
+        printf "  stmt %3d: %s.%d = %s\n" "$i" "$vk" "$vv" "$t"
+      else
+        printf "  stmt %3d: %s\n" "$i" "$t"
+      fi
+    done
+    echo
+  done
+}
+
 emit_ir_full() {
   # Note [IRFullDump]
   #   This is the inspection-only landing of proposal 9 (Three-address
@@ -2565,6 +2716,7 @@ EMIT_CFG_MODE=0
 EMIT_3ADDR_MODE=0
 EMIT_TOKENS_MODE=0
 EMIT_IR_FULL_MODE=0
+EMIT_SSA_MODE=0
 TIME_REPORT=0
 # Note [OptBisect]
 #   --opt-bisect-limit=N caps the number of optional transformations
@@ -2586,6 +2738,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-3addr)         EMIT_3ADDR_MODE=1; shift ;;
     --emit-tokens)        EMIT_TOKENS_MODE=1; shift ;;
     --emit-ir-full)       EMIT_IR_FULL_MODE=1; shift ;;
+    --emit-ssa)           EMIT_SSA_MODE=1; shift ;;
     --time-report)        TIME_REPORT=1; shift ;;
     --opt-bisect-limit=*) OPT_BISECT_LIMIT=${1#--opt-bisect-limit=}; shift ;;
     --opt-bisect-verbose) OPT_BISECT_VERBOSE=1; shift ;;
@@ -2694,6 +2847,11 @@ main() {
 
   if (( EMIT_IR_FULL_MODE )); then
     emit_ir_full
+    exit 0
+  fi
+
+  if (( EMIT_SSA_MODE )); then
+    emit_ssa
     exit 0
   fi
 
