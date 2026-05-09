@@ -177,11 +177,31 @@ else
 fi
 rm -f "$SRC_CF"
 
-# Test 3: out-of-subset programs error cleanly. NEXT/RESUME are
-# the still-unsupported control-flow primitives in this tier.
+# Test: NEXT to a labelled stmt that does work, RESUME #1 returns.
+SRC_NEXT=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_NEXT" <<'EOF'
+DO .1 <- #5
+PLEASE DO (10) NEXT
+DO READ OUT .1
+DO GIVE UP
+(10) PLEASE DO .1 <- #42
+DO RESUME #1
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_NEXT" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "XLII" ]]; then
+  echo "PASS bytecode NEXT/RESUME round-trip"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL NEXT/RESUME: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_NEXT"
+
+# Test 3: out-of-subset programs error cleanly. ABSTAIN/REINSTATE
+# and arrays remain unsupported in this bytecode tier.
 SRC3=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC3" <<'EOF'
-DO (1009) NEXT
+DO ABSTAIN FROM (10)
 DO .1 <- #5
 DO GIVE UP
 EOF

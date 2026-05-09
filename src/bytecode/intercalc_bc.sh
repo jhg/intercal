@@ -175,6 +175,24 @@ while IFS= read -r line; do
     continue
   fi
 
+  # NEXT (N): push return PC, jump to label N. RESUME N: pop N
+  # entries from the call stack, resume at the last popped PC.
+  if [[ "$body" =~ '^\(([0-9]+)\)[[:space:]]+NEXT[[:space:]]*$' ]]; then
+    echo "CALL ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
+  if [[ "$body" =~ '^RESUME[[:space:]]+#([0-9]+)[[:space:]]*$' ]]; then
+    echo "RESUME ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
+  if [[ "$body" =~ '^FORGET[[:space:]]+#([0-9]+)[[:space:]]*$' ]]; then
+    echo "FORGET ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
+
   if [[ "$body" =~ '^READ OUT[[:space:]]+\.([0-9]+)[[:space:]]*$' ]]; then
     echo "VPUSH .${match[1]}"
     echo "READOUT"

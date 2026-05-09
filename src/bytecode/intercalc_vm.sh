@@ -115,26 +115,29 @@ while IFS= read -r line; do
   ops_buf+=("$line")
 done
 
-# Pre-scan: build the redirect map from labels to the PC immediately
-# AFTER the matching COMEFROM line. The label fires at a labelled
-# stmt's ESTMT boundary; control transfers to whatever lies after the
-# COMEFROM op. By construction the bytecode emits an ESTMT after the
-# COMEFROM line, so the redirect target is "just past the ESTMT after
-# the COMEFROM" — i.e., the PC of the next non-ESTMT op.
+# Pre-scan: build two maps:
+#   redirect_target[label] = pc immediately after the COMEFROM's ESTMT
+#                            (used by labelled statements to redirect)
+#   label_pc[label]        = pc of the labelled statement (CALL target)
 typeset -A redirect_target
+typeset -A label_pc
 typeset pc_scan=0
 for (( pc_scan=0; pc_scan<${#ops_buf[@]}; pc_scan++ )); do
   local op="${ops_buf[$((pc_scan+1))]}"
   if [[ "$op" =~ '^COMEFROM ([0-9]+)$' ]]; then
     local lbl="${match[1]}"
-    # Target is past the COMEFROM and its ESTMT.
     local target=$((pc_scan + 2))
     redirect_target[$lbl]=$target
+  elif [[ "$op" =~ '^LABEL ([0-9]+)$' ]]; then
+    label_pc[${match[1]}]=$((pc_scan + 1))
   fi
 done
 
 # pending_label: set when a LABEL op is executed; checked at ESTMT.
+# call_stack: NEXT pushes the return PC, RESUME pops, FORGET drops.
 typeset pending_label=""
+typeset -a call_stack
+call_stack=()
 typeset pc=0
 while (( pc < ${#ops_buf[@]} )); do
   local line="${ops_buf[$((pc+1))]}"
@@ -152,6 +155,48 @@ while (( pc < ${#ops_buf[@]} )); do
         pc=${redirect_target[$pending_label]}
       fi
       pending_label=""
+      ;;
+    CALL)
+      # NEXT to label N: push current pc as return target, jump to
+      # the labelled statement's PC. Stack overflow at 80 mirrors
+      # the runtime contract.
+      local target_lbl="$2"
+      if (( ${#call_stack[@]} >= 79 )); then
+        echo "ICL123I PROGRAM HAS DISAPPEARED INTO THE BLACK LAGOON" >&2
+        exit 1
+      fi
+      if (( ! ${+label_pc[$target_lbl]} )); then
+        echo "ICL129I PROGRAM HAS GOTTEN LOST (NEXT to undefined label $target_lbl)" >&2
+        exit 1
+      fi
+      call_stack+=("$pc")
+      pc=${label_pc[$target_lbl]}
+      ;;
+    RESUME)
+      # Pop N entries; the LAST popped PC is the return target.
+      local n="$2"
+      if (( n == 0 )); then
+        echo "ICL621I ERROR TYPE 621 ENCOUNTERED" >&2
+        exit 1
+      fi
+      if (( n > ${#call_stack[@]} )); then
+        echo "ICL632I PROGRAM ENDED VIA RESUME INSTEAD OF GIVE UP" >&2
+        exit 1
+      fi
+      local return_pc=0
+      local k=0
+      for (( k=0; k<n; k++ )); do
+        return_pc="${call_stack[-1]}"
+        call_stack=("${call_stack[@]:0:-1}")
+      done
+      pc="$return_pc"
+      ;;
+    FORGET)
+      local n="$2"
+      local k=0
+      for (( k=0; k<n && ${#call_stack[@]} > 0; k++ )); do
+        call_stack=("${call_stack[@]:0:-1}")
+      done
       ;;
     IPUSH) push "$2" ;;
     VPUSH)
