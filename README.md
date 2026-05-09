@@ -10,10 +10,16 @@ Test results (3 platforms, all green in CI):
 
 | Suite | Count | What it covers |
 |-------|-------|----------------|
-| `tests/run_tests.sh` | 33 | Bootstrap compiler, full language |
+| `tests/run_tests.sh` | 35 | Bootstrap compiler, full language |
 | `tests/test_syslib_pure.sh` | 3 | Pure INTERCAL syslib vs native assembly |
 | `tests/run_self_tests.sh` | 25 | Self-hosted MVP (template-passthrough) |
-| `tests/run_stage3_tests.sh` | 3 | Evolving compiler (stage3.i) |
+| `tests/run_stage3_tests.sh` | 4 | Evolving compiler (stage3.i) |
+| `tests/test_lsp.sh` | 8 | LSP v0.3.0: hover, semantic tokens, completion, go-to-definition |
+| `tests/test_bytecode.sh` | 9 | Bytecode tier (stack VM with arithmetic) |
+| `tests/test_emit_sccp_wz.sh` | 4 | Wegman-Zadeck SCCP analysis |
+| `tests/test_new_ir.sh` | 3 | IR-driven codegen migration scaffold |
+| `tests/test_regalloc_hints.sh` | 3 | Linear-scan decisions exposed to codegen |
+| `tests/test_next_from.i` + `tests/test_stage3_loop.i` | 2 | NEXT FROM loop primitive |
 
 Supported platforms: macOS ARM64, Linux ARM64, Linux x86-64. Windows planned.
 
