@@ -8,8 +8,9 @@ typeset -A spot_ign
 typeset -A twospot_ign
 typeset -A spot_stash
 typeset -A twospot_stash
-typeset -A array_data    # key: '<pfx><num>:<idx>' -> value
-typeset -A array_dim     # key: '<pfx><num>' -> size (1D only)
+typeset -A array_data    # key: '<pfx><num>:<flat_idx>' -> value
+typeset -A array_dim     # key: '<pfx><num>' -> size (legacy 1D, set when ndims=1)
+typeset -A array_dims    # key: '<pfx><num>' -> 'd1 d2 d3 ...' (per-dim sizes)
 typeset -i ttm_out_pos=0 # output tape head (Turing Text Model)
 typeset -a stack
 
@@ -552,6 +553,91 @@ while (( pc < ${#ops_buf[@]} )); do
         exit 1
       fi
       array_dim[$2]=$_dim
+      array_dims[$2]="$_dim"
+      ;;
+    DIM_N)
+      # 'DIM_N <arr> <ndims>' — pop ndims dims (last-pushed is last
+      # dim) and store the dim list. Set legacy array_dim only when
+      # ndims=1 so 1D AGET/APUT still works.
+      local _arr="$2"
+      local _nd="$3"
+      local -a _dlist
+      _dlist=()
+      local _di=0
+      for (( _di=0; _di<_nd; _di++ )); do
+        pop; _dlist=("$REPLY" "${_dlist[@]}")
+      done
+      local _d=""
+      for _d in "${_dlist[@]}"; do
+        if (( _d == 0 )); then
+          echo "ICL240I ERROR TYPE 240 ENCOUNTERED" >&2
+          exit 1
+        fi
+      done
+      array_dims[$_arr]="${_dlist[*]}"
+      if (( _nd == 1 )); then
+        array_dim[$_arr]="${_dlist[1]}"
+      fi
+      ;;
+    APUT_N)
+      local _arr="$2"
+      local _nd="$3"
+      pop; local _val=$REPLY
+      local -a _slist
+      _slist=()
+      local _si=0
+      for (( _si=0; _si<_nd; _si++ )); do
+        pop; _slist=("$REPLY" "${_slist[@]}")
+      done
+      if [[ -z "${array_dims[$_arr]:-}" ]]; then
+        echo "ICL241I undimensioned" >&2; exit 1
+      fi
+      local -a _dlist
+      _dlist=(${=array_dims[$_arr]})
+      if (( ${#_slist[@]} != ${#_dlist[@]} )); then
+        echo "ICL241I subscript count mismatch" >&2; exit 1
+      fi
+      # Compute flat index: ((s1-1) * d2 + (s2-1)) * d3 + (s3-1) ...
+      local _flat=0
+      local _idx=0
+      for (( _idx=1; _idx<=_nd; _idx++ )); do
+        local _s="${_slist[$_idx]}"
+        local _d="${_dlist[$_idx]}"
+        if (( _s < 1 || _s > _d )); then
+          echo "ICL241I out of range (sub=$_s dim=$_d)" >&2; exit 1
+        fi
+        _flat=$(( _flat * _d + (_s - 1) ))
+      done
+      array_data[${_arr}:${_flat}]=$_val
+      ;;
+    AGET_N)
+      local _arr="$2"
+      local _nd="$3"
+      local -a _slist
+      _slist=()
+      local _si=0
+      for (( _si=0; _si<_nd; _si++ )); do
+        pop; _slist=("$REPLY" "${_slist[@]}")
+      done
+      if [[ -z "${array_dims[$_arr]:-}" ]]; then
+        echo "ICL241I undimensioned" >&2; exit 1
+      fi
+      local -a _dlist
+      _dlist=(${=array_dims[$_arr]})
+      if (( ${#_slist[@]} != ${#_dlist[@]} )); then
+        echo "ICL241I subscript count mismatch" >&2; exit 1
+      fi
+      local _flat=0
+      local _idx=0
+      for (( _idx=1; _idx<=_nd; _idx++ )); do
+        local _s="${_slist[$_idx]}"
+        local _d="${_dlist[$_idx]}"
+        if (( _s < 1 || _s > _d )); then
+          echo "ICL241I out of range" >&2; exit 1
+        fi
+        _flat=$(( _flat * _d + (_s - 1) ))
+      done
+      push "${array_data[${_arr}:${_flat}]:-0}"
       ;;
     APUT)
       pop; local _val=$REPLY
@@ -582,12 +668,18 @@ while (( pc < ${#ops_buf[@]} )); do
       # Turing Text Model: per element, ttm_out_pos = (ttm_out_pos -
       # element) mod 256. Emit char = bit-reversal of ttm_out_pos.
       local _arr="$2"
-      if (( ! ${+array_dim[$_arr]} )); then
+      if [[ -z "${array_dims[$_arr]:-}" ]]; then
         echo "ICL241I undimensioned array in READ OUT" >&2
         exit 1
       fi
+      # Total elements = product of all dim sizes; iterate flat
+      # indices 0..total-1.
+      local -a _ddl
+      _ddl=(${=array_dims[$_arr]})
+      local _total=1 _di=0
+      for _di in "${_ddl[@]}"; do _total=$(( _total * _di )); done
       local _i=0
-      for (( _i=1; _i<=${array_dim[$_arr]}; _i++ )); do
+      for (( _i=0; _i<_total; _i++ )); do
         local _el=${array_data[${_arr}:${_i}]:-0}
         ttm_out_pos=$(( (ttm_out_pos - _el + 256) & 0xFF ))
         # Reverse 8 bits.

@@ -228,26 +228,41 @@ while IFS= read -r line; do
     continue
   fi
 
-  # Array dim: ',N <- expr' (1D only).
-  if [[ "$body" =~ '^([,;])([0-9]+)[[:space:]]*<-[[:space:]]*([^B]+)$' ]]; then
+  # Array dim: ',N <- expr [BY expr [BY ...]]'.
+  if [[ "$body" =~ '^([,;])([0-9]+)[[:space:]]*<-[[:space:]]*(.+)$' ]]; then
     local _pfx="${match[1]}"
     local _num="${match[2]}"
-    local _dim="${match[3]}"
-    _dim="${_dim## }"; _dim="${_dim%% }"
-    compile_expr "$_dim"
-    echo "DIM ${_pfx}${_num}"
+    local _dims_text="${match[3]}"
+    # Split on BY.
+    local -a _dims_arr
+    _dims_arr=("${(@s:BY:)_dims_text}")
+    local _ndims=${#_dims_arr[@]}
+    local _di=""
+    for _di in "${_dims_arr[@]}"; do
+      _di="${_di## }"; _di="${_di%% }"
+      compile_expr "$_di"
+    done
+    echo "DIM_N ${_pfx}${_num} ${_ndims}"
     echo "ESTMT"
     continue
   fi
-  # Array element write: ',N SUB expr <- expr' (1D only).
+  # Array element write: ',N SUB expr [SUB expr ...] <- expr'.
   if [[ "$body" =~ '^([,;])([0-9]+)[[:space:]]+SUB[[:space:]]+(.+)[[:space:]]+<-[[:space:]]+(.+)$' ]]; then
     local _pfx="${match[1]}"
     local _num="${match[2]}"
-    local _sub="${match[3]}"
+    local _subs_text="${match[3]}"
     local _val="${match[4]}"
-    compile_expr "$_sub"
+    # Split on " SUB " for multi-dim subscripts.
+    local -a _subs_arr
+    _subs_arr=("${(@ps: SUB :)_subs_text}")
+    local _nsubs=${#_subs_arr[@]}
+    local _si=""
+    for _si in "${_subs_arr[@]}"; do
+      _si="${_si## }"; _si="${_si%% }"
+      compile_expr "$_si"
+    done
     compile_expr "$_val"
-    echo "APUT ${_pfx}${_num}"
+    echo "APUT_N ${_pfx}${_num} ${_nsubs}"
     echo "ESTMT"
     continue
   fi
@@ -299,16 +314,30 @@ while IFS= read -r line; do
     echo "ESTMT"
     continue
   fi
-  # READ OUT of any other expression (e.g., #N literal or full expr).
+  # READ OUT of any other expression (e.g., #N literal, ,N SUB expr,
+  # or full expr).
   if [[ "$body" =~ '^READ OUT[[:space:]]+(.+)$' ]]; then
     local _rhs="${match[1]}"
     _rhs="${_rhs## }"; _rhs="${_rhs%% }"
-    # Multi-token READ OUT (.1 .2 .3) or array-bare (,N) stays
-    # unsupported in this subset.
-    if [[ "$_rhs" =~ '^[,;][0-9]+$' ]]; then
-      echo "ERROR: bare-array READ OUT not yet in bytecode subset: $line" >&2
-      exit 1
+    # Special case: array element read.
+    if [[ "$_rhs" =~ '^([,;])([0-9]+)[[:space:]]+SUB[[:space:]]+(.+)$' ]]; then
+      local _ap="${match[1]}" _an="${match[2]}" _subs_text="${match[3]}"
+      local -a _gsubs
+      _gsubs=("${(@ps: SUB :)_subs_text}")
+      local _gn=${#_gsubs[@]}
+      local _gs=""
+      for _gs in "${_gsubs[@]}"; do
+        _gs="${_gs## }"; _gs="${_gs%% }"
+        compile_expr "$_gs"
+      done
+      echo "AGET_N ${_ap}${_an} ${_gn}"
+      echo "READOUT"
+      echo "ESTMT"
+      continue
     fi
+    # Reject multi-token READ OUT (.1 .2 .3): only the first var
+    # should be allowed by the BC parser, but emitting requires per-
+    # var split which we don't do yet.
     if [[ "$_rhs" =~ '[[:space:]](\.[0-9]+|:[0-9]+|#[0-9]+)' ]]; then
       echo "ERROR: multi-item READ OUT not yet in bytecode subset: $line" >&2
       exit 1
@@ -323,13 +352,20 @@ while IFS= read -r line; do
   if [[ "$body" =~ '^(\.[0-9]+|:[0-9]+)[[:space:]]*<-[[:space:]]*(.+)$' ]]; then
     local lhs="${match[1]}"
     local rhs="${match[2]}"
-    # Special case: RHS is an array element read ',N SUB expr'.
+    # Special case: RHS is an array element read ',N SUB expr [SUB expr ...]'.
     if [[ "$rhs" =~ '^([,;])([0-9]+)[[:space:]]+SUB[[:space:]]+(.+)$' ]]; then
       local _ap="${match[1]}"
       local _an="${match[2]}"
-      local _sub="${match[3]}"
-      compile_expr "$_sub"
-      echo "AGET ${_ap}${_an}"
+      local _subs_text="${match[3]}"
+      local -a _gsubs
+      _gsubs=("${(@ps: SUB :)_subs_text}")
+      local _gn=${#_gsubs[@]}
+      local _gs=""
+      for _gs in "${_gsubs[@]}"; do
+        _gs="${_gs## }"; _gs="${_gs%% }"
+        compile_expr "$_gs"
+      done
+      echo "AGET_N ${_ap}${_an} ${_gn}"
     else
       compile_expr "$rhs"
     fi

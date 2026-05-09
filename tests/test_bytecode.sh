@@ -200,6 +200,25 @@ else
 fi
 rm -f "$SRC_AB"
 
+# Test: multi-dim array dim + write + read.
+SRC_MD=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_MD" <<'EOF'
+DO ,1 <- #3 BY #4
+DO ,1 SUB #2 SUB #3 <- #99
+PLEASE DO .1 <- ,1 SUB #2 SUB #3
+DO READ OUT .1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_MD" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "XCIX" ]]; then
+  echo "PASS bytecode multi-dim 3x4 array write+read"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL multi-dim: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_MD"
+
 # Test: 1D array dim + element write + element read.
 SRC_ARR=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC_ARR" <<'EOF'
@@ -392,8 +411,7 @@ rm -f "$SRC_NEXT"
 # and arrays remain unsupported in this bytecode tier.
 SRC3=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC3" <<'EOF'
-DO ,1 <- #5 BY #3
-DO .1 <- ,1 SUB #1 SUB #2
+DO COME FROM .1 + #5
 DO GIVE UP
 EOF
 err=$(zsh "$BC_COMPILER" < "$SRC3" 2>&1 >/dev/null)
