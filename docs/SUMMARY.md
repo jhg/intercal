@@ -85,6 +85,8 @@
 - [Loop primitive: NEXT FROM](loop-extension.md)
 - [Learning by extending: a guided tour](learning-by-extending.md)
 - [Cross-compiler cheatsheet](cross-compiler-cheatsheet.md)
+- [The bytecode tier](bytecode-evolution.md)
+- [Effect-driven elimination](effect-elimination.md)
 
 # Reference
 

@@ -167,3 +167,37 @@ For a session that wants to go deeper:
 
 Each is a focused multi-week project. None is required for the
 project's identity; each is depth.
+
+## Updates: 2026-05-09 (late session)
+
+The deferred items above were partially or fully resolved in
+the late 2026-05-09 work. Status now:
+
+| Item from the list above | Status |
+|--------------------------|--------|
+| 2 — IR for more types | DONE (literal ASSIGN, var-copy, IGNORE/REMEMBER, STASH/RETRIEVE via DELEGATE; READ_OUT scalar) |
+| 4 — SCCP-WZ syslib + COME FROM edges | DONE (1009/1010/1020/1030/1040/1050/1500/1509/1510/1520/1530/1540/1549/1550/1900/1910 + COME FROM source edges + INTERCAL_SCCP_WZ_FEED to feed codegen) |
+| 5 — Bytecode parity | DONE (full subset: arithmetic, COME FROM, NEXT/RESUME/FORGET/NEXT FROM, ABSTAIN/REINSTATE label+gerund, multi-dim arrays, TTM in/out, WRITE IN, syslib eval, Label 666 file I/O, probability) |
+| 6 — Effect-elim for more codes | DONE (E123 stack overflow, E240 zero-dim, E241 subscript bounds, E632 resume past stack bottom, plus E000 codegen bug fix in negated UNKNOWN) |
+
+Still genuinely deferred:
+
+- 3 (regalloc behavioural codegen): the register-keeping change
+  needs cross-statement state with careful invalidation. The
+  comments-only path under `INTERCAL_REGALLOC_HINTS=1` provides
+  the data structure. Multi-day audit risk over 35 tests.
+- Stage3 substages 2-7 + fixpoint: still multi-month INTERCAL.
+  Substage-1-style demonstrators (byte loader, D counter,
+  P counter) prove the loop primitive and equality test work
+  reliably; the parser, semantics, codegen, and BSS emission
+  layers remain to be written.
+
+Deltas in this session:
+
+- New flag `--emit-help` self-documenting CLI.
+- `BC_TRACE=1` for bytecode VM debugging.
+- `tools/lint_zsh_quirks.sh` catches the bug class of bare
+  `local NAME` followed by `for NAME` and the LSP-style
+  `${var//\\X/$'\\X'}` substitution that doesn't interpret.
+- New mdBook chapters: `bytecode-evolution.md` and
+  `effect-elimination.md`.
