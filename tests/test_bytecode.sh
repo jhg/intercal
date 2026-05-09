@@ -200,6 +200,60 @@ else
 fi
 rm -f "$SRC_AB"
 
+# Test: 1D array dim + element write + element read.
+SRC_ARR=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_ARR" <<'EOF'
+DO ,1 <- #5
+DO ,1 SUB #2 <- #42
+PLEASE DO .1 <- ,1 SUB #2
+DO READ OUT .1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_ARR" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "XLII" ]]; then
+  echo "PASS bytecode 1D array dim + element rw"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL array: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_ARR"
+
+# Test: probability prefix %0 always skips, %100 always runs.
+SRC_P0=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_P0" <<'EOF'
+DO .1 <- #5
+DO %0 .1 <- #99
+PLEASE DO READ OUT .1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_P0" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "V" ]]; then
+  echo "PASS bytecode probability %0 always skips"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL %0: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_P0"
+
+SRC_P100=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_P100" <<'EOF'
+DO .1 <- #5
+DO %100 .1 <- #99
+PLEASE DO READ OUT .1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_P100" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "XCIX" ]]; then
+  echo "PASS bytecode probability %100 always runs"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL %100: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_P100"
+
 # Test: ABSTAIN FROM CALCULATING (gerund) abstains all ASSIGN stmts.
 SRC_GER=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC_GER" <<'EOF'
@@ -325,8 +379,8 @@ rm -f "$SRC_NEXT"
 # and arrays remain unsupported in this bytecode tier.
 SRC3=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC3" <<'EOF'
-DO ,1 <- #5
-DO .1 <- ,1 SUB #2
+DO ,1 <- #5 BY #3
+DO .1 <- ,1 SUB #1 SUB #2
 DO GIVE UP
 EOF
 err=$(zsh "$BC_COMPILER" < "$SRC3" 2>&1 >/dev/null)

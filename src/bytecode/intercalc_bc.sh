@@ -167,6 +167,13 @@ while IFS= read -r line; do
     bc_label_to_id[$_pending_label]=$bc_stmt_id
     _pending_label=""
   fi
+  # Probability prefix: %N before the body skips at runtime if the
+  # roll says so. Emit PROB N; the VM branches past ESTMT when it
+  # decides to skip.
+  if [[ "$body" =~ '^%([0-9]+)[[:space:]]+(.+)$' ]]; then
+    echo "PROB ${match[1]}"
+    body="${match[2]}"
+  fi
 
   if [[ "$body" =~ '^GIVE UP[[:space:]]*$' ]]; then
     echo "EXIT"
@@ -219,6 +226,30 @@ while IFS= read -r line; do
     continue
   fi
 
+  # Array dim: ',N <- expr' (1D only).
+  if [[ "$body" =~ '^([,;])([0-9]+)[[:space:]]*<-[[:space:]]*([^B]+)$' ]]; then
+    local _pfx="${match[1]}"
+    local _num="${match[2]}"
+    local _dim="${match[3]}"
+    _dim="${_dim## }"; _dim="${_dim%% }"
+    compile_expr "$_dim"
+    echo "DIM ${_pfx}${_num}"
+    echo "ESTMT"
+    continue
+  fi
+  # Array element write: ',N SUB expr <- expr' (1D only).
+  if [[ "$body" =~ '^([,;])([0-9]+)[[:space:]]+SUB[[:space:]]+(.+)[[:space:]]+<-[[:space:]]+(.+)$' ]]; then
+    local _pfx="${match[1]}"
+    local _num="${match[2]}"
+    local _sub="${match[3]}"
+    local _val="${match[4]}"
+    compile_expr "$_sub"
+    compile_expr "$_val"
+    echo "APUT ${_pfx}${_num}"
+    echo "ESTMT"
+    continue
+  fi
+
   # ABSTAIN FROM (N) or REINSTATE (N): label form. We emit a
   # marker with the LABEL number; the VM resolves to stmt_id via
   # its pre-scan label map.
@@ -265,7 +296,16 @@ while IFS= read -r line; do
   if [[ "$body" =~ '^(\.[0-9]+|:[0-9]+)[[:space:]]*<-[[:space:]]*(.+)$' ]]; then
     local lhs="${match[1]}"
     local rhs="${match[2]}"
-    compile_expr "$rhs"
+    # Special case: RHS is an array element read ',N SUB expr'.
+    if [[ "$rhs" =~ '^([,;])([0-9]+)[[:space:]]+SUB[[:space:]]+(.+)$' ]]; then
+      local _ap="${match[1]}"
+      local _an="${match[2]}"
+      local _sub="${match[3]}"
+      compile_expr "$_sub"
+      echo "AGET ${_ap}${_an}"
+    else
+      compile_expr "$rhs"
+    fi
     if [[ "$lhs" == .* ]]; then
       echo "POPV ${lhs}"
     else

@@ -8,6 +8,8 @@ typeset -A spot_ign
 typeset -A twospot_ign
 typeset -A spot_stash
 typeset -A twospot_stash
+typeset -A array_data    # key: '<pfx><num>:<idx>' -> value
+typeset -A array_dim     # key: '<pfx><num>' -> size (1D only)
 typeset -a stack
 
 push() { stack+=("$1") }
@@ -192,6 +194,25 @@ while (( pc < ${#ops_buf[@]} )); do
         if (( ${+stmt_end_pc[$_sid]} )); then
           pc=$((${stmt_end_pc[$_sid]} + 1))
         fi
+      fi
+      ;;
+    PROB)
+      # Roll a 0..99 random and skip the rest of the stmt if the
+      # roll is >= the percentage.
+      local _pct="$2"
+      if (( (RANDOM % 100) >= _pct )); then
+        # Find the matching ESTMT for the most recent STMT_ENTER.
+        # The stmt_end_pc map indexes by id; we don't have id here,
+        # so scan forward.
+        local _scan=$pc
+        while (( _scan < ${#ops_buf[@]} )); do
+          local _o="${ops_buf[$((_scan+1))]}"
+          if [[ "$_o" == "ESTMT" ]]; then
+            pc=$((_scan + 1))
+            break
+          fi
+          _scan=$((_scan + 1))
+        done
       fi
       ;;
     ABSTAIN_LBL)
@@ -513,6 +534,40 @@ while (( pc < ${#ops_buf[@]} )); do
         fi
         [[ -n "${spot_ign[$_v]:-}" ]] || spot[$_v]=$_val
       fi
+      ;;
+    DIM)
+      pop
+      local _dim=$REPLY
+      if (( _dim == 0 )); then
+        echo "ICL240I ERROR TYPE 240 ENCOUNTERED" >&2
+        exit 1
+      fi
+      array_dim[$2]=$_dim
+      ;;
+    APUT)
+      pop; local _val=$REPLY
+      pop; local _idx=$REPLY
+      if (( ! ${+array_dim[$2]} )); then
+        echo "ICL241I ERROR TYPE 241 ENCOUNTERED (undimensioned)" >&2
+        exit 1
+      fi
+      if (( _idx < 1 || _idx > ${array_dim[$2]} )); then
+        echo "ICL241I ERROR TYPE 241 ENCOUNTERED (out of range)" >&2
+        exit 1
+      fi
+      array_data[${2}:${_idx}]=$_val
+      ;;
+    AGET)
+      pop; local _idx=$REPLY
+      if (( ! ${+array_dim[$2]} )); then
+        echo "ICL241I ERROR TYPE 241 ENCOUNTERED (undimensioned)" >&2
+        exit 1
+      fi
+      if (( _idx < 1 || _idx > ${array_dim[$2]} )); then
+        echo "ICL241I ERROR TYPE 241 ENCOUNTERED (out of range)" >&2
+        exit 1
+      fi
+      push "${array_data[${2}:${_idx}]:-0}"
       ;;
     EXIT)
       exit 0
