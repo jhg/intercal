@@ -177,6 +177,52 @@ else
 fi
 rm -f "$SRC_CF"
 
+# Test: bytecode ABSTAIN FROM (label) skips a statement.
+SRC_AB=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_AB" <<'EOF'
+DO .1 <- #5
+PLEASE DO ABSTAIN FROM (10)
+(10) DO READ OUT .1
+DO READ OUT .1
+PLEASE DO REINSTATE (10)
+DO .1 <- #99
+DO READ OUT .1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_AB" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+EXP=$'V\nXCIX'
+if [[ "$out" == "$EXP" ]]; then
+  echo "PASS bytecode ABSTAIN FROM (label) skips, REINSTATE re-enables"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL ABSTAIN: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_AB"
+
+# Test: ABSTAIN FROM CALCULATING (gerund) abstains all ASSIGN stmts.
+SRC_GER=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_GER" <<'EOF'
+DO .1 <- #5
+DO .2 <- #7
+PLEASE DO ABSTAIN FROM CALCULATING
+DO .1 <- #99
+DO .2 <- #99
+PLEASE DO READ OUT .1
+DO READ OUT .2
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_GER" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+EXP=$'V\nVII'
+if [[ "$out" == "$EXP" ]]; then
+  echo "PASS bytecode ABSTAIN FROM CALCULATING (gerund)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL gerund ABSTAIN: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_GER"
+
 # Test: bytecode WRITE IN reads English digit names.
 SRC_WI=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC_WI" <<'EOF'
@@ -279,8 +325,8 @@ rm -f "$SRC_NEXT"
 # and arrays remain unsupported in this bytecode tier.
 SRC3=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC3" <<'EOF'
-DO ABSTAIN FROM (10)
-DO .1 <- #5
+DO ,1 <- #5
+DO .1 <- ,1 SUB #2
 DO GIVE UP
 EOF
 err=$(zsh "$BC_COMPILER" < "$SRC3" 2>&1 >/dev/null)

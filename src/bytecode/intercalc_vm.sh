@@ -115,13 +115,22 @@ while IFS= read -r line; do
   ops_buf+=("$line")
 done
 
-# Pre-scan: build two maps:
+# Pre-scan: build maps:
 #   redirect_target[label] = pc immediately after the COMEFROM's ESTMT
 #                            (used by labelled statements to redirect)
 #   label_pc[label]        = pc of the labelled statement (CALL target)
+#   stmt_end_pc[id]        = pc of the ESTMT that closes statement id
+#   label_to_stmt_id[lbl]  = stmt id of the labelled statement
 typeset -A redirect_target
 typeset -A label_pc
+typeset -A stmt_end_pc
+typeset -A label_to_stmt_id
+typeset -A stmt_type_of_id    # stmt_id -> gerund-style type
+typeset -A ids_by_gerund      # gerund -> space-separated id list
+typeset -a abstain
 typeset pc_scan=0
+typeset cur_stmt_id=0
+typeset cur_classified=0
 for (( pc_scan=0; pc_scan<${#ops_buf[@]}; pc_scan++ )); do
   local op="${ops_buf[$((pc_scan+1))]}"
   if [[ "$op" =~ '^COMEFROM ([0-9]+)$' ]]; then
@@ -130,6 +139,38 @@ for (( pc_scan=0; pc_scan<${#ops_buf[@]}; pc_scan++ )); do
     redirect_target[$lbl]=$target
   elif [[ "$op" =~ '^LABEL ([0-9]+)$' ]]; then
     label_pc[${match[1]}]=$((pc_scan + 1))
+    label_to_stmt_id[${match[1]}]=$cur_stmt_id
+  elif [[ "$op" =~ '^STMT_ENTER ([0-9]+)$' ]]; then
+    cur_stmt_id="${match[1]}"
+    abstain[$cur_stmt_id]=0
+    cur_classified=0
+  elif [[ "$op" == "ESTMT" ]] && (( cur_stmt_id > 0 )); then
+    stmt_end_pc[$cur_stmt_id]=$pc_scan
+  elif (( cur_stmt_id > 0 )) && (( ! cur_classified )); then
+    # Classify this statement by its first op (ignoring LABEL).
+    local _ger=""
+    case "${op%% *}" in
+      LABEL) ;;  # skip, look at next op
+      POPV|POPV2) _ger="CALCULATING" ;;
+      CALL) _ger="NEXTING" ;;
+      RESUME) _ger="RESUMING" ;;
+      FORGET) _ger="FORGETTING" ;;
+      STASH) _ger="STASHING" ;;
+      RETRIEVE) _ger="RETRIEVING" ;;
+      IGNORE) _ger="IGNORING" ;;
+      REMEMBER) _ger="REMEMBERING" ;;
+      ABSTAIN_LBL|ABSTAIN_GER) _ger="ABSTAINING" ;;
+      REINSTATE_LBL|REINSTATE_GER) _ger="REINSTATING" ;;
+      COMEFROM) _ger="COMING_FROM" ;;
+      VPUSH|VPUSH2|IPUSH) ;;  # part of expression, look further
+      READOUT|READOUT2) _ger="READING_OUT" ;;
+      WRITEIN) _ger="WRITING_IN" ;;
+    esac
+    if [[ -n "$_ger" ]]; then
+      stmt_type_of_id[$cur_stmt_id]="$_ger"
+      ids_by_gerund[$_ger]="${ids_by_gerund[$_ger]:-} $cur_stmt_id"
+      cur_classified=1
+    fi
   fi
 done
 
@@ -144,6 +185,41 @@ while (( pc < ${#ops_buf[@]} )); do
   pc=$((pc + 1))
   set -- ${(z)line}
   case "$1" in
+    STMT_ENTER)
+      # If this stmt is currently abstained, jump past its ESTMT.
+      local _sid="$2"
+      if (( ${abstain[$_sid]:-0} )); then
+        if (( ${+stmt_end_pc[$_sid]} )); then
+          pc=$((${stmt_end_pc[$_sid]} + 1))
+        fi
+      fi
+      ;;
+    ABSTAIN_LBL)
+      local _lbl="$2"
+      if (( ${+label_to_stmt_id[$_lbl]} )); then
+        abstain[${label_to_stmt_id[$_lbl]}]=1
+      fi
+      ;;
+    REINSTATE_LBL)
+      local _lbl="$2"
+      if (( ${+label_to_stmt_id[$_lbl]} )); then
+        abstain[${label_to_stmt_id[$_lbl]}]=0
+      fi
+      ;;
+    ABSTAIN_GER)
+      local _ger="$2"
+      local _id=""
+      for _id in ${=ids_by_gerund[$_ger]:-}; do
+        abstain[$_id]=1
+      done
+      ;;
+    REINSTATE_GER)
+      local _ger="$2"
+      local _id=""
+      for _id in ${=ids_by_gerund[$_ger]:-}; do
+        abstain[$_id]=0
+      done
+      ;;
     LABEL)
       pending_label="$2"
       ;;

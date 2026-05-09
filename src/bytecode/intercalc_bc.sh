@@ -134,32 +134,39 @@ compile_expr() {
   exit 1
 }
 
+typeset -i bc_stmt_id=0
+typeset -A bc_label_to_id
+typeset -A bc_id_to_type   # for gerund-based ABSTAIN
+typeset _pending_label=""  # carries (N) across empty-body lines
 while IFS= read -r line; do
   line="${line## }"
   line="${line%% }"
   [[ -z "$line" ]] && continue
   body="$line"
-  # Detect a (N) prefix and emit a LABEL marker before the statement's
-  # body. The COME FROM lookup later in the VM uses this marker to
-  # decide whether the just-executed statement triggers a redirect.
+  # Capture (N) prefix but defer emission until we have a real body —
+  # the DO/PLEASE-split preprocessor often leaves '(N)' on its own
+  # line with the actual statement following.
   if [[ "$body" =~ '^\(([0-9]+)\)[[:space:]]*(.*)$' ]]; then
-    echo "LABEL ${match[1]}"
+    _pending_label="${match[1]}"
     body="${match[2]}"
   fi
-  # Strip leading DO/PLEASE keywords; both with and without a
-  # trailing space (the preprocessor occasionally splits a line at
-  # the bare keyword).
   body="${body#DO }"
   body="${body#PLEASE }"
   [[ "$body" == "DO" ]] && body=""
   [[ "$body" == "PLEASE" ]] && body=""
   body="${body## }"
   body="${body%% }"
-
-  # The line might contain only a label or only a stray PLEASE/DO
-  # keyword (the surrounding "split on DO/PLEASE" preprocessing
-  # leaves these alone). Skip emitting any op for an empty body.
-  [[ -z "$body" ]] && continue
+  if [[ -z "$body" ]]; then
+    continue
+  fi
+  # Real body: allocate stmt id, emit STMT_ENTER, attach pending label.
+  bc_stmt_id=$((bc_stmt_id + 1))
+  echo "STMT_ENTER $bc_stmt_id"
+  if [[ -n "$_pending_label" ]]; then
+    echo "LABEL $_pending_label"
+    bc_label_to_id[$_pending_label]=$bc_stmt_id
+    _pending_label=""
+  fi
 
   if [[ "$body" =~ '^GIVE UP[[:space:]]*$' ]]; then
     echo "EXIT"
@@ -208,6 +215,35 @@ while IFS= read -r line; do
 
   if [[ "$body" =~ '^WRITE IN[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "WRITEIN ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
+
+  # ABSTAIN FROM (N) or REINSTATE (N): label form. We emit a
+  # marker with the LABEL number; the VM resolves to stmt_id via
+  # its pre-scan label map.
+  if [[ "$body" =~ '^ABSTAIN[[:space:]]+FROM[[:space:]]+\(([0-9]+)\)[[:space:]]*$' ]]; then
+    echo "ABSTAIN_LBL ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
+  if [[ "$body" =~ '^REINSTATE[[:space:]]+\(([0-9]+)\)[[:space:]]*$' ]]; then
+    echo "REINSTATE_LBL ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
+
+  # Gerund-based ABSTAIN/REINSTATE. The VM resolves the gerund to
+  # the set of matching stmt_ids via its pre-scan.
+  if [[ "$body" =~ '^ABSTAIN[[:space:]]+FROM[[:space:]]+([A-Z][A-Z[:space:]]*[A-Z])[[:space:]]*$' ]]; then
+    local _ger="${match[1]// /_}"
+    echo "ABSTAIN_GER ${_ger}"
+    echo "ESTMT"
+    continue
+  fi
+  if [[ "$body" =~ '^REINSTATE[[:space:]]+([A-Z][A-Z[:space:]]*[A-Z])[[:space:]]*$' ]]; then
+    local _ger="${match[1]// /_}"
+    echo "REINSTATE_GER ${_ger}"
     echo "ESTMT"
     continue
   fi
