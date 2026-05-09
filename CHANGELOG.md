@@ -34,9 +34,9 @@ tag; in-progress work appears under "Unreleased".
 - `--emit-opt-summary`: diagnostic dump showing the cumulative effect
   of every static analysis pass (counts of E275/E621/E436 elisions,
   abstain-flag eliminations, constant-propagation entries).
-- IR-driven codegen now handles literal-RHS ASSIGN and var-to-var
-  copy through `lower_ir_for_stmt`. Per-statement-type fallback
-  unchanged.
+- IR-driven codegen now handles literal-RHS ASSIGN, var-to-var
+  copy, and IGNORE / REMEMBER through `lower_ir_for_stmt`.
+  Per-statement-type fallback unchanged.
 - E275 elision recognises spot-to-twospot widening (always safe) and
   SCCP-bounded var copies. `compute_var_constants` now runs before
   `compute_e275_safety` so the latter can consult the constant map.
@@ -47,6 +47,9 @@ tag; in-progress work appears under "Unreleased".
   this session, each chosen to mirror a different shape of
   production-compiler work (frontend feature, IR migration, dataflow
   algorithm).
+- `docs/cross-compiler-cheatsheet.md`: a flat-index cheatsheet that
+  maps production-compiler concepts (LLVM IR opcode, GCC tree-ssa
+  pass, rustc query, etc.) to the matching construct here.
 
 ### Fixed
 
