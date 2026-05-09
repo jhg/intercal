@@ -829,6 +829,23 @@ emit_sccp_wz() {
     preds[$i]="$plist"
   done
 
+  # COME FROM source edges. For each labelled statement N whose label
+  # is the target of a COME FROM at stmt M, after N runs control
+  # transfers to M+1. So preds[M+1] gains N as an additional source.
+  # Without this, the meet at M+1 misses the lattice values flowing
+  # through N and the analysis under-approximates.
+  local cf_lbl=""
+  for cf_lbl in ${(k)come_from_target}; do
+    local cf_src_stmt="${label_to_stmt[$cf_lbl]:-}"
+    [[ -z "$cf_src_stmt" ]] && continue
+    [[ "$cf_src_stmt" == syslib_* ]] && continue
+    [[ "$cf_src_stmt" == "syscall_666" ]] && continue
+    local cf_redir="${come_from_target[$cf_lbl]}"
+    local cf_dst=$((cf_redir + 1))
+    (( cf_dst > stmt_count )) && continue
+    preds[$cf_dst]="${preds[$cf_dst]:-} $cf_src_stmt"
+  done
+
   # Meet of two lattice values; result placed in REPLY.
   meet_lattice() {
     local a=$1 b=$2
@@ -884,6 +901,67 @@ emit_sccp_wz() {
         fi
         incoming[$lkey]="$lat"
       fi
+    elif [[ "$t" == "NEXT" ]]; then
+      # Model arithmetic syslib calls: when the inputs (.1, .2) are
+      # both CONST, evaluate and produce CONST at the documented
+      # output(s). Otherwise leave outputs BOTTOM. See syslib labels
+      # in AGENTS.md for the contract of each routine.
+      local target="${stmt_next_target[$i]:-}"
+      local v1="${incoming[spot_1]:-TOP}"
+      local v2="${incoming[spot_2]:-TOP}"
+      sccp_const_value() {
+        if [[ "$1" =~ '^CONST\(([0-9]+)\)$' ]]; then REPLY="${match[1]}"; return 0; fi
+        return 1
+      }
+      case "$target" in
+        1009)
+          # .3 = (.1 + .2) mod 65536; .4 = #1 if no overflow else #2.
+          if sccp_const_value "$v1"; then local c1=$REPLY
+            if sccp_const_value "$v2"; then local c2=$REPLY
+              local sum=$(( (c1 + c2) & 0xFFFF ))
+              local of=$(( (c1 + c2) > 65535 ? 2 : 1 ))
+              incoming[spot_3]="CONST($sum)"
+              incoming[spot_4]="CONST($of)"
+            else incoming[spot_3]="BOTTOM"; incoming[spot_4]="BOTTOM"
+            fi
+          else incoming[spot_3]="BOTTOM"; incoming[spot_4]="BOTTOM"
+          fi
+          ;;
+        1010)
+          # .3 = (.1 - .2) mod 65536 (unsigned wrap, no error).
+          if sccp_const_value "$v1"; then local c1=$REPLY
+            if sccp_const_value "$v2"; then local c2=$REPLY
+              local diff=$(( (c1 - c2 + 65536) & 0xFFFF ))
+              incoming[spot_3]="CONST($diff)"
+            else incoming[spot_3]="BOTTOM"
+            fi
+          else incoming[spot_3]="BOTTOM"
+          fi
+          ;;
+        1020)
+          # In-place increment of .1, wrap on 16-bit.
+          if sccp_const_value "$v1"; then local c1=$REPLY
+            incoming[spot_1]="CONST($(( (c1 + 1) & 0xFFFF )))"
+          else incoming[spot_1]="BOTTOM"
+          fi
+          ;;
+        1030)
+          # .3 = .1 * .2 (16-bit, errors on overflow per spec; we
+          # only model the no-overflow path).
+          if sccp_const_value "$v1"; then local c1=$REPLY
+            if sccp_const_value "$v2"; then local c2=$REPLY
+              local prod=$(( c1 * c2 ))
+              if (( prod <= 65535 )); then
+                incoming[spot_3]="CONST($prod)"
+              else
+                incoming[spot_3]="BOTTOM"
+              fi
+            else incoming[spot_3]="BOTTOM"
+            fi
+          else incoming[spot_3]="BOTTOM"
+          fi
+          ;;
+      esac
     fi
 
     # Compare with previous outgoing[i_*]; record changes.

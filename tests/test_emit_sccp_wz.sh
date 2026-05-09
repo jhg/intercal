@@ -87,7 +87,54 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-rm -f "$SRC" "$SRC2" "$SRC3"
+# Test 5: syslib 1009 (16-bit add) is evaluated in the lattice when both
+# inputs are CONST.
+SRC4=$(mktemp /tmp/test_sccp_wz.XXXXXX)
+cat > "$SRC4" <<'EOF'
+DO .1 <- #5
+PLEASE DO .2 <- #7
+DO (1009) NEXT
+DO READ OUT .3
+PLEASE DO GIVE UP
+DON'T NOTE filler
+EOF
+OUT4=$(zsh "$COMPILER" --emit-sccp-wz < "$SRC4" 2>&1)
+if [[ "$OUT4" == *"spot_3       = CONST(12)"* ]]; then
+  echo "PASS syslib 1009 evaluated to CONST(12)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL syslib 1009 not folded"
+  echo "$OUT4"
+  FAIL=$((FAIL + 1))
+fi
+if [[ "$OUT4" == *"spot_4       = CONST(1)"* ]]; then
+  echo "PASS syslib 1009 overflow flag CONST(1) (no overflow)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL overflow flag not modelled"
+  FAIL=$((FAIL + 1))
+fi
+
+# Test 6: syslib 1010 (subtract) folded.
+SRC5=$(mktemp /tmp/test_sccp_wz.XXXXXX)
+cat > "$SRC5" <<'EOF'
+DO .1 <- #20
+PLEASE DO .2 <- #5
+DO (1010) NEXT
+DO READ OUT .3
+PLEASE DO GIVE UP
+DON'T NOTE filler
+EOF
+OUT5=$(zsh "$COMPILER" --emit-sccp-wz < "$SRC5" 2>&1)
+if [[ "$OUT5" == *"spot_3       = CONST(15)"* ]]; then
+  echo "PASS syslib 1010 evaluated to CONST(15)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL syslib 1010 not folded"
+  FAIL=$((FAIL + 1))
+fi
+
+rm -f "$SRC" "$SRC2" "$SRC3" "$SRC4" "$SRC5"
 echo ""
 echo "Total: $PASS passed, $FAIL failed"
 exit $((FAIL > 0))
