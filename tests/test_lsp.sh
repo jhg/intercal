@@ -65,6 +65,40 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# Test extra: completion provider advertised
+if [[ "$RESP" == *"completionProvider"* ]]; then
+  echo "PASS completion advertised"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL completion not advertised"
+  FAIL=$((FAIL + 1))
+fi
+
+# Test extra: definition provider advertised
+if [[ "$RESP" == *"definitionProvider"* ]]; then
+  echo "PASS definition advertised"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL definition not advertised"
+  FAIL=$((FAIL + 1))
+fi
+
+# Test extra: completion request returns items including DO and PLEASE
+COMPL_BODY='{"jsonrpc":"2.0","id":3,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///tmp/x.i"},"position":{"line":0,"character":0}}}'
+DIDOPEN_BODY2='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tmp/x.i","languageId":"intercal","version":1,"text":"DO .1 <- #5\nPLEASE GIVE UP"}}}'
+RESP_COMPL=$(printf 'Content-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%s' \
+  ${#INIT_BODY} "$INIT_BODY" \
+  ${#DIDOPEN_BODY2} "$DIDOPEN_BODY2" \
+  ${#COMPL_BODY} "$COMPL_BODY" \
+  ${#EXIT_BODY} "$EXIT_BODY" | zsh "$LSP" 2>/dev/null)
+if [[ "$RESP_COMPL" == *"\"DO\""* ]] && [[ "$RESP_COMPL" == *"\"PLEASE\""* ]]; then
+  echo "PASS completion includes DO + PLEASE"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL completion missing DO/PLEASE"
+  FAIL=$((FAIL + 1))
+fi
+
 # Test 3: response uses Content-Length framing
 if [[ "$RESP" == "Content-Length:"* ]]; then
   echo "PASS Content-Length framing"

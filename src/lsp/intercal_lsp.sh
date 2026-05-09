@@ -292,10 +292,82 @@ main() {
 
     case "$method" in
       initialize)
-        local caps='{"textDocumentSync":1,"diagnosticProvider":{"interFileDependencies":false,"workspaceDiagnostics":false},"hoverProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":'"$SEMANTIC_TOKEN_TYPES"',"tokenModifiers":[]},"full":true}}'
-        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":{"capabilities":'"$caps"',"serverInfo":{"name":"intercal-lsp","version":"0.2.0"}}}'
+        local caps='{"textDocumentSync":1,"diagnosticProvider":{"interFileDependencies":false,"workspaceDiagnostics":false},"hoverProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":'"$SEMANTIC_TOKEN_TYPES"',"tokenModifiers":[]},"full":true},"completionProvider":{"triggerCharacters":[".",":",",",";","#","("]},"definitionProvider":true}'
+        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":{"capabilities":'"$caps"',"serverInfo":{"name":"intercal-lsp","version":"0.3.0"}}}'
         send_message "$resp"
         log "-> initialize response"
+        ;;
+      textDocument/completion)
+        local uri=""
+        if get_field "$msg" "uri"; then uri="$REPLY"; fi
+        local text="${doc_text[$uri]:-}"
+        local items_json='['
+        local first=1
+        local kw
+        # Keywords (CompletionItemKind = 14 for Keyword)
+        for kw in DO PLEASE NEXT RESUME FORGET STASH RETRIEVE IGNORE REMEMBER ABSTAIN REINSTATE FROM "COME FROM" "READ OUT" "WRITE IN" "GIVE UP"; do
+          (( first )) || items_json+=','
+          first=0
+          items_json+='{"label":"'"$kw"'","kind":14,"detail":"INTERCAL keyword"}'
+        done
+        # Variables present in the document
+        local seen_vars=""
+        local v
+        for v in $(echo "$text" | grep -oE '\.[0-9]+|:[0-9]+|,[0-9]+|;[0-9]+' | sort -u); do
+          (( first )) || items_json+=','
+          first=0
+          items_json+='{"label":"'"$v"'","kind":6,"detail":"INTERCAL variable used in this file"}'
+        done
+        # Labels in parens
+        for v in $(echo "$text" | grep -oE '\([0-9]+\)' | sort -u); do
+          (( first )) || items_json+=','
+          first=0
+          items_json+='{"label":"'"$v"'","kind":17,"detail":"INTERCAL label"}'
+        done
+        items_json+=']'
+        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":{"isIncomplete":false,"items":'"$items_json"'}}'
+        send_message "$resp"
+        ;;
+      textDocument/definition)
+        local uri="" line=0 character=0
+        if get_field "$msg" "uri"; then uri="$REPLY"; fi
+        if [[ "$msg" =~ '"line":[[:space:]]*([0-9]+)' ]]; then line="${match[1]}"; fi
+        if [[ "$msg" =~ '"character":[[:space:]]*([0-9]+)' ]]; then character="${match[1]}"; fi
+        local text="${doc_text[$uri]:-}"
+        # Extract the label number under the cursor (in parens)
+        local target_line=""
+        local lineno=0
+        while IFS= read -r l; do
+          if (( lineno == line )); then target_line="$l"; break; fi
+          lineno=$((lineno + 1))
+        done <<< "$text"
+        # Walk character forward/backward to find a (NN) pattern around the cursor.
+        local lblnum=""
+        if [[ "$target_line" =~ \(([0-9]+)\) ]]; then
+          # Find any (N) on this line; if cursor near it, use it.
+          lblnum="${match[1]}"
+        fi
+        local result='null'
+        if [[ -n "$lblnum" ]]; then
+          # Find the labelled statement: a line containing "(<lblnum>)"
+          local def_line=-1
+          local i=0
+          while IFS= read -r l; do
+            if [[ "$l" =~ \(${lblnum}\) ]] && [[ "$l" != *"NEXT"* ]] \
+               && [[ "$l" != *"COME FROM"* ]] && [[ "$l" != *"ABSTAIN"* ]] \
+               && [[ "$l" != *"REINSTATE"* ]] && [[ "$l" != *"FORGET"* ]] \
+               && [[ "$l" != *"RESUME"* ]]; then
+              def_line=$i
+              break
+            fi
+            i=$((i + 1))
+          done <<< "$text"
+          if (( def_line >= 0 )); then
+            result='{"uri":"'"$uri"'","range":{"start":{"line":'"$def_line"',"character":0},"end":{"line":'"$def_line"',"character":1}}}'
+          fi
+        fi
+        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":'"$result"'}'
+        send_message "$resp"
         ;;
       textDocument/semanticTokens/full)
         local uri=""
