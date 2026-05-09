@@ -133,6 +133,82 @@ peephole_optimize() {
   asm=$(printf "%s\n" "${result[@]}")
 }
 
+emit_effects() {
+  # Note [EffectAnalysis]
+  #   Per-statement static analysis of which ICL runtime errors a
+  #   statement could raise. Conservative over-approximation: we list
+  #   the maximum possible set per statement type. A flow-sensitive
+  #   refinement (e.g., proving E275 cannot fire when the RHS is a
+  #   small constant) is documented as future work in proposal 20.
+  #
+  #   Output: per-statement, the set of possible ICL codes.
+  local i
+  echo "=== Effect / error analysis ==="
+  echo "platform:    $_INTERCAL_PLATFORM"
+  echo "stmts:       $stmt_count"
+  echo
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-?}"
+    local body="${stmt_body[$i]:-}"
+    local effects=""
+    case "$t" in
+      ASSIGN)
+        effects="E275"
+        # Could also be E200 (variable not dimensioned) for arrays;
+        # ASSIGN scalars do not trigger that. Include if body looks
+        # like array element store.
+        if [[ "$body" == *"SUB"* ]]; then
+          effects+=" E241 E240"
+        fi
+        ;;
+      ASSIGN_ARRAY)
+        effects="E241 E275"
+        ;;
+      ARRAY_DIM)
+        effects="E240"
+        ;;
+      NEXT)
+        effects="E123 E129"
+        ;;
+      RESUME)
+        effects="E621 E632"
+        ;;
+      FORGET)
+        effects="(none)"
+        ;;
+      ABSTAIN|REINSTATE)
+        effects="E139"
+        ;;
+      COME_FROM)
+        effects="E555"
+        ;;
+      STASH|RETRIEVE)
+        if [[ "$t" == "RETRIEVE" ]]; then
+          effects="E436"
+        else
+          effects="(none)"
+        fi
+        ;;
+      IGNORE|REMEMBER)
+        effects="(none)"
+        ;;
+      READ_OUT)
+        effects="(none)"
+        ;;
+      WRITE_IN)
+        effects="E562 E579 E533"
+        ;;
+      GIVE_UP)
+        effects="(none)"
+        ;;
+      *)
+        effects="E000 E017"
+        ;;
+    esac
+    printf "  stmt %3d: %-12s -> %s\n" "$i" "$t" "$effects"
+  done
+}
+
 emit_regalloc() {
   # Note [LinearScanDemo]
   #   Poletto-Sarkar linear-scan over SSA-versioned variables. We
@@ -3099,6 +3175,7 @@ EMIT_IR_FULL_MODE=0
 EMIT_SSA_MODE=0
 EMIT_SCCP_MODE=0
 EMIT_REGALLOC_MODE=0
+EMIT_EFFECTS_MODE=0
 TIME_REPORT=0
 # Note [OptBisect]
 #   --opt-bisect-limit=N caps the number of optional transformations
@@ -3123,6 +3200,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-ssa)           EMIT_SSA_MODE=1; shift ;;
     --emit-sccp)          EMIT_SCCP_MODE=1; shift ;;
     --emit-regalloc)      EMIT_REGALLOC_MODE=1; shift ;;
+    --emit-effects)       EMIT_EFFECTS_MODE=1; shift ;;
     --time-report)        TIME_REPORT=1; shift ;;
     --opt-bisect-limit=*) OPT_BISECT_LIMIT=${1#--opt-bisect-limit=}; shift ;;
     --opt-bisect-verbose) OPT_BISECT_VERBOSE=1; shift ;;
@@ -3246,6 +3324,11 @@ main() {
 
   if (( EMIT_REGALLOC_MODE )); then
     emit_regalloc
+    exit 0
+  fi
+
+  if (( EMIT_EFFECTS_MODE )); then
+    emit_effects
     exit 0
   fi
 
