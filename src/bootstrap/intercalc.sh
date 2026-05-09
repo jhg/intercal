@@ -1759,29 +1759,83 @@ compute_var_constants() {
 #   Conservative: anything other than a literal #N is treated as
 #   maybe-overflow.
 typeset -A stmt_e275_safe
+typeset -A stmt_e621_safe   # RESUME #N where N != 0 cannot raise E621
+typeset -A stmt_e436_safe   # RETRIEVE preceded by sufficient STASH on every path
 
 compute_e275_safety() {
   stmt_e275_safe=()
+  stmt_e621_safe=()
+  stmt_e436_safe=()
   local i
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-}"
-    [[ "$t" != "ASSIGN" ]] && continue
     local body="${stmt_body[$i]:-}"
-    local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
-    local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
-    # Strip outer grouping markers like ' or " for the simplest case.
-    local r="$rhs"
-    r="${r## }"; r="${r%% }"
-    if [[ "$r" =~ '^#([0-9]+)$' ]]; then
-      local val="${match[1]}"
-      if [[ "$target" =~ '^\.[0-9]+$' ]]; then
-        # 16-bit target: safe if val <= 65535
-        (( val <= 65535 )) && stmt_e275_safe[$i]=1
-      elif [[ "$target" =~ '^:[0-9]+$' ]]; then
-        # 32-bit target: always safe (values fit in u32)
-        (( val <= 4294967295 )) && stmt_e275_safe[$i]=1
-      fi
-    fi
+    case "$t" in
+      ASSIGN)
+        local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
+        local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
+        local r="$rhs"; r="${r## }"; r="${r%% }"
+        if [[ "$r" =~ '^#([0-9]+)$' ]]; then
+          local val="${match[1]}"
+          if [[ "$target" =~ '^\.[0-9]+$' ]]; then
+            (( val <= 65535 )) && stmt_e275_safe[$i]=1
+          elif [[ "$target" =~ '^:[0-9]+$' ]]; then
+            (( val <= 4294967295 )) && stmt_e275_safe[$i]=1
+          fi
+        fi
+        # Var-to-var copy: target type matches source type, so no
+        # widening overflow possible (caller still checks the runtime
+        # path for safety).
+        if [[ "$r" =~ '^\.[0-9]+$' ]] && [[ "$target" =~ '^\.[0-9]+$' ]]; then
+          stmt_e275_safe[$i]=1
+        fi
+        if [[ "$r" =~ '^:[0-9]+$' ]] && [[ "$target" =~ '^:[0-9]+$' ]]; then
+          stmt_e275_safe[$i]=1
+        fi
+        ;;
+      RESUME)
+        # RESUME #N where N is a literal nonzero -> E621 unreachable.
+        local arg="${body#RESUME }"
+        arg="${arg## }"; arg="${arg%% }"
+        if [[ "$arg" =~ '^#([0-9]+)$' ]] && (( ${match[1]} != 0 )); then
+          stmt_e621_safe[$i]=1
+        fi
+        ;;
+      RETRIEVE)
+        # RETRIEVE is safe (E436 unreachable) when a preceding STASH
+        # of the same vars is statically guaranteed on every path.
+        # Conservative: require an unconditional STASH of the same
+        # var-list earlier in the statement sequence, with no
+        # intervening RETRIEVE of the same vars and no NEXT or
+        # COME FROM that could divert away from the STASH.
+        local items="${body#RETRIEVE }"; items="${items## }"
+        local all_safe=1
+        for tok in ${=items}; do
+          tok="${tok## }"; tok="${tok%% }"; [[ -z "$tok" ]] && continue
+          local found=0
+          local j
+          for (( j=i-1; j>=1; j-- )); do
+            local jt="${stmt_type[$j]:-}"
+            local jb="${stmt_body[$j]:-}"
+            if [[ "$jt" == "STASH" ]] && [[ "$jb" == *"$tok"* ]]; then
+              # Verify no abstain on this STASH and no diverting flow.
+              if (( ! stmt_negated[$j] )) && (( ! stmt_needs_flag[$j] )); then
+                found=1
+              fi
+              break
+            fi
+            # Conservative stoppers: NEXT, RESUME, COME FROM, GIVE UP
+            case "$jt" in
+              NEXT|RESUME|GIVE_UP|COME_FROM)
+                break
+                ;;
+            esac
+          done
+          (( found )) || { all_safe=0; break; }
+        done
+        (( all_safe )) && stmt_e436_safe[$i]=1
+        ;;
+    esac
   done
 }
 
@@ -3047,7 +3101,10 @@ codegen_resume() {
   parse_expr ""
   codegen_expr $parse_result
 
-  emit "  cbz w0, _rt_error_E621"
+  # Note [E621Elim]: skip cbz when literal-nonzero RESUME proven safe.
+  if ! ( (( ${+stmt_e621_safe[$i]} )) && opt_bisect_check "elim_e621_stmt_$i" ); then
+    emit "  cbz w0, _rt_error_E621"
+  fi
   emit "  adrp x1, _next_sp@PAGE"
   emit "  add x1, x1, _next_sp@PAGEOFF"
   emit "  ldr w2, [x1]"
@@ -3344,7 +3401,10 @@ codegen_retrieve_var() {
   emit "  adrp x2, _${prefix}_${num}_stash_sp@PAGE"
   emit "  add x2, x2, _${prefix}_${num}_stash_sp@PAGEOFF"
   emit "  ldr w3, [x2]"
-  emit "  cbz w3, _rt_error_E436"
+  # Note [E436Elim]: skip cbz when STASH on every path proven.
+  if ! ( (( ${+stmt_e436_safe[$stmt_idx]} )) && opt_bisect_check "elim_e436_stmt_$stmt_idx" ); then
+    emit "  cbz w3, _rt_error_E436"
+  fi
   emit "  sub w3, w3, #1"
   emit "  str w3, [x2]"
   emit "  adrp x0, _${prefix}_${num}_stash_ptr@PAGE"
