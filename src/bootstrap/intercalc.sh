@@ -1651,7 +1651,17 @@ compute_var_constants() {
       ASSIGN)
         local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
         local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
-        if ! [[ "$rhs" =~ '^#([0-9]+)$' ]]; then
+        # Note [VarConstantProp]: track "linkable" RHS forms.
+        # A target is BOTTOM only if its RHS is neither a literal
+        # #N nor a simple var-to-var (.Y / :Y) copy. This admits
+        # chain copies through the forward pass.
+        local rhs_linkable=0
+        if [[ "$rhs" =~ '^#([0-9]+)$' ]]; then
+          rhs_linkable=1
+        elif [[ "$rhs" =~ '^[\.:][0-9]+$' ]]; then
+          rhs_linkable=1
+        fi
+        if (( ! rhs_linkable )); then
           if [[ "$target" =~ '^\.([0-9]+)$' ]]; then
             var_bottom[spot_${match[1]}]=1
           elif [[ "$target" =~ '^:([0-9]+)$' ]]; then
@@ -1715,8 +1725,16 @@ compute_var_constants() {
     local body="${stmt_body[$i]:-}"
     local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
     local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
+    local val=""
     if [[ "$rhs" =~ '^#([0-9]+)$' ]]; then
-      local val="${match[1]}"
+      val="${match[1]}"
+    elif [[ "$rhs" =~ '^\.([0-9]+)$' ]]; then
+      # Var-to-var copy: read source's current constant value.
+      val="${current_const[spot_${match[1]}]:-}"
+    elif [[ "$rhs" =~ '^:([0-9]+)$' ]]; then
+      val="${current_const[twospot_${match[1]}]:-}"
+    fi
+    if [[ -n "$val" ]]; then
       if [[ "$target" =~ '^\.([0-9]+)$' ]]; then
         local vk="spot_${match[1]}"
         if (( ! ${+var_bottom[$vk]} )); then
