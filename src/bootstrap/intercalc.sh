@@ -144,9 +144,9 @@ emit_opt_summary() {
   echo "stmts:       $stmt_count"
   echo
   local n_assign=0 n_e275_safe=0 n_e621_safe=0 n_e436_safe=0
-  local n_e123_safe=0
+  local n_e123_safe=0 n_e240_safe=0
   local n_no_flag=0 n_var_const=0
-  local n_resume=0 n_retrieve=0 n_next=0
+  local n_resume=0 n_retrieve=0 n_next=0 n_arrdim=0
   local i=0
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-}"
@@ -155,11 +155,13 @@ emit_opt_summary() {
       RESUME) n_resume=$((n_resume + 1)) ;;
       RETRIEVE) n_retrieve=$((n_retrieve + 1)) ;;
       NEXT) n_next=$((n_next + 1)) ;;
+      ARRAY_DIM) n_arrdim=$((n_arrdim + 1)) ;;
     esac
     (( ${+stmt_e275_safe[$i]} )) && n_e275_safe=$((n_e275_safe + 1))
     (( ${+stmt_e621_safe[$i]} )) && n_e621_safe=$((n_e621_safe + 1))
     (( ${+stmt_e436_safe[$i]} )) && n_e436_safe=$((n_e436_safe + 1))
     (( ${+stmt_e123_safe[$i]} )) && n_e123_safe=$((n_e123_safe + 1))
+    (( ${+stmt_e240_safe[$i]} )) && n_e240_safe=$((n_e240_safe + 1))
     (( ! ${stmt_needs_flag[$i]:-1} )) && n_no_flag=$((n_no_flag + 1))
   done
   # Count stmt_var_const entries (each entry is one stmt:varspec pair).
@@ -172,6 +174,8 @@ emit_opt_summary() {
   echo "  E436 elided (empty-stash skip):   $n_e436_safe / $n_retrieve"
   echo "NEXT stmts:                         $n_next"
   echo "  E123 elided (stack-depth skip):   $n_e123_safe / $n_next"
+  echo "ARRAY_DIM stmts:                    $n_arrdim"
+  echo "  E240 elided (zero-dim skip):      $n_e240_safe / $n_arrdim"
   echo
   echo "Abstain-flag check elided:          $n_no_flag / $stmt_count stmts"
   echo "Constant-propagation entries:       $n_const_pairs (stmt × varspec)"
@@ -2609,12 +2613,16 @@ typeset -A stmt_e275_safe
 typeset -A stmt_e621_safe   # RESUME #N where N != 0 cannot raise E621
 typeset -A stmt_e436_safe   # RETRIEVE preceded by sufficient STASH on every path
 typeset -A stmt_e123_safe   # NEXT that statically cannot overflow the stack
+typeset -A stmt_e240_safe   # ARRAY_DIM whose dim exprs are all literal nonzero
+typeset -A stmt_e632_safe   # RESUME provably has stack depth >= popcount
 
 compute_e275_safety() {
   stmt_e275_safe=()
   stmt_e621_safe=()
   stmt_e436_safe=()
   stmt_e123_safe=()
+  stmt_e240_safe=()
+  stmt_e632_safe=()
 
   # Note [E123Elim]
   #   The NEXT stack overflows when 80 entries accumulate. The
@@ -2710,6 +2718,24 @@ compute_e275_safety() {
         if [[ "$arg" =~ '^#([0-9]+)$' ]] && (( ${match[1]} != 0 )); then
           stmt_e621_safe[$i]=1
         fi
+        ;;
+      ARRAY_DIM)
+        # All dimensions literal nonzero -> E240 unreachable.
+        local dims_str="${body#*<-}"
+        dims_str="${dims_str## }"
+        local -a _dim_parts
+        _dim_parts=("${(@s:BY:)dims_str}")
+        local _all_safe=1
+        local _d=""
+        for _d in "${_dim_parts[@]}"; do
+          _d="${_d## }"; _d="${_d%% }"
+          if [[ "$_d" =~ '^#([0-9]+)$' ]]; then
+            (( ${match[1]} != 0 )) || { _all_safe=0; break; }
+          else
+            _all_safe=0; break
+          fi
+        done
+        (( _all_safe )) && stmt_e240_safe[$i]=1
         ;;
       RETRIEVE)
         # RETRIEVE is safe (E436 unreachable) when a preceding STASH
@@ -3936,8 +3962,10 @@ codegen_array_dim() {
   for (( j=1; j<=ndims; j++ )); do
     local stack_off=$(( (ndims - j) * 16 ))
     emit "  ldr w11, [sp, #${stack_off}]"
-    # Check dim > 0
-    emit "  cbz w11, _rt_error_E240"
+    # Check dim > 0 (skip when statically proven nonzero literals).
+    if ! ( (( ${+stmt_e240_safe[$i]} )) && opt_bisect_check "elim_e240_stmt_$i" ); then
+      emit "  cbz w11, _rt_error_E240"
+    fi
     # Store dimension
     emit "  adrp x12, _${prefix}_${arr_num}_dims@PAGE"
     emit "  add x12, x12, _${prefix}_${arr_num}_dims@PAGEOFF"

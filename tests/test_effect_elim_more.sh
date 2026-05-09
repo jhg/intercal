@@ -112,6 +112,45 @@ else
 fi
 rm -f "$SRC_E123B"
 
+# Test 6: ARRAY_DIM with literal nonzero -> E240 elided.
+SRC_E240=$(mktemp /tmp/test_eff_more.XXXXXX)
+cat > "$SRC_E240" <<'EOF'
+PLEASE DO ,1 <- #5
+DO READ OUT #1
+DO GIVE UP
+EOF
+asm=$(INTERCAL_ASM_ONLY=1 zsh "$COMPILER" < "$SRC_E240" 2>/dev/null)
+n=$(echo "$asm" | grep -c "_rt_error_E240" 2>/dev/null)
+n=${n:-0}
+if (( n == 0 )); then
+  echo "PASS literal nonzero ARRAY_DIM elides E240"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL E240 not elided: $n references"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_E240"
+
+# Test 7: ARRAY_DIM with non-literal dim keeps E240 check.
+SRC_E240B=$(mktemp /tmp/test_eff_more.XXXXXX)
+cat > "$SRC_E240B" <<'EOF'
+DO .1 <- #5
+PLEASE DO ,1 <- .1
+DO READ OUT #1
+DO GIVE UP
+EOF
+asm=$(INTERCAL_ASM_ONLY=1 zsh "$COMPILER" < "$SRC_E240B" 2>/dev/null)
+n=$(echo "$asm" | grep -c "_rt_error_E240" 2>/dev/null)
+n=${n:-0}
+if (( n >= 1 )); then
+  echo "PASS non-literal ARRAY_DIM keeps E240 check ($n)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL non-literal should keep E240"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_E240B"
+
 echo ""
 echo "Total: $PASS passed, $FAIL failed"
 exit $((FAIL > 0))
