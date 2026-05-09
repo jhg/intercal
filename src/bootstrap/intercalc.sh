@@ -15,7 +15,7 @@ TMPBIN=$(mktemp /tmp/intercalc.XXXXXX)
 trap "rm -f $TMPBIN" EXIT
 
 typeset -a stmt_label stmt_polite stmt_negated stmt_prob stmt_type stmt_body
-typeset -a stmt_next_target stmt_cf_target
+typeset -a stmt_next_target stmt_cf_target stmt_next_from_expr
 typeset -A label_to_stmt come_from_target
 stmt_count=0
 
@@ -667,7 +667,7 @@ emit_ssa() {
   for (( i=1; i<=stmt_count; i++ )); do
     [[ -n "${stmt_label[$i]:-}" ]] && is_leader[$i]=1
     case "${stmt_type[$i]:-}" in
-      NEXT|RESUME|GIVE_UP)
+      NEXT|NEXT_FROM|RESUME|GIVE_UP)
         (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
         ;;
     esac
@@ -813,7 +813,7 @@ emit_ir_full() {
   for (( i=1; i<=stmt_count; i++ )); do
     [[ -n "${stmt_label[$i]:-}" ]] && is_leader[$i]=1
     case "${stmt_type[$i]:-}" in
-      NEXT|RESUME|GIVE_UP)
+      NEXT|NEXT_FROM|RESUME|GIVE_UP)
         (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
         ;;
     esac
@@ -900,7 +900,7 @@ emit_cfg() {
   for (( i=1; i<=stmt_count; i++ )); do
     [[ -n "${stmt_label[$i]:-}" ]] && is_leader[$i]=1
     case "${stmt_type[$i]:-}" in
-      NEXT|RESUME|GIVE_UP)
+      NEXT|NEXT_FROM|RESUME|GIVE_UP)
         (( i+1 <= stmt_count )) && is_leader[$((i+1))]=1
         ;;
     esac
@@ -1366,8 +1366,22 @@ classify_statement() {
   stmt_next_target[$idx]=""
   stmt_cf_target[$idx]=""
 
+  stmt_next_from_expr[$idx]=""
+
   if [[ "$body" == "GIVE UP" ]]; then
     stmt_type[$idx]="GIVE_UP"
+  elif [[ "$body" =~ '^\(([0-9]+)\)[[:space:]]*NEXT[[:space:]]+FROM[[:space:]]+(.+)$' ]]; then
+    # NEXT FROM extension: (LABEL) NEXT FROM <expr>  -- conditional
+    # backward branch (jumps if bit 0 of <expr> is set), no NEXT-stack
+    # push. See docs/loop-extension.md.
+    stmt_type[$idx]="NEXT_FROM"
+    stmt_next_target[$idx]="${match[1]}"
+    stmt_next_from_expr[$idx]="${match[2]}"
+  elif [[ "$body" =~ '^\(([0-9]+)\)[[:space:]]*NEXT[[:space:]]+FROM$' ]]; then
+    # NEXT FROM extension: (LABEL) NEXT FROM  -- unconditional jump.
+    stmt_type[$idx]="NEXT_FROM"
+    stmt_next_target[$idx]="${match[1]}"
+    stmt_next_from_expr[$idx]=""
   elif [[ "$body" =~ '^\(([0-9]+)\)[[:space:]]*NEXT$' ]]; then
     stmt_type[$idx]="NEXT"
     stmt_next_target[$idx]="${match[1]}"
@@ -1508,7 +1522,7 @@ check_unreferenced_labels() {
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-}"
     case "$t" in
-      NEXT)
+      NEXT|NEXT_FROM)
         local target="${stmt_next_target[$i]:-}"
         [[ -n "$target" ]] && label_referenced[$target]=1
         ;;
@@ -1711,6 +1725,13 @@ compute_var_constants() {
           return
         fi
         ;;
+      NEXT_FROM)
+        # NEXT FROM is a backward branch: defs reaching the target may
+        # be from this point or from before the target's definition.
+        # Conservative: disable.
+        typeset -g var_const_disabled=1
+        return
+        ;;
     esac
   done
   typeset -g var_const_disabled=0
@@ -1813,7 +1834,7 @@ compute_e275_safety() {
         for tok in ${=items}; do
           tok="${tok## }"; tok="${tok%% }"; [[ -z "$tok" ]] && continue
           local found=0
-          local j
+          local j=0
           for (( j=i-1; j>=1; j-- )); do
             local jt="${stmt_type[$j]:-}"
             local jb="${stmt_body[$j]:-}"
@@ -1826,7 +1847,7 @@ compute_e275_safety() {
             fi
             # Conservative stoppers: NEXT, RESUME, COME FROM, GIVE UP
             case "$jt" in
-              NEXT|RESUME|GIVE_UP|COME_FROM)
+              NEXT|NEXT_FROM|RESUME|GIVE_UP|COME_FROM)
                 break
                 ;;
             esac
@@ -2551,6 +2572,7 @@ codegen_statement() {
     ASSIGN)     codegen_assign $i ;;
     ARRAY_DIM)  codegen_array_dim $i ;;
     NEXT)       codegen_next $i ;;
+    NEXT_FROM)  codegen_next_from $i ;;
     RESUME)     codegen_resume $i ;;
     FORGET)     codegen_forget $i ;;
     COME_FROM)  ;; # handled at target
@@ -3087,6 +3109,34 @@ codegen_next() {
     fi
   else
     emit "  b _stmt_${target_ref}"
+  fi
+}
+
+codegen_next_from() {
+  # Note [NextFromExtension]
+  #   Non-standard primitive borrowed from CLC-INTERCAL, see
+  #   docs/loop-extension.md. Plain backward branch with optional
+  #   bit-0 conditional. Does NOT push the NEXT stack -- this is the
+  #   feature that makes finite loops sound (no E123 on the 80th
+  #   iteration). Cannot RESUME from it; the labelled target is reached
+  #   directly.
+  local i=$1
+  local target_label="${stmt_next_target[$i]}"
+  local target_ref="${label_to_stmt[$target_label]:-}"
+  local expr_str="${stmt_next_from_expr[$i]}"
+
+  if [[ -z "$target_ref" ]]; then
+    die_compile "129" "PROGRAM HAS GOTTEN LOST (NEXT FROM to undefined label ($target_label))"
+  fi
+
+  if [[ -z "$expr_str" ]]; then
+    emit "  b _stmt_${target_ref}"
+  else
+    parse_text="$expr_str"
+    parse_pos=0
+    parse_expr ""
+    codegen_expr $parse_result
+    emit "  tbnz w0, #0, _stmt_${target_ref}"
   fi
 }
 

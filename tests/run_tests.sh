@@ -201,6 +201,7 @@ run_test "read_out_multi" test_read_out_multi.i "$(printf 'V\nXLII')"
 run_test "abstain_gerund" test_abstain_gerund.i "XLII"
 run_test "write_in" test_write_in.i "CXXIII" "ONE TWO THREE"
 run_test "overbar" test_overbar.i "_IVDLXVII"
+run_test "next_from" test_next_from.i "V"
 
 # Label 666 syscall tests
 run_test_with_args "syscall_readself" test_syscall_readself.i "$(cat test_syscall_readself.i)" "$SCRIPT_DIR/test_syscall_readself.i"
