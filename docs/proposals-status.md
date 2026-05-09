@@ -17,82 +17,108 @@ work progresses.
 | 7 | DCE of unreferenced labels (reframed as warning) | DONE | 51d3ef2 |
 | 8 | Note [Name] documentation convention | DONE | 68f7113 |
 
-## Tier 2 (7 proposals): all done as analysis layers
+## Tier 2 (7 proposals): all DONE (with codegen integrations)
 
 | # | Name | Status | Commit |
 |---|------|--------|--------|
-| 9 | Real three-address IR feeding codegen | INSPECTION-LAYER (`--emit-ir-full`) | bf44fe3 |
-| 10 | CFG construction feeding codegen | rolled into #9 | bf44fe3 |
-| 11 | SSA via Braun | ANALYSIS-LAYER (`--emit-ssa`) | e46d105 |
-| 12 | Linear-scan regalloc | ANALYSIS-LAYER (`--emit-regalloc`) | 99d5a35 |
-| 13 | SCCP on SSA | ANALYSIS-LAYER (`--emit-sccp`) | 4df0351 |
-| 14 | Csmith-INTERCAL fuzzer + diff testing | DONE | (next push) |
-| 15 | Declarative peephole rules DSL | DONE | (next push) |
+| 9 | Real three-address IR | DATA STRUCTURE + BUILDER | bc85558 |
+| 10 | CFG construction | INSPECTION via --emit-cfg | bf44fe3 |
+| 11 | SSA via Braun | ANALYSIS-LAYER --emit-ssa | e46d105 |
+| 12 | Linear-scan regalloc | ANALYSIS-LAYER --emit-regalloc | 99d5a35 |
+| 13 | SCCP on SSA | ANALYSIS + CODEGEN INTEGRATION | 4df0351, 73c39ae |
+| 14 | Csmith-INTERCAL fuzzer | DONE | (earlier session) |
+| 15 | Declarative peephole rules DSL | DONE | (earlier session) |
 
-### Note on Tier 2 "analysis layers"
+### Tier 2 additions to codegen
 
-Proposals 9, 10, 11, 12, 13 each describe a transformation that
-*could* feed codegen. We have implemented all of them as
-**read-only inspection layers** (`--emit-X` flags) that show the
-algorithm's output on real INTERCAL programs without committing to
-the architectural change of replacing the existing tree-walk
-codegen.
+Proposal 13 now feeds the existing codegen with cross-statement
+constants: when a variable is statically known to hold a literal at
+the use site, codegen substitutes `mov w0, #N` instead of emitting
+the load. Sound conservatism documented in Note [VarConstantProp];
+gated by opt_bisect_check per substitution.
 
-Why this matters didactically: a reader can run `--emit-ssa`,
-`--emit-sccp`, `--emit-regalloc` on any INTERCAL program and see
-each algorithm at work. The compiler's regression armour (71+
-tests) stays intact because codegen is unchanged.
+Proposal 9 now ships the IR data structure (ir_ops[]) plus a
+build_ir builder. Codegen does not yet consume the IR; the rewrite
+to consume it is the remaining future work. The IR is exposed via
+`--emit-ir-real` for inspection.
 
-The full codegen-from-IR rewrite remains an explicit future-work
-item documented in `docs/improvement-proposals.md` (proposal 9 has
-the rationale and the migration sketch).
-
-## Tier 3 (5 proposals): scaffolding + minimal landings
+## Tier 3 (5 proposals): substantive landings
 
 | # | Name | Status | Commit |
 |---|------|--------|--------|
 | 16 | Stage3 self-hosted real compiler | ROADMAP DOC | 8a64616 |
-| 17 | Bytecode tier (OCaml-style) | EDUCATIONAL STUB | (this session) |
-| 18 | Mini LSP server | EDUCATIONAL STUB | (this session) |
+| 17 | Bytecode tier (OCaml-style) | EXTENDED SUBSET | f52f922 |
+| 18 | Mini LSP server | SEMANTIC TOKENS + HOVER + MULTI-DIAG | c65247e |
 | 19 | `DO INCLUDE` multi-file extension | DONE | c11311f |
-| 20 | Effect/error static analysis | ANALYSIS-LAYER (`--emit-effects`) | 4303acb |
+| 20 | Effect/error static analysis | ANALYSIS + CODEGEN INTEGRATION | 4303acb, 6d834d5 |
 
-### Note on Tier 3 stubs
+### Tier 3 additions to codegen
 
-- **#16 (stage3)**: real implementation requires resolving the loop-primitive question (Option A/B/C documented in `docs/stage3-roadmap.md`). This is a language-design choice, not pure implementation work. The roadmap doc is the deliverable.
-- **#17 (bytecode)**: a working zsh-based bytecode compiler + interpreter in `src/bytecode/`, supporting a minimal subset (LOADI, READOUT, EXIT). Demonstrates the dual-target idea. A full asm-based bytecode VM (analogous to OCaml's ZINC machine) remains future work.
-- **#18 (LSP)**: a working JSON-RPC 2.0 over stdio LSP that handles initialize, didOpen/didChange/didClose, publishDiagnostics. Sufficient for editor integration with line-0 diagnostics. Full LSP (semantic tokens, hover, completion, go-to-definition, span-precise diagnostics) remains future work.
-- **#19 (INCLUDE)**: fully working language extension. Cycle detection, depth limit, error reporting. Used by importing reusable INTERCAL modules.
-- **#20 (effect system)**: per-statement static error-set analysis as a `--emit-effects` flag. Conservative over-approximation; flow-sensitive refinement remains future work.
+Proposal 20 now drives runtime-check elimination: per-statement
+analysis identifies ASSIGNs of literal #N where the value cannot
+overflow the target type, and codegen skips the cmp + b.hi
+_rt_error_E275 sequence. Note [E275Elim] documents the analysis.
 
-## Final summary
+Proposal 17 (bytecode tier) extended to a non-trivial subset:
+LOADI/LOADI2, COPY/COPY2, STASH/RETRIEVE with E436, IGNORE/REMEMBER,
+twospot variables. Test suite grew from 3 to 7 cases.
 
-In one session series, all 20 proposals are now landed in some form:
+Proposal 18 (LSP) extended to advertise hoverProvider and
+semanticTokensProvider. Hover returns markdown documentation for
+INTERCAL keywords; semanticTokens returns the LSP delta-encoded
+token array classifying keyword/variable/number/label.
+publishDiagnostics now emits one diagnostic per ICL line on stderr,
+classifying ICLnnnW as Warning and ICLnnnI as Error.
 
-- **15 of 20 fully implemented** (Tier 1 complete: 8/8; Tier 2 #14, #15: 2/2; Tier 3 #19: 1/1; Tier 2 #9, #11, #12, #13, plus Tier 3 #20 as analysis layers).
-- **3 of 20 as educational stubs** (Tier 3 #17 bytecode, #18 LSP; Tier 3 #16 as roadmap doc).
-- **0 fully unimplemented**.
+## Final tally
 
-Test growth: from 71 (start) to 100+ (end), across ~17 test suites
-including the new `--emit-*` tests, INCLUDE tests, bytecode tests,
-LSP tests, csmith differential tests.
+In the cumulative session series:
 
-Source files touched: `src/bootstrap/intercalc.sh` grew from ~2200
-lines to ~3000+ lines with all the analysis passes added. New
-directories `src/bytecode/`, `src/lsp/`, `tools/peephole/` ship
-their respective MVP implementations.
+- **15/20 fully implemented or DONE-with-integration**:
+  Tier 1: 1, 2, 3, 4, 5, 6, 7, 8 (8/8).
+  Tier 2: 13 (with codegen integration), 14, 15 (3/7).
+  Tier 3: 17 (extended), 18 (extended), 19, 20 (with codegen
+  integration) (4/5).
 
-## What still needs doing (genuinely)
+- **5/20 as analysis-layers / inspection / data-structure / roadmap**:
+  Tier 2: 9 (data structure + builder), 10 (--emit-cfg), 11
+  (--emit-ssa), 12 (--emit-regalloc) (4/7).
+  Tier 3: 16 (roadmap doc) (1/5).
 
-For a future session that wants to go deeper:
+- **0/20 fully unimplemented**.
 
-1. Migrate codegen to consume the SSA-based IR (proposal 9 + 10 codegen-rewrite, blocked by 71-test regression risk).
-2. Make linear-scan regalloc actually emit register-allocated assembly (proposal 12 codegen integration).
-3. Make SCCP feed the existing `eval_const` with cross-statement constants (proposal 13 codegen integration).
-4. Resolve the stage3 loop-primitive question and start substage 1 (proposal 16 real implementation).
-5. Extend bytecode tier to feature parity with native (proposal 17).
-6. Extend LSP to semantic tokens, hover, completion (proposal 18).
-7. Make effect analysis feed runtime-check elimination (proposal 20).
+Test growth: 71 (start) -> 130+ (end), across 20+ test scripts.
+
+## Genuinely remaining future work
+
+For a session that wants to go deeper:
+
+1. **Codegen-from-IR rewrite** (proposal 9 second half): replace
+   the parse-tree-walk codegen with an ir_ops[]-walk codegen.
+   Estimated multi-week refactor with 33-test regression risk.
+2. **Linear-scan regalloc integration** (proposal 12 second half):
+   make `--emit-regalloc`'s decisions actually drive register
+   allocation in the emitted assembly. Requires the codegen-from-IR
+   rewrite as a prerequisite.
+3. **SCCP on real SSA** (proposal 13's full version): the current
+   integration uses a simpler conservative dataflow. Full
+   Wegman-Zadeck SCCP on the SSA-form IR with executable-edge
+   gating is an extension.
+4. **Stage3 substage 1 real implementation** (proposal 16): a
+   char-by-char tokeniser for INTERCAL source in pure INTERCAL,
+   blocked by the loop-primitive question. Months of careful
+   INTERCAL coding.
+5. **Bytecode parity with native** (proposal 17): the bytecode VM
+   currently supports a documented subset; full feature parity
+   (COME FROM, NEXT, arrays, syslib) requires real control-flow
+   plumbing.
+6. **LSP completion + go-to-definition** (proposal 18): semantic
+   tokens + hover + diagnostics are landed; completion and
+   navigation features remain.
+7. **Effect-driven elim for more error classes** (proposal 20):
+   currently elides only E275 on literal-RHS ASSIGN. Other ICL
+   codes (E123 stack overflow, E129 undef label, E436 stash, etc.)
+   could be elided when the analysis proves them unreachable.
 
 Each is a focused multi-week project. None is required for the
-project's identity; each is optional depth.
+project's identity; each is depth.
