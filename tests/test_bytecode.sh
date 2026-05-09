@@ -309,6 +309,26 @@ else
 fi
 rm -f "$SRC_GER"
 
+# Test: Label 666 syscall 8 (exit) returns the requested code.
+SRC_666=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_666" <<'EOF'
+DO .1 <- #8
+PLEASE DO .2 <- #42
+DO (666) NEXT
+DO READ OUT #1
+DO GIVE UP
+EOF
+zsh "$BC_COMPILER" < "$SRC_666" 2>/dev/null | zsh "$BC_VM" 2>/dev/null
+rc=$?
+if (( rc == 42 )); then
+  echo "PASS bytecode Label 666 syscall 8 (exit 42)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL Label 666 exit: got rc=$rc"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_666"
+
 # Test: bytecode WRITE IN reads English digit names.
 SRC_WI=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC_WI" <<'EOF'

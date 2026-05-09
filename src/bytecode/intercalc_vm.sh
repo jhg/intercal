@@ -80,9 +80,27 @@ do_unary() {
 
 stash_push() {
   local kind=$1 var=$2 val=$3
+  # Enforce per-variable stash depth limit (1024 entries, matching
+  # the native runtime's _stash_sp[1023] cap).
   case "$kind" in
-    spot) spot_stash[$var]="${val} ${spot_stash[$var]:-}" ;;
-    twospot) twospot_stash[$var]="${val} ${twospot_stash[$var]:-}" ;;
+    spot)
+      local cur="${spot_stash[$var]:-}"
+      local depth=$(echo "$cur" | wc -w)
+      if (( depth >= 1023 )); then
+        echo "ICL000I per-var stash overflow on .${var}" >&2
+        exit 1
+      fi
+      spot_stash[$var]="${val} ${cur}"
+      ;;
+    twospot)
+      local cur="${twospot_stash[$var]:-}"
+      local depth=$(echo "$cur" | wc -w)
+      if (( depth >= 1023 )); then
+        echo "ICL000I per-var stash overflow on :${var}" >&2
+        exit 1
+      fi
+      twospot_stash[$var]="${val} ${cur}"
+      ;;
   esac
 }
 
@@ -281,10 +299,10 @@ while (( pc < ${#ops_buf[@]} )); do
       # the labelled statement's PC. Stack overflow at 80 mirrors
       # the runtime contract.
       local target_lbl="$2"
-      # Syslib labels (1000-1999) get evaluated in the VM directly
-      # rather than via a labelled-stmt jump. Same semantics as the
-      # native runtime + the SCCP-WZ lattice already encodes.
-      if (( target_lbl >= 1000 && target_lbl < 2000 )); then
+      # Syslib labels (1000-1999) and Label 666 get evaluated in the
+      # VM directly rather than via a labelled-stmt jump.
+      if (( target_lbl == 666 )) \
+         || (( target_lbl >= 1000 && target_lbl < 2000 )); then
         case "$target_lbl" in
           1000)
             # .3 = .1 + .2; per AGENTS.md the runtime does NOT
@@ -389,6 +407,53 @@ while (( pc < ${#ops_buf[@]} )); do
           1910)
             local _max=${spot[1]:-0}
             (( _max == 0 )) && spot[2]=0 || spot[2]=$(( RANDOM % (_max + 1) ))
+            ;;
+          666)
+            # Label 666: dispatch by .1 (syscall number).
+            local _syscall=${spot[1]:-0}
+            case "$_syscall" in
+              5)
+                # argc: count of program args (excluding the VM
+                # script path). With our harness 'vm < bytecode',
+                # argv is empty; report 0.
+                spot[3]=${#argv}
+                ;;
+              6)
+                # argv index .2 -> length in .3, content in ,65535.
+                local _ai=${spot[2]:-0}
+                if (( _ai >= 0 )) && (( _ai < ${#argv} )); then
+                  local _arg="${argv[$((_ai + 1))]}"
+                  local _len=${#_arg}
+                  spot[3]=$_len
+                  # Set ,65535 to dim _len, store bytes.
+                  array_dims[,65535]="$_len"
+                  array_dim[,65535]=$_len
+                  local _ci=0
+                  for (( _ci=0; _ci<_len; _ci++ )); do
+                    local _ch="${_arg[$((_ci + 1))]}"
+                    array_data[,65535:${_ci}]=$(printf '%d' "'$_ch")
+                  done
+                else
+                  spot[3]=0
+                fi
+                ;;
+              8)
+                exit ${spot[2]:-0}
+                ;;
+              9)
+                # getrand: .2=0 means uniform, .2>0 means range 0..N
+                local _max=${spot[2]:-0}
+                if (( _max == 0 )); then
+                  spot[3]=$(( RANDOM % 65536 ))
+                else
+                  spot[3]=$(( RANDOM % (_max + 1) ))
+                fi
+                ;;
+              *)
+                echo "VM ERROR: Label 666 syscall $_syscall not implemented in BC" >&2
+                exit 1
+                ;;
+            esac
             ;;
           *)
             echo "VM ERROR: unsupported syslib label $target_lbl" >&2
