@@ -17,31 +17,39 @@ zsh "$COMPILER" < "$SUB1" > "$SUB1_BIN" 2>/dev/null
 chmod +x "$SUB1_BIN"
 
 run_case() {
-  local name="$1" src="$2" exp_len="$3" exp_d="$4"
+  local name="$1" src="$2" exp_len="$3" exp_d="$4" exp_p="$5"
   local in=$(mktemp /tmp/sub1_in.XXXXXX)
   printf '%s' "$src" > "$in"
   local out
   out=$("$SUB1_BIN" "$in")
-  local actual_len="${out%%$'\n'*}"
-  local actual_d="${out##*$'\n'}"
-  if [[ "$actual_len" == "$exp_len" ]] && [[ "$actual_d" == "$exp_d" ]]; then
-    echo "PASS $name (len=$actual_len d=$actual_d)"
+  local -a lines
+  lines=("${(@f)out}")
+  local actual_len="${lines[1]:-}"
+  local actual_d="${lines[2]:-}"
+  local actual_p="${lines[3]:-}"
+  if [[ "$actual_len" == "$exp_len" ]] && [[ "$actual_d" == "$exp_d" ]] && [[ "$actual_p" == "$exp_p" ]]; then
+    echo "PASS $name (len=$actual_len d=$actual_d p=$actual_p)"
     PASS=$((PASS + 1))
   else
-    echo "FAIL $name: expected len=$exp_len d=$exp_d, got len=$actual_len d=$actual_d"
+    echo "FAIL $name: expected len=$exp_len d=$exp_d p=$exp_p, got len=$actual_len d=$actual_d p=$actual_p"
     FAIL=$((FAIL + 1))
   fi
   rm -f "$in"
 }
 
-# 'DO GIVE UP' with newline = 11 bytes; 1 'D'.
-run_case "give_up" $'DO GIVE UP\n' "XI" "I"
+# Counts include the 'P' in "UP" (every program ends with GIVE UP).
 
-# 'DO READ OUT #5' newline 'DO GIVE UP' newline = 26 bytes; 3 'D's.
-run_case "read_out_5" $'DO READ OUT #5\nDO GIVE UP\n' "XXVI" "III"
+# 'DO GIVE UP' = 11 bytes, 1 'D', 1 'P' (in UP).
+run_case "give_up" $'DO GIVE UP\n' "XI" "I" "I"
 
-# 'DO .1 <- #5' newline 'DO READ OUT .1' newline 'DO GIVE UP' newline = 38 bytes; 4 'D's.
-run_case "assign_read" $'DO .1 <- #5\nDO READ OUT .1\nDO GIVE UP\n' "XXXVIII" "IV"
+# 'DO READ OUT #5' + 'DO GIVE UP' = 26 bytes, 3 'D's, 1 'P' (UP).
+run_case "read_out_5" $'DO READ OUT #5\nDO GIVE UP\n' "XXVI" "III" "I"
+
+# 'DO .1 <- #5' + 'DO READ OUT .1' + 'DO GIVE UP' = 38 bytes, 4 'D's, 1 'P'.
+run_case "assign_read" $'DO .1 <- #5\nDO READ OUT .1\nDO GIVE UP\n' "XXXVIII" "IV" "I"
+
+# 'PLEASE DO GIVE UP' = 18 bytes, 1 'D', 2 'P's (PLEASE + UP).
+run_case "with_please" $'PLEASE DO GIVE UP\n' "XVIII" "I" "II"
 
 rm -f "$SUB1_BIN"
 echo ""

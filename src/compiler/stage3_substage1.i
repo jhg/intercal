@@ -101,8 +101,56 @@
         DO .82 <- '.81 ~ #1'
         DO (200) NEXT FROM .82
 
-        DON'T NOTE Output length .50 then count of 'D' .70.
+        DON'T NOTE substage 2/3 demonstrator: count polite-keyword
+        DON'T NOTE bytes (rough proxy for polite-statement count).
+        DON'T NOTE Real boundary detection needs a state machine over
+        DON'T NOTE keyword-prefixes; this counts one P-character per
+        DON'T NOTE statement to verify the loop shape.
+        PLEASE DO .90 <- #0
+        DO .42 <- #0
+
+(300)   DO STASH .1 .2 .3 .4
+        DO .1 <- .42
+        DO .2 <- #1
+        PLEASE DO (1009) NEXT
+        DO .42 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+
+        DO .43 <- ,10 SUB .42
+
+        DO STASH .1 .2 .3 .4
+        DO .1 <- .43
+        DO .2 <- #80
+        PLEASE DO (1010) NEXT
+        DO .44 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+        DO .45 <- '.44 ~ .44'
+        PLEASE DO .46 <- '.45 ~ #1'
+        DO :73 <- '.46 $ #1'
+        DO :74 <- '?:73'
+        PLEASE DO .47 <- ':74 ~ #1'
+
+        DO STASH .1 .2 .3 .4
+        DO .1 <- .90
+        DO .2 <- .47
+        PLEASE DO (1009) NEXT
+        DO .90 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+
+        DO STASH .1 .2 .3 .4
+        DO .1 <- .50
+        DO .2 <- .42
+        PLEASE DO (1010) NEXT
+        DO .93 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+        PLEASE DO .94 <- '.93 ~ .93'
+        DO .95 <- '.94 ~ #1'
+        DO (300) NEXT FROM .95
+
+        DON'T NOTE Output length .50 then count of 'D' .70 then
+        DON'T NOTE count of 'P' .90.
         PLEASE DO READ OUT .50
         DO READ OUT .70
+        PLEASE DO READ OUT .90
 
         PLEASE DO GIVE UP

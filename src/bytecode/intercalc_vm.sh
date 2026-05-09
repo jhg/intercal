@@ -207,10 +207,17 @@ done
 typeset pending_label=""
 typeset -a call_stack
 call_stack=()
+
+# BC_TRACE=1: dump every op + stack state to stderr before execution.
+# Useful when bytecode and native diverge on a real program.
+typeset BC_TRACE="${BC_TRACE:-0}"
 typeset pc=0
 while (( pc < ${#ops_buf[@]} )); do
   local line="${ops_buf[$((pc+1))]}"
   pc=$((pc + 1))
+  if (( BC_TRACE )); then
+    print -u2 -- "[bc-trace pc=$pc op=$line stack=${stack[*]:-}]"
+  fi
   set -- ${(z)line}
   case "$1" in
     STMT_ENTER)

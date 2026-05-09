@@ -3670,7 +3670,19 @@ codegen_statement() {
     REMEMBER)   codegen_remember $i ;;
     STASH)      codegen_stash $i ;;
     RETRIEVE)   codegen_retrieve $i ;;
-    UNKNOWN)    emit "  b _rt_error_E000" ;;
+    UNKNOWN)
+      # When the stmt is statically negated AND no path can REINSTATE
+      # it (stmt_needs_flag=0 means the abstain check is elided), the
+      # branch to _rt_error_E000 is dead code that the runtime would
+      # otherwise execute since the abstain check has been skipped.
+      # Note [E000Elim]: emit the branch only when the stmt could
+      # actually be reached at runtime.
+      if (( stmt_negated[$i] )) && (( ! ${stmt_needs_flag[$i]:-1} )); then
+        : # statically unreachable, no body needed
+      else
+        emit "  b _rt_error_E000"
+      fi
+      ;;
   esac
   fi
 
