@@ -296,8 +296,8 @@ main() {
 
     case "$method" in
       initialize)
-        local caps='{"textDocumentSync":1,"diagnosticProvider":{"interFileDependencies":false,"workspaceDiagnostics":false},"hoverProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":'"$SEMANTIC_TOKEN_TYPES"',"tokenModifiers":[]},"full":true},"completionProvider":{"triggerCharacters":[".",":",",",";","#","("]},"definitionProvider":true}'
-        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":{"capabilities":'"$caps"',"serverInfo":{"name":"intercal-lsp","version":"0.3.0"}}}'
+        local caps='{"textDocumentSync":1,"diagnosticProvider":{"interFileDependencies":false,"workspaceDiagnostics":false},"hoverProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":'"$SEMANTIC_TOKEN_TYPES"',"tokenModifiers":[]},"full":true},"completionProvider":{"triggerCharacters":[".",":",",",";","#","("]},"definitionProvider":true,"documentSymbolProvider":true}'
+        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":{"capabilities":'"$caps"',"serverInfo":{"name":"intercal-lsp","version":"0.4.0"}}}'
         send_message "$resp"
         log "-> initialize response"
         ;;
@@ -373,6 +373,33 @@ main() {
         local resp='{"jsonrpc":"2.0","id":'"$id"',"result":'"$result"'}'
         send_message "$resp"
         ;;
+      textDocument/documentSymbol)
+        # Return one DocumentSymbol per labelled statement so editors
+        # can render an outline/structure view of the program.
+        local uri=""
+        if get_field "$msg" "uri"; then uri="$REPLY"; fi
+        local text="${doc_text[$uri]:-}"
+        local symbols_json='['
+        local first=1
+        local lineno=0
+        local -a lines
+        lines=("${(@f)text}")
+        local l=""
+        for l in "${lines[@]}"; do
+          if [[ "$l" =~ '\(([0-9]+)\)[[:space:]]*(DO|PLEASE|PLSDO|DON'\''T)' ]]; then
+            local lblnum="${match[1]}"
+            local kind=12
+            (( first )) || symbols_json+=','
+            first=0
+            local llen=${#l}
+            symbols_json+='{"name":"('"$lblnum"')","kind":'"$kind"',"range":{"start":{"line":'"$lineno"',"character":0},"end":{"line":'"$lineno"',"character":'"$llen"'}},"selectionRange":{"start":{"line":'"$lineno"',"character":0},"end":{"line":'"$lineno"',"character":'"$llen"'}}}'
+          fi
+          lineno=$((lineno + 1))
+        done
+        symbols_json+=']'
+        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":'"$symbols_json"'}'
+        send_message "$resp"
+        ;;
       textDocument/semanticTokens/full)
         local uri=""
         if get_field "$msg" "uri"; then uri="$REPLY"; fi
@@ -407,9 +434,13 @@ main() {
         local text=""
         if [[ "$msg" =~ '"text":[[:space:]]*"([^"]*)"' ]]; then
           text="${match[1]}"
-          # Unescape \n \r \"
-          text="${text//\\n/$'\n'}"
-          text="${text//\\r/$'\r'}"
+          # Unescape \n \r \". $'\n' inside ${var//pat/repl} is NOT
+          # expanded as a C-escape — it ends up as literal "$'\n'".
+          # Hoist the newline / CR characters into local variables so
+          # the substitution sees real bytes.
+          local _NL=$'\n' _CR=$'\r'
+          text="${text//\\n/$_NL}"
+          text="${text//\\r/$_CR}"
           text="${text//\\\"/\"}"
         fi
         doc_text[$uri]="$text"
@@ -421,8 +452,9 @@ main() {
         local text=""
         if [[ "$msg" =~ '"text":[[:space:]]*"([^"]*)"' ]]; then
           text="${match[1]}"
-          text="${text//\\n/$'\n'}"
-          text="${text//\\r/$'\r'}"
+          local _NL=$'\n' _CR=$'\r'
+          text="${text//\\n/$_NL}"
+          text="${text//\\r/$_CR}"
           text="${text//\\\"/\"}"
         fi
         doc_text[$uri]="$text"

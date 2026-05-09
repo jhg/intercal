@@ -99,6 +99,31 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# Test extra: documentSymbol provider advertised
+if [[ "$RESP" == *"documentSymbolProvider"* ]]; then
+  echo "PASS documentSymbol advertised"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL documentSymbol not advertised"
+  FAIL=$((FAIL + 1))
+fi
+
+# Test extra: documentSymbol returns labelled statements
+DOCSYM_BODY='{"jsonrpc":"2.0","id":4,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///tmp/sym.i"}}}'
+DIDOPEN_BODY3='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tmp/sym.i","languageId":"intercal","version":1,"text":"DO .1 <- #5\n(10) DO READ OUT .1\n(20) DO GIVE UP"}}}'
+RESP_SYM=$(printf 'Content-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%s' \
+  ${#INIT_BODY} "$INIT_BODY" \
+  ${#DIDOPEN_BODY3} "$DIDOPEN_BODY3" \
+  ${#DOCSYM_BODY} "$DOCSYM_BODY" \
+  ${#EXIT_BODY} "$EXIT_BODY" | zsh "$LSP" 2>/dev/null)
+if [[ "$RESP_SYM" == *'"name":"(10)"'* ]] && [[ "$RESP_SYM" == *'"name":"(20)"'* ]]; then
+  echo "PASS documentSymbol returns labelled stmts (10) and (20)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL documentSymbol missing labels"
+  FAIL=$((FAIL + 1))
+fi
+
 # Test 3: response uses Content-Length framing
 if [[ "$RESP" == "Content-Length:"* ]]; then
   echo "PASS Content-Length framing"
