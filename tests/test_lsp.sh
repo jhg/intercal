@@ -40,6 +40,31 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# Test 3a: server advertises hover and semantic tokens
+if [[ "$RESP" == *"hoverProvider"* ]] && [[ "$RESP" == *"semanticTokensProvider"* ]]; then
+  echo "PASS hover + semantic tokens advertised"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL hover/semantic tokens not advertised"
+  FAIL=$((FAIL + 1))
+fi
+
+# Test 3b: semanticTokens/full request returns a data array
+SEMTOK_BODY='{"jsonrpc":"2.0","id":2,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///tmp/x.i"}}}'
+DIDOPEN_BODY='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tmp/x.i","languageId":"intercal","version":1,"text":"DO .1 <- #5"}}}'
+RESP_TOK=$(printf 'Content-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%sContent-Length: %d\r\n\r\n%s' \
+  ${#INIT_BODY} "$INIT_BODY" \
+  ${#DIDOPEN_BODY} "$DIDOPEN_BODY" \
+  ${#SEMTOK_BODY} "$SEMTOK_BODY" \
+  ${#EXIT_BODY} "$EXIT_BODY" | zsh "$LSP" 2>/dev/null)
+if [[ "$RESP_TOK" == *"\"data\":["* ]]; then
+  echo "PASS semanticTokens returns data"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL semanticTokens missing data"
+  FAIL=$((FAIL + 1))
+fi
+
 # Test 3: response uses Content-Length framing
 if [[ "$RESP" == "Content-Length:"* ]]; then
   echo "PASS Content-Length framing"

@@ -76,24 +76,200 @@ get_int_field() {
 }
 
 # Emit a diagnostics array for a given URI by invoking the compiler
-# in --diagnose mode and converting any ICL...I errors into LSP
-# diagnostic JSON objects.
+# in --diagnose mode and converting any ICL...I/W errors into LSP
+# diagnostic JSON objects. Multiple errors and warnings are emitted.
 publish_diagnostics() {
   local uri=$1
   local text="$2"
   local diagnostics_json="["
-  # Simple heuristic: try to compile; on failure capture stderr.
   local err
   err=$(print -r -- "$text" | zsh "$COMPILER" 2>&1 >/dev/null) || true
-  if [[ "$err" =~ '(ICL[0-9]+[IW][[:space:]]+[^\n]+)' ]]; then
-    local msg="${match[1]}"
-    msg=${msg//\"/\\\"}
-    diagnostics_json+='{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}},"severity":1,"message":"'"$msg"'"}'
-  fi
+  local first=1
+  local lineno
+  while IFS= read -r lineno; do
+    [[ -z "$lineno" ]] && continue
+    if [[ "$lineno" =~ '(ICL[0-9]+[IW][[:space:]]+.*)' ]]; then
+      local msg="${match[1]}"
+      msg=${msg//\"/\\\"}
+      msg=${msg//$'\n'/ }
+      # Severity: 1 = Error, 2 = Warning. ICLnnnW -> Warning, ICLnnnI -> Error.
+      local sev=1
+      [[ "$msg" =~ 'ICL[0-9]+W' ]] && sev=2
+      (( first )) || diagnostics_json+=","
+      first=0
+      diagnostics_json+='{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}},"severity":'"$sev"',"source":"intercalc","message":"'"$msg"'"}'
+    fi
+  done <<< "$err"
   diagnostics_json+="]"
   local body
   body='{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"'"$uri"'","diagnostics":'"$diagnostics_json"'}}'
   send_message "$body"
+}
+
+# Compute semantic tokens. The LSP spec defines a flat array of
+# (deltaLine, deltaStart, length, tokenType, tokenModifiers) tuples.
+# We classify into: keyword (DO/PLEASE/etc), variable (.N/:N/,N/;N),
+# label ((N)), comment (DON'T/NOT lines).
+#
+# Token type IDs (matching legend below):
+#   0 = keyword
+#   1 = variable
+#   2 = number
+#   3 = label
+#   4 = comment
+SEMANTIC_TOKEN_TYPES='["keyword","variable","number","label","comment"]'
+
+compute_semantic_tokens() {
+  local text="$1"
+  local out="["
+  local first=1
+  local prev_line=0 prev_start=0
+  local lineno=0
+  local line
+  while IFS= read -r line; do
+    lineno=$((lineno + 1))
+    # Strip leading whitespace for processing but track positions
+    local pos=0
+    local len=${#line}
+    while (( pos < len )); do
+      local ch="${line[$((pos+1))]}"
+      # Skip whitespace
+      if [[ "$ch" == " " || "$ch" == $'\t' ]]; then
+        pos=$((pos + 1))
+        continue
+      fi
+      local start=$pos
+      local tok_type=-1
+      local tok_len=0
+      # Keywords: DO, PLEASE, NEXT, RESUME, GIVE, UP, READ, OUT,
+      # WRITE, IN, STASH, RETRIEVE, IGNORE, REMEMBER, ABSTAIN,
+      # FROM, REINSTATE, COME, FORGET, NOT.
+      if [[ "${line[$((pos+1)),$((pos+2))]}" == "DO" ]]; then
+        tok_len=2; tok_type=0
+      elif [[ "${line[$((pos+1)),$((pos+6))]}" == "PLEASE" ]]; then
+        tok_len=6; tok_type=0
+      elif [[ "${line[$((pos+1)),$((pos+4))]}" == "NEXT" ]]; then
+        tok_len=4; tok_type=0
+      elif [[ "${line[$((pos+1)),$((pos+6))]}" == "RESUME" ]]; then
+        tok_len=6; tok_type=0
+      elif [[ "${line[$((pos+1)),$((pos+4))]}" == "GIVE" ]]; then
+        tok_len=4; tok_type=0
+      elif [[ "${line[$((pos+1)),$((pos+5))]}" == "STASH" ]]; then
+        tok_len=5; tok_type=0
+      elif [[ "${line[$((pos+1)),$((pos+8))]}" == "RETRIEVE" ]]; then
+        tok_len=8; tok_type=0
+      elif [[ "${line[$((pos+1)),$((pos+6))]}" == "IGNORE" ]]; then
+        tok_len=6; tok_type=0
+      elif [[ "${line[$((pos+1)),$((pos+8))]}" == "REMEMBER" ]]; then
+        tok_len=8; tok_type=0
+      elif [[ "${line[$((pos+1))]}" == "." || "${line[$((pos+1))]}" == ":" || "${line[$((pos+1))]}" == "," || "${line[$((pos+1))]}" == ";" ]]; then
+        # Variable .N or :N or ,N or ;N
+        tok_len=1
+        local p=$((pos + 1))
+        while (( p < len )) && [[ "${line[$((p+1))]}" =~ [0-9] ]]; do
+          tok_len=$((tok_len + 1))
+          p=$((p + 1))
+        done
+        tok_type=1
+      elif [[ "${line[$((pos+1))]}" == "#" ]]; then
+        # Numeric literal #N
+        tok_len=1
+        local p=$((pos + 1))
+        while (( p < len )) && [[ "${line[$((p+1))]}" =~ [0-9] ]]; do
+          tok_len=$((tok_len + 1))
+          p=$((p + 1))
+        done
+        tok_type=2
+      elif [[ "${line[$((pos+1))]}" == "(" ]]; then
+        # Label (N)
+        tok_len=1
+        local p=$((pos + 1))
+        while (( p < len )) && [[ "${line[$((p+1))]}" != ")" ]]; do
+          tok_len=$((tok_len + 1))
+          p=$((p + 1))
+        done
+        if (( p < len )) && [[ "${line[$((p+1))]}" == ")" ]]; then
+          tok_len=$((tok_len + 1))
+        fi
+        tok_type=3
+      else
+        pos=$((pos + 1))
+        continue
+      fi
+      if (( tok_type >= 0 )); then
+        local delta_line=$((lineno - 1 - prev_line))
+        local delta_start
+        if (( delta_line == 0 )); then
+          delta_start=$((start - prev_start))
+        else
+          delta_start=$start
+        fi
+        (( first )) || out+=","
+        first=0
+        out+="${delta_line},${delta_start},${tok_len},${tok_type},0"
+        prev_line=$((lineno - 1))
+        prev_start=$start
+        pos=$((pos + tok_len))
+      fi
+    done
+  done <<< "$text"
+  out+="]"
+  REPLY="$out"
+}
+
+# Hover: extract the token under the cursor and return its kind.
+compute_hover() {
+  local text="$1"
+  local line=$2
+  local character=$3
+  # Find the line at the given index
+  local target_line=""
+  local lineno=0
+  while IFS= read -r l; do
+    if (( lineno == line )); then
+      target_line="$l"
+      break
+    fi
+    lineno=$((lineno + 1))
+  done <<< "$text"
+  if [[ -z "$target_line" ]]; then
+    REPLY=""
+    return
+  fi
+  # Try to identify the token at character
+  local cstart=$character
+  while (( cstart > 0 )) && [[ "${target_line[$cstart]}" =~ [A-Za-z0-9._:,\;\#] ]]; do
+    cstart=$((cstart - 1))
+  done
+  cstart=$((cstart + 1))
+  local cend=$((character + 1))
+  while (( cend <= ${#target_line} )) && [[ "${target_line[$cend]}" =~ [A-Za-z0-9] ]]; do
+    cend=$((cend + 1))
+  done
+  local tok="${target_line[$cstart,$((cend-1))]}"
+  local docs=""
+  case "$tok" in
+    DO) docs="INTERCAL imperative mood verb. Equivalent to PLEASE DO." ;;
+    PLEASE) docs="INTERCAL polite verb. Statements with PLEASE count toward the politeness ratio (1/5 to 1/3 of total)." ;;
+    NEXT) docs="Push current return point and transfer control to the labelled statement." ;;
+    RESUME) docs="Pop N return points from the NEXT stack and continue execution at the last popped point." ;;
+    FORGET) docs="Pop N return points from the NEXT stack without transferring control." ;;
+    STASH) docs="Push the current value of the listed variables onto their per-variable stacks." ;;
+    RETRIEVE) docs="Pop the most-recently STASH'd value of each listed variable. Triggers ICL436I if the stash is empty." ;;
+    IGNORE) docs="Mark variables as read-only; subsequent assignments are silently discarded." ;;
+    REMEMBER) docs="Reverse a previous IGNORE." ;;
+    ABSTAIN) docs="Disable a labelled statement (or all statements of a gerund kind) until reinstated." ;;
+    REINSTATE) docs="Re-enable a previously ABSTAINed statement (or gerund kind)." ;;
+    GIVE) docs="GIVE UP terminates the program (clean exit)." ;;
+    *.[0-9]*|*:[0-9]*) docs="INTERCAL variable. Prefix . is 16-bit (spot), : is 32-bit (twospot), , is 16-bit array (tail), ; is 32-bit array (hybrid)." ;;
+    *) docs="" ;;
+  esac
+  if [[ -n "$docs" ]]; then
+    docs=${docs//\"/\\\"}
+    REPLY='{"contents":{"kind":"markdown","value":"**'"$tok"'**: '"$docs"'"}}'
+  else
+    REPLY='null'
+  fi
 }
 
 main() {
@@ -116,9 +292,34 @@ main() {
 
     case "$method" in
       initialize)
-        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":{"capabilities":{"textDocumentSync":1,"diagnosticProvider":{"interFileDependencies":false,"workspaceDiagnostics":false}},"serverInfo":{"name":"intercal-lsp","version":"0.1.0"}}}'
+        local caps='{"textDocumentSync":1,"diagnosticProvider":{"interFileDependencies":false,"workspaceDiagnostics":false},"hoverProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":'"$SEMANTIC_TOKEN_TYPES"',"tokenModifiers":[]},"full":true}}'
+        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":{"capabilities":'"$caps"',"serverInfo":{"name":"intercal-lsp","version":"0.2.0"}}}'
         send_message "$resp"
         log "-> initialize response"
+        ;;
+      textDocument/semanticTokens/full)
+        local uri=""
+        if get_field "$msg" "uri"; then uri="$REPLY"; fi
+        local text="${doc_text[$uri]:-}"
+        compute_semantic_tokens "$text"
+        local data="$REPLY"
+        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":{"data":'"$data"'}}'
+        send_message "$resp"
+        ;;
+      textDocument/hover)
+        local uri="" line=0 character=0
+        if get_field "$msg" "uri"; then uri="$REPLY"; fi
+        if [[ "$msg" =~ '"line":[[:space:]]*([0-9]+)' ]]; then
+          line="${match[1]}"
+        fi
+        if [[ "$msg" =~ '"character":[[:space:]]*([0-9]+)' ]]; then
+          character="${match[1]}"
+        fi
+        local text="${doc_text[$uri]:-}"
+        compute_hover "$text" "$line" "$character"
+        local result="${REPLY:-null}"
+        local resp='{"jsonrpc":"2.0","id":'"$id"',"result":'"$result"'}'
+        send_message "$resp"
         ;;
       initialized)
         log "-> initialized notification (no response)"
