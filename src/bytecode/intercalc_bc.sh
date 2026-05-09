@@ -1,23 +1,25 @@
 #!/bin/zsh
-# INTERCAL-to-bytecode compiler. Reads INTERCAL on stdin, emits
-# bytecode (one instruction per line) on stdout.
+# INTERCAL-to-bytecode compiler.
 #
-# Subset (extended):
-#   DO .N <- #M               LOADI N M
-#   DO .N <- .M               COPY N M
-#   DO :N <- #M               LOADI2 N M (twospot)
-#   DO :N <- :M               COPY2 N M
-#   PLEASE GIVE UP            EXIT
-#   DO READ OUT .N            READOUT N
-#   DO READ OUT :N            READOUT2 N (twospot)
-#   DO STASH .N               STASH N
-#   DO RETRIEVE .N            RETRIEVE N
-#   DO IGNORE .N              IGNORE N
-#   DO REMEMBER .N            REMEMBER N
-#
-# Anything else: error. The intent is to demonstrate a non-trivial
-# subset that includes scalar arithmetic operations through a small
-# stack architecture.
+# Stack-based ISA (variables addressed by slot, expressions on stack):
+#   IPUSH n        push n
+#   VPUSH .N       push spot[N]
+#   VPUSH2 :N      push twospot[N]
+#   POPV .N        pop into spot[N]
+#   POPV2 :N       pop into twospot[N]
+#   MINGLE         pop two, push mingled (16,16 -> 32)
+#   SELECT         pop val, mask; push selected bits
+#   UAND           pop, push unary AND of adjacent bits
+#   UOR            pop, push unary OR of adjacent bits
+#   UXOR           pop, push unary XOR of adjacent bits
+#   READOUT        pop, print Roman numerals (16-bit value)
+#   READOUT2       pop, print Roman numerals (32-bit value)
+#   STASH .N       push spot[N] onto its own stash stack
+#   RETRIEVE .N    pop spot[N] from its stash stack
+#   IGNORE .N      mark spot[N] read-only
+#   REMEMBER .N    unmark
+#   EXIT           terminate
+
 set -euo pipefail
 
 src=$(cat)
@@ -26,9 +28,75 @@ src=${src//$'\t'/ }
 src=${src//$'\r'/ }
 src=${(U)src}
 
-# Tokenise statements by inserting newlines before DO|PLEASE.
 src=${src//DO /$'\n'DO }
 src=${src//PLEASE /$'\n'PLEASE }
+
+# Compile a single expression into stack ops.
+# Recursive descent over our small expression grammar:
+#   expr := atom | unary expr | spark|rabbitears (expr op expr) close
+#   atom := #N | .N | :N
+#   op := $ (mingle) | ~ (select)
+#   unary := & V ?
+compile_expr() {
+  local s="$1"
+  s="${s## }"; s="${s%% }"
+  # Strip outer balanced spark or rabbit-ears
+  while [[ "$s" =~ "^'(.*)'$" ]] || [[ "$s" =~ '^"(.*)"$' ]]; do
+    s="${match[1]}"
+    s="${s## }"; s="${s%% }"
+  done
+  # Atom
+  if [[ "$s" =~ '^#([0-9]+)$' ]]; then
+    echo "IPUSH ${match[1]}"
+    return
+  fi
+  if [[ "$s" =~ '^\.([0-9]+)$' ]]; then
+    echo "VPUSH .${match[1]}"
+    return
+  fi
+  if [[ "$s" =~ '^:([0-9]+)$' ]]; then
+    echo "VPUSH2 :${match[1]}"
+    return
+  fi
+  # Unary operator at start: & V ?
+  local first="${s:0:1}"
+  if [[ "$first" == "&" || "$first" == "V" || "$first" == "?" ]]; then
+    local sub="${s:1}"
+    sub="${sub## }"
+    compile_expr "$sub"
+    case "$first" in
+      "&") echo "UAND" ;;
+      "V") echo "UOR" ;;
+      "?") echo "UXOR" ;;
+    esac
+    return
+  fi
+  # Binary operator: walk for '$' or '~' at top level (not nested).
+  local i depth=0 ch op_pos=-1 op_ch=""
+  for (( i=0; i<${#s}; i++ )); do
+    ch="${s:$i:1}"
+    [[ "$ch" == "'" || "$ch" == '"' ]] && (( depth++ ))
+    if [[ "$ch" == "\$" || "$ch" == "~" ]] && (( depth == 0 )); then
+      op_pos=$i
+      op_ch="$ch"
+      break
+    fi
+    [[ "$ch" == "'" || "$ch" == '"' ]] && (( depth-- ))
+  done
+  if (( op_pos >= 0 )); then
+    local left="${s:0:$op_pos}"
+    local right="${s:$((op_pos+1))}"
+    compile_expr "$left"
+    compile_expr "$right"
+    case "$op_ch" in
+      "\$") echo "MINGLE" ;;
+      "~")  echo "SELECT" ;;
+    esac
+    return
+  fi
+  echo "ERROR: cannot compile expression: $s" >&2
+  exit 1
+}
 
 while IFS= read -r line; do
   line="${line## }"
@@ -45,44 +113,42 @@ while IFS= read -r line; do
   fi
 
   if [[ "$body" =~ '^READ OUT[[:space:]]+\.([0-9]+)[[:space:]]*$' ]]; then
-    echo "READOUT ${match[1]}"
+    echo "VPUSH .${match[1]}"
+    echo "READOUT"
     continue
   fi
   if [[ "$body" =~ '^READ OUT[[:space:]]+:([0-9]+)[[:space:]]*$' ]]; then
-    echo "READOUT2 ${match[1]}"
+    echo "VPUSH2 :${match[1]}"
+    echo "READOUT2"
     continue
   fi
 
-  if [[ "$body" =~ '^\.([0-9]+)[[:space:]]*<-[[:space:]]*#([0-9]+)[[:space:]]*$' ]]; then
-    echo "LOADI ${match[1]} ${match[2]}"
-    continue
-  fi
-  if [[ "$body" =~ '^\.([0-9]+)[[:space:]]*<-[[:space:]]*\.([0-9]+)[[:space:]]*$' ]]; then
-    echo "COPY ${match[1]} ${match[2]}"
-    continue
-  fi
-  if [[ "$body" =~ '^:([0-9]+)[[:space:]]*<-[[:space:]]*#([0-9]+)[[:space:]]*$' ]]; then
-    echo "LOADI2 ${match[1]} ${match[2]}"
-    continue
-  fi
-  if [[ "$body" =~ '^:([0-9]+)[[:space:]]*<-[[:space:]]*:([0-9]+)[[:space:]]*$' ]]; then
-    echo "COPY2 ${match[1]} ${match[2]}"
+  # Assignment: .N <- expr or :N <- expr
+  if [[ "$body" =~ '^(\.[0-9]+|:[0-9]+)[[:space:]]*<-[[:space:]]*(.+)$' ]]; then
+    local lhs="${match[1]}"
+    local rhs="${match[2]}"
+    compile_expr "$rhs"
+    if [[ "$lhs" == .* ]]; then
+      echo "POPV ${lhs}"
+    else
+      echo "POPV2 ${lhs}"
+    fi
     continue
   fi
 
-  if [[ "$body" =~ '^STASH[[:space:]]+\.([0-9]+)[[:space:]]*$' ]]; then
+  if [[ "$body" =~ '^STASH[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "STASH ${match[1]}"
     continue
   fi
-  if [[ "$body" =~ '^RETRIEVE[[:space:]]+\.([0-9]+)[[:space:]]*$' ]]; then
+  if [[ "$body" =~ '^RETRIEVE[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "RETRIEVE ${match[1]}"
     continue
   fi
-  if [[ "$body" =~ '^IGNORE[[:space:]]+\.([0-9]+)[[:space:]]*$' ]]; then
+  if [[ "$body" =~ '^IGNORE[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "IGNORE ${match[1]}"
     continue
   fi
-  if [[ "$body" =~ '^REMEMBER[[:space:]]+\.([0-9]+)[[:space:]]*$' ]]; then
+  if [[ "$body" =~ '^REMEMBER[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "REMEMBER ${match[1]}"
     continue
   fi
