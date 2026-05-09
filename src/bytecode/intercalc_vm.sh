@@ -182,16 +182,126 @@ while (( pc < ${#ops_buf[@]} )); do
       # the labelled statement's PC. Stack overflow at 80 mirrors
       # the runtime contract.
       local target_lbl="$2"
-      if (( ${#call_stack[@]} >= 79 )); then
-        echo "ICL123I PROGRAM HAS DISAPPEARED INTO THE BLACK LAGOON" >&2
-        exit 1
+      # Syslib labels (1000-1999) get evaluated in the VM directly
+      # rather than via a labelled-stmt jump. Same semantics as the
+      # native runtime + the SCCP-WZ lattice already encodes.
+      if (( target_lbl >= 1000 && target_lbl < 2000 )); then
+        case "$target_lbl" in
+          1009)
+            local _v1=${spot[1]:-0} _v2=${spot[2]:-0}
+            local _sum=$(( _v1 + _v2 ))
+            spot[3]=$(( _sum & 0xFFFF ))
+            spot[4]=$(( _sum > 65535 ? 2 : 1 ))
+            ;;
+          1010)
+            local _v1=${spot[1]:-0} _v2=${spot[2]:-0}
+            spot[3]=$(( (_v1 - _v2 + 65536) & 0xFFFF ))
+            ;;
+          1020)
+            local _v1=${spot[1]:-0}
+            spot[1]=$(( (_v1 + 1) & 0xFFFF ))
+            ;;
+          1030)
+            local _v1=${spot[1]:-0} _v2=${spot[2]:-0}
+            local _prod=$(( _v1 * _v2 ))
+            if (( _prod > 65535 )); then
+              echo "ICL533I YOU WANT MAYBE TO DIVIDE BY ZERO?" >&2
+              exit 1
+            fi
+            spot[3]=$_prod
+            ;;
+          1040)
+            local _v1=${spot[1]:-0} _v2=${spot[2]:-0}
+            if (( _v2 == 0 )); then spot[3]=0; else spot[3]=$(( _v1 / _v2 )); fi
+            ;;
+          1050)
+            local _v1=${twospot[1]:-0} _vd=${spot[1]:-0}
+            if (( _vd == 0 )); then
+              spot[2]=0
+            else
+              local _q=$(( _v1 / _vd ))
+              if (( _q > 65535 )); then
+                echo "ICL533I" >&2; exit 1
+              fi
+              spot[2]=$_q
+            fi
+            ;;
+          1500)
+            local _v1=${twospot[1]:-0} _v2=${twospot[2]:-0}
+            local _sum=$(( _v1 + _v2 ))
+            if (( _sum > 4294967295 )); then
+              echo "ICL533I" >&2; exit 1
+            fi
+            twospot[3]=$_sum
+            ;;
+          1509)
+            local _v1=${twospot[1]:-0} _v2=${twospot[2]:-0}
+            local _sum=$(( _v1 + _v2 ))
+            twospot[3]=$(( _sum & 0xFFFFFFFF ))
+            twospot[4]=$(( _sum > 4294967295 ? 2 : 1 ))
+            ;;
+          1510)
+            local _v1=${twospot[1]:-0} _v2=${twospot[2]:-0}
+            twospot[3]=$(( (_v1 - _v2 + 4294967296) & 0xFFFFFFFF ))
+            ;;
+          1520)
+            local _v1=${spot[1]:-0} _v2=${spot[2]:-0}
+            local _result=0 _j=0
+            for (( _j=0; _j<16; _j++ )); do
+              local _b1=$(( (_v1 >> _j) & 1 ))
+              local _b2=$(( (_v2 >> _j) & 1 ))
+              _result=$(( _result | (_b1 << (2*_j + 1)) | (_b2 << (2*_j)) ))
+            done
+            twospot[1]=$_result
+            ;;
+          1530)
+            local _v1=${spot[1]:-0} _v2=${spot[2]:-0}
+            twospot[1]=$(( _v1 * _v2 ))
+            ;;
+          1540)
+            local _v1=${twospot[1]:-0} _v2=${twospot[2]:-0}
+            local _prod=$(( _v1 * _v2 ))
+            if (( _prod > 4294967295 )); then
+              echo "ICL533I" >&2; exit 1
+            fi
+            twospot[3]=$_prod
+            ;;
+          1549)
+            local _v1=${twospot[1]:-0} _v2=${twospot[2]:-0}
+            local _prod=$(( _v1 * _v2 ))
+            twospot[3]=$(( _prod & 0xFFFFFFFF ))
+            twospot[4]=$(( _prod > 4294967295 ? 2 : 1 ))
+            ;;
+          1550)
+            local _v1=${twospot[1]:-0} _v2=${twospot[2]:-0}
+            if (( _v2 == 0 )); then twospot[3]=0; else twospot[3]=$(( _v1 / _v2 )); fi
+            ;;
+          1900)
+            spot[1]=$(( RANDOM % 65536 ))
+            ;;
+          1910)
+            local _max=${spot[1]:-0}
+            (( _max == 0 )) && spot[2]=0 || spot[2]=$(( RANDOM % (_max + 1) ))
+            ;;
+          *)
+            echo "VM ERROR: unsupported syslib label $target_lbl" >&2
+            exit 1
+            ;;
+        esac
+        # Syslib calls don't push the call stack — they're modeled as
+        # instantaneous in this VM. PC continues to next op.
+      else
+        if (( ${#call_stack[@]} >= 79 )); then
+          echo "ICL123I PROGRAM HAS DISAPPEARED INTO THE BLACK LAGOON" >&2
+          exit 1
+        fi
+        if (( ! ${+label_pc[$target_lbl]} )); then
+          echo "ICL129I PROGRAM HAS GOTTEN LOST (NEXT to undefined label $target_lbl)" >&2
+          exit 1
+        fi
+        call_stack+=("$pc")
+        pc=${label_pc[$target_lbl]}
       fi
-      if (( ! ${+label_pc[$target_lbl]} )); then
-        echo "ICL129I PROGRAM HAS GOTTEN LOST (NEXT to undefined label $target_lbl)" >&2
-        exit 1
-      fi
-      call_stack+=("$pc")
-      pc=${label_pc[$target_lbl]}
       ;;
     RESUME)
       # Pop N entries; the LAST popped PC is the return target.
@@ -291,6 +401,42 @@ while (( pc < ${#ops_buf[@]} )); do
     REMEMBER)
       if [[ "$2" == :* ]]; then unset "twospot_ign[${2#:}]"
       else unset "spot_ign[${2#.}]"; fi
+      ;;
+    WRITEIN)
+      # Read one line of user input. Bytecode comes from stdin, so
+      # WRITE IN data must come from fd 3 (caller does
+      # 'vm 3<input.txt < bytecode'). If fd 3 is not open, read from
+      # /dev/tty (interactive use).
+      local _line=""
+      if { true >&3; } 2>/dev/null; then
+        IFS= read -r -u 3 _line
+      else
+        IFS= read -r _line < /dev/tty 2>/dev/null || _line=""
+      fi
+      typeset -A _digit
+      _digit[OH]=0 _digit[ZERO]=0
+      _digit[ONE]=1 _digit[TWO]=2 _digit[THREE]=3
+      _digit[FOUR]=4 _digit[FIVE]=5 _digit[SIX]=6
+      _digit[SEVEN]=7 _digit[EIGHT]=8 _digit[NINE]=9
+      local _val=0 _word=""
+      for _word in ${(s: :)${(U)_line}}; do
+        if (( ! ${+_digit[$_word]} )); then
+          echo "ICL579I WHAT IS ALL THIS RACKET?" >&2
+          exit 1
+        fi
+        _val=$(( _val * 10 + _digit[$_word] ))
+      done
+      if [[ "$2" == :* ]]; then
+        local _v="${2#:}"
+        [[ -n "${twospot_ign[$_v]:-}" ]] || twospot[$_v]=$_val
+      else
+        local _v="${2#.}"
+        if (( _val > 65535 )); then
+          echo "ICL275I DON'T BYTE OFF MORE THAN YOU CAN CHEW" >&2
+          exit 1
+        fi
+        [[ -n "${spot_ign[$_v]:-}" ]] || spot[$_v]=$_val
+      fi
       ;;
     EXIT)
       exit 0

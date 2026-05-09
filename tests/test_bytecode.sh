@@ -177,6 +177,63 @@ else
 fi
 rm -f "$SRC_CF"
 
+# Test: bytecode WRITE IN reads English digit names.
+SRC_WI=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_WI" <<'EOF'
+DO WRITE IN .1
+PLEASE DO READ OUT .1
+DO GIVE UP
+EOF
+BC_OUT=$(mktemp /tmp/test_bc.XXXXXX)
+zsh "$BC_COMPILER" < "$SRC_WI" > "$BC_OUT" 2>/dev/null
+out=$(zsh "$BC_VM" 3<<<"ONE TWO THREE" < "$BC_OUT")
+if [[ "$out" == "CXXIII" ]]; then
+  echo "PASS bytecode WRITE IN: ONE TWO THREE -> 123 -> CXXIII"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL WRITE IN: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_WI" "$BC_OUT"
+
+# Test: bytecode evaluates 16-bit syslib (1009 add).
+SRC_SL=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_SL" <<'EOF'
+DO .1 <- #20
+DO .2 <- #5
+PLEASE DO (1009) NEXT
+DO READ OUT .3
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_SL" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "XXV" ]]; then
+  echo "PASS bytecode 1009 add: 20+5=25"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL 1009: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_SL"
+
+# Test: bytecode evaluates 32-bit syslib (1530 multiply).
+SRC_SL2=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_SL2" <<'EOF'
+DO .1 <- #5
+DO .2 <- #3
+PLEASE DO (1530) NEXT
+DO READ OUT :1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_SL2" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "XV" ]]; then
+  echo "PASS bytecode 1530 mul: 5*3=15"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL 1530: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_SL2"
+
 # Test: NEXT FROM (unconditional) jumps without push.
 SRC_NF=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC_NF" <<'EOF'

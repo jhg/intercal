@@ -206,6 +206,12 @@ while IFS= read -r line; do
     continue
   fi
 
+  if [[ "$body" =~ '^WRITE IN[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
+    echo "WRITEIN ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
+
   if [[ "$body" =~ '^READ OUT[[:space:]]+\.([0-9]+)[[:space:]]*$' ]]; then
     echo "VPUSH .${match[1]}"
     echo "READOUT"
