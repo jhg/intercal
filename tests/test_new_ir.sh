@@ -86,6 +86,27 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+# Test 4 prereq: var-to-var copy also routes through IR.
+SRC_VV=$(mktemp /tmp/test_new_ir.XXXXXX)
+cat > "$SRC_VV" <<'EOF'
+DO .1 <- #42
+PLEASE DO .2 <- .1
+DO READ OUT .2
+DO GIVE UP
+EOF
+BIN_VV=$(mktemp /tmp/test_new_ir.XXXXXX)
+INTERCAL_NEW_IR=1 zsh "$COMPILER" < "$SRC_VV" > "$BIN_VV" 2>/dev/null
+chmod +x "$BIN_VV"
+out=$("$BIN_VV"); rc=$?
+if [[ "$out" == "XLII" ]] && (( rc == 0 )); then
+  echo "PASS IR-driven var-to-var copy (.1 -> .2)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL IR-driven var-to-var: out=[$out] rc=$rc"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_VV" "$BIN_VV"
+
 # Test 4: twospot literal also works.
 SRC4=$(mktemp /tmp/test_new_ir.XXXXXX)
 cat > "$SRC4" <<'EOF'

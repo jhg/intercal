@@ -346,13 +346,15 @@ lower_ir_for_stmt() {
   (( end < 0 )) && end=${#ir_ops[@]}
 
   # Note [LowerIRForStmt:LiteralAssign]
-  #   For ASSIGN, accept only the simplest IR shape:
-  #     CONST t0 N
-  #     STORE spot_X t0   (or twospot_X)
+  #   For ASSIGN, accept the simplest IR shapes:
+  #     CONST t0 N            STORE spot_X t0
+  #     LOADV t0 spot_Y       STORE spot_X t0   (var-to-var copy)
   #   AND require that the static analyses already prove no runtime
   #   check is needed: stmt_e275_safe[i]=1 and IGNORE not in scope.
-  #   If any condition fails, return 1 to fall back to legacy. Other
-  #   expression shapes (LOADV, MINGLE, etc.) are not yet supported.
+  #   If any condition fails, return 1 to fall back to legacy.
+  #   const_temp[temp] stores either "C:N" (a literal value) or
+  #   "V:<varspec>" (a variable reference); STORE consults the kind
+  #   marker to emit the right load+store sequence.
   typeset -A const_temp
   local handled=0
   local j=0
@@ -383,51 +385,76 @@ lower_ir_for_stmt() {
         local _t="${op#CONST }"
         local _dst="${_t%% *}"
         local _val="${_t##* }"
-        const_temp[$_dst]="$_val"
+        const_temp[$_dst]="C:${_val}"
+        ;;
+      LOADV*)
+        local _t="${op#LOADV }"
+        local _dst="${_t%% *}"
+        local _src="${_t##* }"
+        const_temp[$_dst]="V:${_src}"
         ;;
       STORE*)
         local _t="${op#STORE }"
         local _vs="${_t%% *}"
         local _src="${_t##* }"
-        local _val="${const_temp[$_src]:-}"
-        [[ -z "$_val" ]] && return 1
+        local _kind="${const_temp[$_src]:-}"
+        [[ -z "$_kind" ]] && return 1
         (( ${+stmt_e275_safe[$i]} )) || return 1
         opt_bisect_check "elim_e275_stmt_$i" || return 1
-        if [[ "$_vs" == spot_* ]]; then
-          local _vnum="${_vs#spot_}"
-          (( ${+var_needs_ign[spot_${_vnum}]} )) && return 1
-          (( var_needs_ign_any )) && return 1
+        # Refuse arrays etc.; only spot/twospot direct stores.
+        [[ "$_vs" != spot_* && "$_vs" != twospot_* ]] && return 1
+        # IGNORE check
+        local _vnum=""
+        if [[ "$_vs" == spot_* ]]; then _vnum="${_vs#spot_}"; else _vnum="${_vs#twospot_}"; fi
+        (( ${+var_needs_ign[$_vs]} )) && return 1
+        (( var_needs_ign_any )) && return 1
+        # Compute the value to be stored: into w0 (ARM) or eax (x86).
+        if [[ "$_kind" == C:* ]]; then
+          local _val="${_kind#C:}"
           case "$_INTERCAL_PLATFORM" in
             macos_arm64|linux_arm64)
               emit "  mov w0, #${_val}"
-              emit "  adrp x1, _spot_${_vnum}@PAGE"
-              emit "  add x1, x1, _spot_${_vnum}@PAGEOFF"
-              emit "  str w0, [x1]"
               ;;
             linux_x86_64)
-              emit "  mov dword ptr [rip + _spot_${_vnum}], ${_val}"
+              emit "  mov eax, ${_val}"
               ;;
           esac
-          handled=1
-        elif [[ "$_vs" == twospot_* ]]; then
-          local _tnum="${_vs#twospot_}"
-          (( ${+var_needs_ign[twospot_${_tnum}]} )) && return 1
-          (( var_needs_ign_any )) && return 1
+        elif [[ "$_kind" == V:* ]]; then
+          local _srcvs="${_kind#V:}"
+          local _spfx _snum
+          if [[ "$_srcvs" == spot_* ]]; then _spfx="spot"; _snum="${_srcvs#spot_}"
+          elif [[ "$_srcvs" == twospot_* ]]; then _spfx="twospot"; _snum="${_srcvs#twospot_}"
+          else return 1
+          fi
           case "$_INTERCAL_PLATFORM" in
             macos_arm64|linux_arm64)
-              emit "  mov w0, #${_val}"
-              emit "  adrp x1, _twospot_${_tnum}@PAGE"
-              emit "  add x1, x1, _twospot_${_tnum}@PAGEOFF"
-              emit "  str w0, [x1]"
+              emit "  adrp x1, _${_spfx}_${_snum}@PAGE"
+              emit "  add x1, x1, _${_spfx}_${_snum}@PAGEOFF"
+              emit "  ldr w0, [x1]"
               ;;
             linux_x86_64)
-              emit "  mov dword ptr [rip + _twospot_${_tnum}], ${_val}"
+              emit "  mov eax, dword ptr [rip + _${_spfx}_${_snum}]"
               ;;
           esac
-          handled=1
         else
           return 1
         fi
+        # Store w0 (eax) into the destination.
+        case "$_INTERCAL_PLATFORM" in
+          macos_arm64|linux_arm64)
+            local _dpfx
+            if [[ "$_vs" == spot_* ]]; then _dpfx="spot"; else _dpfx="twospot"; fi
+            emit "  adrp x1, _${_dpfx}_${_vnum}@PAGE"
+            emit "  add x1, x1, _${_dpfx}_${_vnum}@PAGEOFF"
+            emit "  str w0, [x1]"
+            ;;
+          linux_x86_64)
+            local _dpfx
+            if [[ "$_vs" == spot_* ]]; then _dpfx="spot"; else _dpfx="twospot"; fi
+            emit "  mov dword ptr [rip + _${_dpfx}_${_vnum}], eax"
+            ;;
+        esac
+        handled=1
         ;;
       *)
         # Any unsupported op aborts IR-driven lowering for this stmt.
