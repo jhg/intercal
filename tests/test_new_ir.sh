@@ -65,7 +65,48 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-rm -f "$SRC" "$SRC2" "$BIN_OFF" "$BIN_ON" "$BIN_FALLBACK"
+# Test 3: literal-RHS ASSIGN routes through IR path (INTERCAL_NEW_IR=1)
+# and produces correct output.
+SRC3=$(mktemp /tmp/test_new_ir.XXXXXX)
+cat > "$SRC3" <<'EOF'
+DO .1 <- #42
+PLEASE DO READ OUT .1
+DO GIVE UP
+EOF
+BIN3=$(mktemp /tmp/test_new_ir.XXXXXX)
+INTERCAL_NEW_IR=1 zsh "$COMPILER" < "$SRC3" > "$BIN3" 2>/dev/null
+chmod +x "$BIN3"
+out=$("$BIN3")
+rc=$?
+if [[ "$out" == "XLII" ]] && (( rc == 0 )); then
+  echo "PASS IR-driven literal ASSIGN to spot"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL IR-driven literal ASSIGN: out=[$out] rc=$rc"
+  FAIL=$((FAIL + 1))
+fi
+
+# Test 4: twospot literal also works.
+SRC4=$(mktemp /tmp/test_new_ir.XXXXXX)
+cat > "$SRC4" <<'EOF'
+DO :1 <- #1000
+PLEASE DO READ OUT :1
+DO GIVE UP
+EOF
+BIN4=$(mktemp /tmp/test_new_ir.XXXXXX)
+INTERCAL_NEW_IR=1 zsh "$COMPILER" < "$SRC4" > "$BIN4" 2>/dev/null
+chmod +x "$BIN4"
+out=$("$BIN4")
+rc=$?
+if [[ "$out" == "M" ]] && (( rc == 0 )); then
+  echo "PASS IR-driven literal ASSIGN to twospot"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL IR-driven twospot ASSIGN: out=[$out] rc=$rc"
+  FAIL=$((FAIL + 1))
+fi
+
+rm -f "$SRC" "$SRC2" "$SRC3" "$SRC4" "$BIN_OFF" "$BIN_ON" "$BIN_FALLBACK" "$BIN3" "$BIN4"
 
 echo ""
 echo "Total: $PASS passed, $FAIL failed"

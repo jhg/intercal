@@ -333,7 +333,7 @@ build_ir() {
 #   caller falls back to legacy tree-walk codegen.
 lower_ir_for_stmt() {
   local i=$1
-  local op start=-1 end=-1 k
+  local op="" start=-1 end=-1 k=0
   for (( k=0; k<${#ir_ops[@]}; k++ )); do
     if [[ "${ir_ops[$((k+1))]}" == "STMT $i "* ]]; then
       start=$k
@@ -344,8 +344,18 @@ lower_ir_for_stmt() {
   done
   (( start < 0 )) && return 1
   (( end < 0 )) && end=${#ir_ops[@]}
+
+  # Note [LowerIRForStmt:LiteralAssign]
+  #   For ASSIGN, accept only the simplest IR shape:
+  #     CONST t0 N
+  #     STORE spot_X t0   (or twospot_X)
+  #   AND require that the static analyses already prove no runtime
+  #   check is needed: stmt_e275_safe[i]=1 and IGNORE not in scope.
+  #   If any condition fails, return 1 to fall back to legacy. Other
+  #   expression shapes (LOADV, MINGLE, etc.) are not yet supported.
+  typeset -A const_temp
   local handled=0
-  local j=""
+  local j=0
   for (( j=start+1; j<end; j++ )); do
     op="${ir_ops[$((j+1))]}"
     case "$op" in
@@ -368,6 +378,56 @@ lower_ir_for_stmt() {
             ;;
         esac
         handled=1
+        ;;
+      CONST*)
+        local _t="${op#CONST }"
+        local _dst="${_t%% *}"
+        local _val="${_t##* }"
+        const_temp[$_dst]="$_val"
+        ;;
+      STORE*)
+        local _t="${op#STORE }"
+        local _vs="${_t%% *}"
+        local _src="${_t##* }"
+        local _val="${const_temp[$_src]:-}"
+        [[ -z "$_val" ]] && return 1
+        (( ${+stmt_e275_safe[$i]} )) || return 1
+        opt_bisect_check "elim_e275_stmt_$i" || return 1
+        if [[ "$_vs" == spot_* ]]; then
+          local _vnum="${_vs#spot_}"
+          (( ${+var_needs_ign[spot_${_vnum}]} )) && return 1
+          (( var_needs_ign_any )) && return 1
+          case "$_INTERCAL_PLATFORM" in
+            macos_arm64|linux_arm64)
+              emit "  mov w0, #${_val}"
+              emit "  adrp x1, _spot_${_vnum}@PAGE"
+              emit "  add x1, x1, _spot_${_vnum}@PAGEOFF"
+              emit "  str w0, [x1]"
+              ;;
+            linux_x86_64)
+              emit "  mov dword ptr [rip + _spot_${_vnum}], ${_val}"
+              ;;
+          esac
+          handled=1
+        elif [[ "$_vs" == twospot_* ]]; then
+          local _tnum="${_vs#twospot_}"
+          (( ${+var_needs_ign[twospot_${_tnum}]} )) && return 1
+          (( var_needs_ign_any )) && return 1
+          case "$_INTERCAL_PLATFORM" in
+            macos_arm64|linux_arm64)
+              emit "  mov w0, #${_val}"
+              emit "  adrp x1, _twospot_${_tnum}@PAGE"
+              emit "  add x1, x1, _twospot_${_tnum}@PAGEOFF"
+              emit "  str w0, [x1]"
+              ;;
+            linux_x86_64)
+              emit "  mov dword ptr [rip + _twospot_${_tnum}], ${_val}"
+              ;;
+          esac
+          handled=1
+        else
+          return 1
+        fi
         ;;
       *)
         # Any unsupported op aborts IR-driven lowering for this stmt.
