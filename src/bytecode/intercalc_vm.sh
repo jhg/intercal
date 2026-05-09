@@ -10,6 +10,7 @@ typeset -A spot_stash
 typeset -A twospot_stash
 typeset -A array_data    # key: '<pfx><num>:<idx>' -> value
 typeset -A array_dim     # key: '<pfx><num>' -> size (1D only)
+typeset -i ttm_out_pos=0 # output tape head (Turing Text Model)
 typeset -a stack
 
 push() { stack+=("$1") }
@@ -576,6 +577,30 @@ while (( pc < ${#ops_buf[@]} )); do
         exit 1
       fi
       push "${array_data[${2}:${_idx}]:-0}"
+      ;;
+    READOUT_ARR)
+      # Turing Text Model: per element, ttm_out_pos = (ttm_out_pos -
+      # element) mod 256. Emit char = bit-reversal of ttm_out_pos.
+      local _arr="$2"
+      if (( ! ${+array_dim[$_arr]} )); then
+        echo "ICL241I undimensioned array in READ OUT" >&2
+        exit 1
+      fi
+      local _i=0
+      for (( _i=1; _i<=${array_dim[$_arr]}; _i++ )); do
+        local _el=${array_data[${_arr}:${_i}]:-0}
+        ttm_out_pos=$(( (ttm_out_pos - _el + 256) & 0xFF ))
+        # Reverse 8 bits.
+        local _b=$ttm_out_pos
+        local _r=0 _bi=0
+        for (( _bi=0; _bi<8; _bi++ )); do
+          _r=$(( (_r << 1) | (_b & 1) ))
+          _b=$(( _b >> 1 ))
+        done
+        # Emit byte _r as a single character via zsh's [#16] num
+        # conversion + parameter expansion #...# .
+        printf "\\x$(printf '%02x' $_r)"
+      done
       ;;
     EXIT)
       exit 0

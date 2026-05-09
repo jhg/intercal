@@ -219,6 +219,19 @@ else
 fi
 rm -f "$SRC_ARR"
 
+# Test: TTM READ_OUT array prints "Hello, World!".
+SRC_TTM=$(mktemp /tmp/test_bc.XXXXXX)
+cp "$SCRIPT_DIR/test_hello.i" "$SRC_TTM"
+out=$(zsh "$BC_COMPILER" < "$SRC_TTM" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "Hello, World!" ]]; then
+  echo "PASS bytecode TTM hello world"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL TTM: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_TTM"
+
 # Test: probability prefix %0 always skips, %100 always runs.
 SRC_P0=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC_P0" <<'EOF'

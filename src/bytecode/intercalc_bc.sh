@@ -293,6 +293,12 @@ while IFS= read -r line; do
     echo "ESTMT"
     continue
   fi
+  # READ OUT bare-array (',N' or ';N'): TTM output.
+  if [[ "$body" =~ '^READ OUT[[:space:]]+([,;])([0-9]+)[[:space:]]*$' ]]; then
+    echo "READOUT_ARR ${match[1]}${match[2]}"
+    echo "ESTMT"
+    continue
+  fi
   # READ OUT of any other expression (e.g., #N literal or full expr).
   if [[ "$body" =~ '^READ OUT[[:space:]]+(.+)$' ]]; then
     local _rhs="${match[1]}"

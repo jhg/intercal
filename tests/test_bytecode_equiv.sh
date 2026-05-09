@@ -14,7 +14,7 @@ PASS=0 FAIL=0 SKIP=0
 
 # Programs the bytecode subset cannot yet run cleanly.
 typeset -A SKIP_LIST
-SKIP_LIST[test_hello.i]="TTM array READ OUT not in BC"
+# test_hello.i now passes via TTM array READ OUT.
 SKIP_LIST[test_overbar.i]="overbar Roman not in BC tier"
 SKIP_LIST[test_multidim_array.i]="multi-dim arrays not in BC"
 SKIP_LIST[test_write_in.i]="needs FD-3 plumbing in this harness"
