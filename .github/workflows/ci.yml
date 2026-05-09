@@ -98,6 +98,7 @@ jobs:
           zsh tests/test_emit_ir_real.sh
           zsh tests/test_effect_elim_more.sh
           zsh tests/test_new_ir.sh
+          zsh tests/test_regalloc_hints.sh
 
       - name: Csmith-INTERCAL differential (5 programs)
         run: zsh tests/run_csmith_diff.sh 5

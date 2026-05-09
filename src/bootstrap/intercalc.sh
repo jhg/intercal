@@ -391,6 +391,81 @@ emit_ir_real() {
   done
 }
 
+# Note [RegallocForCodegen]
+#   Compute a coarse linear-scan allocation per source-language
+#   variable (not per SSA name). Result is stored in globals so
+#   codegen can consult them when emitting variable touches:
+#
+#     var_reg[<varspec>]      = "R0".."R3"  if assigned a register
+#     var_spilled[<varspec>]  = 1           if spilled to memory
+#
+#   varspec is "spot_N" or "twospot_N". The data structure is
+#   advisory: codegen does not yet alter emitted instructions; it
+#   only emits comments under INTERCAL_REGALLOC_HINTS=1, paving the
+#   way for actual register-keeping in a future PR.
+typeset -A var_reg var_spilled
+compute_regalloc_decisions() {
+  var_reg=()
+  var_spilled=()
+
+  local i
+  typeset -A first_def last_use
+  for (( i=1; i<=stmt_count; i++ )); do
+    local body="${stmt_body[$i]:-}"
+    local t="${stmt_type[$i]:-}"
+    if [[ "$t" == "ASSIGN" ]]; then
+      local target="${body%%<-*}"
+      target="${target## }"; target="${target%% }"
+      local vk=""
+      if [[ "$target" =~ '^\.([0-9]+)$' ]]; then vk="spot_${match[1]}"
+      elif [[ "$target" =~ '^:([0-9]+)$' ]]; then vk="twospot_${match[1]}"
+      fi
+      [[ -n "$vk" ]] && (( ! ${+first_def[$vk]} )) && first_def[$vk]=$i
+    fi
+    # Track last reference per variable (.N or :N appearing in body).
+    local rest="$body"
+    while [[ "$rest" =~ '(\.|\:)([0-9]+)' ]]; do
+      local mark="${match[1]}" num="${match[2]}"
+      local vk=""
+      [[ "$mark" == "." ]] && vk="spot_$num"
+      [[ "$mark" == ":" ]] && vk="twospot_$num"
+      [[ -n "$vk" ]] && last_use[$vk]=$i
+      rest="${rest#*${match[1]}${match[2]}}"
+    done
+  done
+
+  # Sort variables by first_def ascending; assign R0..R3; spill rest.
+  local -a vars_sorted
+  local vk=""
+  for vk in ${(k)first_def}; do
+    vars_sorted+=("$vk")
+  done
+  vars_sorted=(${(o)vars_sorted})
+
+  local R=4
+  local -A reg_busy_until
+  local v=""
+  for v in "${vars_sorted[@]}"; do
+    local s=${first_def[$v]}
+    local e=${last_use[$v]:-$s}
+    local picked=""
+    local r=0
+    for (( r=0; r<R; r++ )); do
+      local until=${reg_busy_until[$r]:-0}
+      if (( until < s )); then
+        picked=$r
+        break
+      fi
+    done
+    if [[ -n "$picked" ]]; then
+      reg_busy_until[$picked]=$e
+      var_reg[$v]="R${picked}"
+    else
+      var_spilled[$v]=1
+    fi
+  done
+}
+
 emit_regalloc() {
   # Note [LinearScanDemo]
   #   Poletto-Sarkar linear-scan over SSA-versioned variables. We
@@ -2580,6 +2655,10 @@ codegen_program() {
     build_ir
   fi
 
+  if [[ "${INTERCAL_REGALLOC_HINTS:-0}" == "1" ]]; then
+    compute_regalloc_decisions
+  fi
+
   local i
   for (( i=1; i<=stmt_count; i++ )); do
     codegen_statement $i
@@ -2901,6 +2980,15 @@ codegen_assign() {
 
   if [[ "$target" =~ '^\.[0-9]+$' ]]; then
     local vnum="${target#.}"
+    # Note [RegallocHint]: comment-only emission of regalloc decision.
+    if [[ "${INTERCAL_REGALLOC_HINTS:-0}" == "1" ]]; then
+      local _vk="spot_${vnum}"
+      if [[ -n "${var_reg[$_vk]:-}" ]]; then
+        emit "  // regalloc: ${_vk} -> ${var_reg[$_vk]}"
+      elif (( ${+var_spilled[$_vk]} )); then
+        emit "  // regalloc: ${_vk} spilled"
+      fi
+    fi
     # Note [E275Elim]: skip the cmp+b.hi when the static analysis
     # proves the RHS cannot exceed 65535 (e.g., literal small const).
     local emit_e275_check=1
