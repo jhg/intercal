@@ -134,7 +134,34 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-rm -f "$SRC" "$SRC2" "$SRC3" "$SRC4" "$SRC5"
+# Test 7: COME FROM source edges flow lattice values through the
+# meet at the COME FROM destination.
+SRC6=$(mktemp /tmp/test_sccp_wz.XXXXXX)
+cat > "$SRC6" <<'EOF'
+DO .1 <- #5
+(10) DO .1 <- #99
+PLEASE DO COME FROM (10)
+DO READ OUT .1
+PLEASE DO GIVE UP
+DON'T NOTE filler1
+DON'T NOTE filler2
+EOF
+OUT6=$(zsh "$COMPILER" --emit-sccp-wz < "$SRC6" 2>&1)
+# Statement (10) sets spot_1 = CONST(99). After (10) runs, control
+# transfers via COME FROM to "stmt 4 = READ OUT .1". preds[4] now
+# includes stmt 2 (the labelled (10)). Meet flows CONST(99) into
+# stmt 4. Without the COME FROM source edge, the meet at stmt 4
+# would only see stmt 3's outgoing (the COME FROM line itself).
+if [[ "$OUT6" == *"stmt  4: spot_1       = CONST(99)"* ]]; then
+  echo "PASS COME FROM source edge flows CONST(99) to dest"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL COME FROM source edge not propagated"
+  echo "$OUT6" | head -20
+  FAIL=$((FAIL + 1))
+fi
+
+rm -f "$SRC" "$SRC2" "$SRC3" "$SRC4" "$SRC5" "$SRC6"
 echo ""
 echo "Total: $PASS passed, $FAIL failed"
 exit $((FAIL > 0))
