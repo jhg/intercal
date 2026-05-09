@@ -133,6 +133,107 @@ peephole_optimize() {
   asm=$(printf "%s\n" "${result[@]}")
 }
 
+emit_sccp() {
+  # Note [SCCPAnalysis]
+  #   Wegman-Zadeck Sparse Conditional Constant Propagation, applied
+  #   at the per-variable-version granularity established by --emit-ssa.
+  #   Three-element lattice per SSA value: TOP < CONST(c) < BOTTOM.
+  #
+  #   Simplification for our scope: we model only ASSIGN of either a
+  #   constant (#N) or a previously-seen variable (.M). All other
+  #   expression forms (mingle, select, syslib results) are BOTTOM.
+  #   This is a teaching dump, not a real codegen-feeding analysis.
+  #
+  #   Output: per-version lattice value. Syslib calls and WRITE IN
+  #   reads are BOTTOM (runtime-dependent).
+  local i
+  echo "=== SCCP results ==="
+  echo "platform:    $_INTERCAL_PLATFORM"
+
+  # Per-variable current value (concrete int or BOTTOM/TOP marker).
+  # We track only spot_N and twospot_N here.
+  local -A var_lattice
+  local -A var_version
+  # Sequence of (version, lattice-string) for output preservation.
+  local -a output_lines
+
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-}"
+    local body="${stmt_body[$i]:-}"
+    case "$t" in
+      ASSIGN)
+        local lhs="${body%%<-*}"; lhs="${lhs## }"; lhs="${lhs%% }"
+        local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
+        local lkey=""
+        if [[ "$lhs" =~ '^\.([0-9]+)$' ]]; then
+          lkey="spot_${match[1]}"
+        elif [[ "$lhs" =~ '^:([0-9]+)$' ]]; then
+          lkey="twospot_${match[1]}"
+        fi
+        [[ -z "$lkey" ]] && continue
+        local cur="${var_version[$lkey]:-0}"
+        cur=$((cur + 1))
+        var_version[$lkey]=$cur
+        # Determine RHS lattice value.
+        local rhs_lattice=""
+        # Strip outer apostrophes/quotes in case of grouping.
+        local r="${rhs//\'/}"
+        r="${r//\"/}"
+        r="${r## }"
+        r="${r%% }"
+        if [[ "$r" =~ '^#([0-9]+)$' ]]; then
+          rhs_lattice="CONST(${match[1]})"
+        elif [[ "$r" =~ '^\.([0-9]+)$' ]]; then
+          local rkey="spot_${match[1]}"
+          if [[ -n "${var_lattice[$rkey]:-}" ]]; then
+            rhs_lattice="${var_lattice[$rkey]}"
+          else
+            rhs_lattice="TOP"
+          fi
+        elif [[ "$r" =~ '^:([0-9]+)$' ]]; then
+          local rkey="twospot_${match[1]}"
+          if [[ -n "${var_lattice[$rkey]:-}" ]]; then
+            rhs_lattice="${var_lattice[$rkey]}"
+          else
+            rhs_lattice="TOP"
+          fi
+        else
+          rhs_lattice="BOTTOM"
+        fi
+        var_lattice[$lkey]=$rhs_lattice
+        output_lines+=("${lkey}.${cur} = ${rhs_lattice}")
+        ;;
+      WRITE_IN)
+        # Each variable read is a fresh BOTTOM def.
+        local items="${body#WRITE IN }"
+        items="${items## }"
+        for tok in ${=items}; do
+          tok="${tok## }"; tok="${tok%% }"
+          [[ -z "$tok" ]] && continue
+          local vk=""
+          if [[ "$tok" =~ '^\.([0-9]+)$' ]]; then
+            vk="spot_${match[1]}"
+          elif [[ "$tok" =~ '^:([0-9]+)$' ]]; then
+            vk="twospot_${match[1]}"
+          fi
+          [[ -z "$vk" ]] && continue
+          local cur="${var_version[$vk]:-0}"
+          cur=$((cur + 1))
+          var_version[$vk]=$cur
+          var_lattice[$vk]="BOTTOM"
+          output_lines+=("${vk}.${cur} = BOTTOM")
+        done
+        ;;
+    esac
+  done
+
+  echo "ssa values:  ${#output_lines[@]}"
+  echo
+  for l in "${output_lines[@]}"; do
+    echo "  $l"
+  done
+}
+
 emit_ssa() {
   # Note [SSAAnalysis]
   #   Analysis-only SSA construction following Braun et al. (2013):
@@ -2717,6 +2818,7 @@ EMIT_3ADDR_MODE=0
 EMIT_TOKENS_MODE=0
 EMIT_IR_FULL_MODE=0
 EMIT_SSA_MODE=0
+EMIT_SCCP_MODE=0
 TIME_REPORT=0
 # Note [OptBisect]
 #   --opt-bisect-limit=N caps the number of optional transformations
@@ -2739,6 +2841,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-tokens)        EMIT_TOKENS_MODE=1; shift ;;
     --emit-ir-full)       EMIT_IR_FULL_MODE=1; shift ;;
     --emit-ssa)           EMIT_SSA_MODE=1; shift ;;
+    --emit-sccp)          EMIT_SCCP_MODE=1; shift ;;
     --time-report)        TIME_REPORT=1; shift ;;
     --opt-bisect-limit=*) OPT_BISECT_LIMIT=${1#--opt-bisect-limit=}; shift ;;
     --opt-bisect-verbose) OPT_BISECT_VERBOSE=1; shift ;;
@@ -2852,6 +2955,11 @@ main() {
 
   if (( EMIT_SSA_MODE )); then
     emit_ssa
+    exit 0
+  fi
+
+  if (( EMIT_SCCP_MODE )); then
+    emit_sccp
     exit 0
   fi
 
