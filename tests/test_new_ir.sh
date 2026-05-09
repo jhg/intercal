@@ -107,6 +107,30 @@ else
 fi
 rm -f "$SRC_VV" "$BIN_VV"
 
+# Test 4 prereq: IGNORE/REMEMBER routes through IR.
+SRC_IR=$(mktemp /tmp/test_new_ir.XXXXXX)
+cat > "$SRC_IR" <<'EOF'
+DO .1 <- #5
+PLEASE DO IGNORE .1
+DO .1 <- #99
+PLEASE DO REMEMBER .1
+DO .1 <- #42
+DO READ OUT .1
+DO GIVE UP
+EOF
+BIN_IR=$(mktemp /tmp/test_new_ir.XXXXXX)
+INTERCAL_NEW_IR=1 zsh "$COMPILER" < "$SRC_IR" > "$BIN_IR" 2>/dev/null
+chmod +x "$BIN_IR"
+out=$("$BIN_IR"); rc=$?
+if [[ "$out" == "XLII" ]] && (( rc == 0 )); then
+  echo "PASS IR-driven IGNORE/REMEMBER cycle"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL IR IGNORE/REMEMBER: out=[$out] rc=$rc"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_IR" "$BIN_IR"
+
 # Test 4: twospot literal also works.
 SRC4=$(mktemp /tmp/test_new_ir.XXXXXX)
 cat > "$SRC4" <<'EOF'

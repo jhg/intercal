@@ -340,6 +340,24 @@ build_ir() {
       ir_ops+=("GIVE_UP")
       continue
     fi
+    if [[ "$t" == "IGNORE" ]] || [[ "$t" == "REMEMBER" ]]; then
+      local body="${stmt_body[$i]:-}"
+      local items="${body#${t} }"
+      items="${items## }"
+      local tok=""
+      for tok in ${=items}; do
+        tok="${tok## }"; tok="${tok%% }"
+        [[ -z "$tok" ]] && continue
+        local vk=""
+        if [[ "$tok" =~ '^\.([0-9]+)$' ]]; then vk="spot_${match[1]}"
+        elif [[ "$tok" =~ '^:([0-9]+)$' ]]; then vk="twospot_${match[1]}"
+        elif [[ "$tok" =~ '^,([0-9]+)$' ]]; then vk="tail_${match[1]}"
+        elif [[ "$tok" =~ '^;([0-9]+)$' ]]; then vk="hybrid_${match[1]}"
+        fi
+        [[ -n "$vk" ]] && ir_ops+=("$t $vk")
+      done
+      continue
+    fi
     if [[ "$t" == "ASSIGN" ]]; then
       local body="${stmt_body[$i]:-}"
       local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
@@ -416,6 +434,36 @@ lower_ir_for_stmt() {
             emit "  mov rdi, 0"
             emit "  mov rax, 60"
             emit "  syscall"
+            ;;
+        esac
+        handled=1
+        ;;
+      "IGNORE "*|"REMEMBER "*)
+        local _kw="${op%% *}"
+        local _vs="${op#* }"
+        # Determine prefix and num for the symbol
+        local _pfx="" _num=""
+        if [[ "$_vs" =~ '^(spot|twospot|tail|hybrid)_([0-9]+)$' ]]; then
+          _pfx="${match[1]}"
+          _num="${match[2]}"
+        else
+          return 1
+        fi
+        local _val=0
+        [[ "$_kw" == "IGNORE" ]] && _val=1
+        case "$_INTERCAL_PLATFORM" in
+          macos_arm64|linux_arm64)
+            emit "  adrp x0, _${_pfx}_${_num}_ign@PAGE"
+            emit "  add x0, x0, _${_pfx}_${_num}_ign@PAGEOFF"
+            if (( _val == 0 )); then
+              emit "  strb wzr, [x0]"
+            else
+              emit "  mov w1, #${_val}"
+              emit "  strb w1, [x0]"
+            fi
+            ;;
+          linux_x86_64)
+            emit "  mov byte ptr [rip + _${_pfx}_${_num}_ign], ${_val}"
             ;;
         esac
         handled=1
