@@ -144,8 +144,9 @@ emit_opt_summary() {
   echo "stmts:       $stmt_count"
   echo
   local n_assign=0 n_e275_safe=0 n_e621_safe=0 n_e436_safe=0
+  local n_e123_safe=0
   local n_no_flag=0 n_var_const=0
-  local n_resume=0 n_retrieve=0
+  local n_resume=0 n_retrieve=0 n_next=0
   local i=0
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-}"
@@ -153,10 +154,12 @@ emit_opt_summary() {
       ASSIGN) n_assign=$((n_assign + 1)) ;;
       RESUME) n_resume=$((n_resume + 1)) ;;
       RETRIEVE) n_retrieve=$((n_retrieve + 1)) ;;
+      NEXT) n_next=$((n_next + 1)) ;;
     esac
     (( ${+stmt_e275_safe[$i]} )) && n_e275_safe=$((n_e275_safe + 1))
     (( ${+stmt_e621_safe[$i]} )) && n_e621_safe=$((n_e621_safe + 1))
     (( ${+stmt_e436_safe[$i]} )) && n_e436_safe=$((n_e436_safe + 1))
+    (( ${+stmt_e123_safe[$i]} )) && n_e123_safe=$((n_e123_safe + 1))
     (( ! ${stmt_needs_flag[$i]:-1} )) && n_no_flag=$((n_no_flag + 1))
   done
   # Count stmt_var_const entries (each entry is one stmt:varspec pair).
@@ -167,6 +170,8 @@ emit_opt_summary() {
   echo "  E621 elided (cbz skipped):        $n_e621_safe / $n_resume"
   echo "RETRIEVE stmts:                     $n_retrieve"
   echo "  E436 elided (empty-stash skip):   $n_e436_safe / $n_retrieve"
+  echo "NEXT stmts:                         $n_next"
+  echo "  E123 elided (stack-depth skip):   $n_e123_safe / $n_next"
   echo
   echo "Abstain-flag check elided:          $n_no_flag / $stmt_count stmts"
   echo "Constant-propagation entries:       $n_const_pairs (stmt × varspec)"
@@ -2425,11 +2430,59 @@ compute_var_constants() {
 typeset -A stmt_e275_safe
 typeset -A stmt_e621_safe   # RESUME #N where N != 0 cannot raise E621
 typeset -A stmt_e436_safe   # RETRIEVE preceded by sufficient STASH on every path
+typeset -A stmt_e123_safe   # NEXT that statically cannot overflow the stack
 
 compute_e275_safety() {
   stmt_e275_safe=()
   stmt_e621_safe=()
   stmt_e436_safe=()
+  stmt_e123_safe=()
+
+  # Note [E123Elim]
+  #   The NEXT stack overflows when 80 entries accumulate. The
+  #   simplest sound rule: in a program with no loops and only
+  #   forward NEXTs, each NEXT pushes at most once. Loops here mean
+  #   any of:
+  #     - COME FROM (creates implicit re-entry to a labelled stmt).
+  #     - NEXT FROM (backward branches don't push, but interactions
+  #       with existing NEXTs can re-execute them).
+  #     - REINSTATE (could revive a NEXT inside an unwinding chain).
+  #     - A NEXT whose target is at or BEFORE its own position
+  #       (backward NEXT = recursion via the standard NEXT
+  #       mechanism, not via NEXT FROM).
+  #   When all of those are absent and the total NEXT count is
+  #   below the 80 limit, every NEXT is e123_safe and codegen can
+  #   skip the cmp+b.ge sequence.
+  local _n_next=0 _has_loop=0 _i_pre=0
+  for (( _i_pre=1; _i_pre<=stmt_count; _i_pre++ )); do
+    local _t="${stmt_type[$_i_pre]:-}"
+    case "$_t" in
+      NEXT)
+        _n_next=$((_n_next + 1))
+        local _tgt="${stmt_next_target[$_i_pre]:-}"
+        if [[ -n "$_tgt" ]]; then
+          local _tgt_idx="${label_to_stmt[$_tgt]:-}"
+          # Treat backward NEXT (target_idx <= self) as a loop. Also
+          # syslib_NNNN target strings are always external labels;
+          # they execute and RESUME, no pushed return is left on
+          # the stack at the point we re-check.
+          if [[ -n "$_tgt_idx" ]] && [[ "$_tgt_idx" != syslib_* ]] \
+             && [[ "$_tgt_idx" != "syscall_666" ]]; then
+            (( _tgt_idx <= _i_pre )) && _has_loop=1
+          fi
+        fi
+        ;;
+      COME_FROM) _has_loop=1 ;;
+      NEXT_FROM) _has_loop=1 ;;
+      REINSTATE) _has_loop=1 ;;
+    esac
+  done
+  if (( _n_next < 80 )) && (( ! _has_loop )); then
+    local _i_e123=0
+    for (( _i_e123=1; _i_e123<=stmt_count; _i_e123++ )); do
+      [[ "${stmt_type[$_i_e123]:-}" == "NEXT" ]] && stmt_e123_safe[$_i_e123]=1
+    done
+  fi
   local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-}"
@@ -3744,12 +3797,14 @@ codegen_next() {
     die_compile "129" "PROGRAM HAS GOTTEN LOST (NEXT to undefined label ($target_label))"
   fi
 
-  # Check NEXT stack depth
+  # Check NEXT stack depth (skip when E123 statically unreachable).
   emit "  adrp x0, _next_sp@PAGE"
   emit "  add x0, x0, _next_sp@PAGEOFF"
   emit "  ldr w1, [x0]"
-  emit "  cmp w1, #79"
-  emit "  b.ge _rt_error_E123"
+  if ! ( (( ${+stmt_e123_safe[$i]} )) && opt_bisect_check "elim_e123_stmt_$i" ); then
+    emit "  cmp w1, #79"
+    emit "  b.ge _rt_error_E123"
+  fi
   # Push return address
   emit "  adrp x2, _next_stack@PAGE"
   emit "  add x2, x2, _next_stack@PAGEOFF"

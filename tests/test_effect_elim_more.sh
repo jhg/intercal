@@ -73,6 +73,45 @@ else
 fi
 rm -f "$SRC3"
 
+# Test 4: forward-only NEXT in a loop-free program -> E123 check elided
+SRC_E123=$(mktemp /tmp/test_eff_more.XXXXXX)
+cat > "$SRC_E123" <<'EOF'
+DO .1 <- #5
+PLEASE DO (1009) NEXT
+DO READ OUT .3
+DO GIVE UP
+EOF
+asm=$(INTERCAL_ASM_ONLY=1 zsh "$COMPILER" < "$SRC_E123" 2>/dev/null)
+n=$(echo "$asm" | grep -c "_rt_error_E123" 2>/dev/null)
+n=${n:-0}
+if (( n == 0 )); then
+  echo "PASS forward-only NEXT in loop-free program elides E123"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL E123 not elided: $n references in emitted asm"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_E123"
+
+# Test 5: backward NEXT (recursion) keeps the E123 check.
+SRC_E123B=$(mktemp /tmp/test_eff_more.XXXXXX)
+cat > "$SRC_E123B" <<'EOF'
+        DO .1 <- #1
+(10)    DO (10) NEXT
+        PLEASE GIVE UP
+EOF
+asm=$(INTERCAL_ASM_ONLY=1 zsh "$COMPILER" < "$SRC_E123B" 2>/dev/null)
+n=$(echo "$asm" | grep -c "_rt_error_E123" 2>/dev/null)
+n=${n:-0}
+if (( n >= 1 )); then
+  echo "PASS backward NEXT keeps E123 check ($n references)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL backward NEXT should KEEP E123 check"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_E123B"
+
 echo ""
 echo "Total: $PASS passed, $FAIL failed"
 exit $((FAIL > 0))
