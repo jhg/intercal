@@ -82,6 +82,8 @@
 - [Improvement proposals](improvement-proposals.md)
 - [Proposals: implementation status](proposals-status.md)
 - [Stage 3 roadmap](stage3-roadmap.md)
+- [Loop primitive: NEXT FROM](loop-extension.md)
+- [Learning by extending: a guided tour](learning-by-extending.md)
 
 # Reference
 

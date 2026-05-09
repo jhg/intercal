@@ -89,36 +89,81 @@ In the cumulative session series:
 
 Test growth: 71 (start) -> 130+ (end), across 20+ test scripts.
 
+## Updates in 2026-05-09 session
+
+| # | Name | Status | Commit |
+|---|------|--------|--------|
+| 11 | IR-driven codegen | INCREMENTAL OPT-IN (`INTERCAL_NEW_IR=1`) | c1c8ac3 |
+| 12 | Linear-scan integration | DECISIONS EXPOSED + HINTS (`INTERCAL_REGALLOC_HINTS=1`) | b2ea50d |
+| 13 | Wegman-Zadeck SCCP | FULL ALGO behind `--emit-sccp-wz` | d3bde03 |
+| 16 | Stage3 loop primitive | DECIDED (NEXT FROM, see docs/loop-extension.md) | bd008c9, b26b824 |
+| 17 | Bytecode tier | + ARITHMETIC OPERATORS (mingle, select, unary) | ebc2d87 |
+| 18 | LSP server v0.3.0 | + COMPLETION + GO-TO-DEFINITION | eacb5ef |
+| 20 | Effect-driven elim | EXTENDED to E621 + E436 | 8724fba |
+
+Substantive deltas:
+
+- **NEXT FROM extension (#16)**: chose Option B (CLC-INTERCAL-style)
+  over scaffolding or new ABSTAIN-loop syntax. Both unconditional
+  and conditional forms emit a single `b` or `tbnz` with no
+  NEXT-stack push, so finite loops are now sound (no E123 risk
+  on the 80th iteration). docs/loop-extension.md captures the
+  rationale; tests/test_next_from.i and tests/test_stage3_loop.i
+  exercise a counter loop and a 5-byte array scan.
+
+- **IR-driven codegen scaffold (#11)**: the legacy tree-walk path
+  remains the source of truth. INTERCAL_NEW_IR=1 routes supported
+  statement types through lower_ir_for_stmt() and falls back to
+  legacy for unsupported types. Currently only GIVE_UP is wired
+  through. The migration pattern is one statement type at a time,
+  each gated independently, so future PRs can extend without
+  disturbing the legacy path.
+
+- **Regalloc hints (#12)**: compute_regalloc_decisions populates
+  `var_reg[<varspec>]` and `var_spilled[<varspec>]`. With
+  INTERCAL_REGALLOC_HINTS=1, codegen prefixes spot-variable stores
+  with `// regalloc: spot_N -> R<n>` comments (visible in the
+  intermediate assembly). Behavioural codegen change deferred.
+
+- **Wegman-Zadeck SCCP (#13)**: emit_sccp_wz implements the proper
+  worklist algorithm: TOP/CONST/BOTTOM lattice, executable-edge
+  gating (exec_into[i] = 1 when an incoming edge is proven
+  reachable), monotone meet at confluence points, and per-stmt
+  outgoing[] tracking. The simpler emit_sccp linear-walk dump
+  remains as a teaching variant.
+
 ## Genuinely remaining future work
 
 For a session that wants to go deeper:
 
-1. **Codegen-from-IR rewrite** (proposal 9 second half): replace
-   the parse-tree-walk codegen with an ir_ops[]-walk codegen.
-   Estimated multi-week refactor with 33-test regression risk.
-2. **Linear-scan regalloc integration** (proposal 12 second half):
-   make `--emit-regalloc`'s decisions actually drive register
-   allocation in the emitted assembly. Requires the codegen-from-IR
-   rewrite as a prerequisite.
-3. **SCCP on real SSA** (proposal 13's full version): the current
-   integration uses a simpler conservative dataflow. Full
-   Wegman-Zadeck SCCP on the SSA-form IR with executable-edge
-   gating is an extension.
-4. **Stage3 substage 1 real implementation** (proposal 16): a
-   char-by-char tokeniser for INTERCAL source in pure INTERCAL,
-   blocked by the loop-primitive question. Months of careful
-   INTERCAL coding.
+1. **Stage3 substage 1 wired into stage3.i** (proposal 16
+   continuation): the loop mechanic is verified end-to-end in
+   tests/test_stage3_loop.i; replacing the byte-probe scaffolding
+   in src/compiler/stage3.i with a real tokeniser pass using
+   NEXT FROM is the next stage. Substages 2-8 of the roadmap
+   follow.
+2. **IR-driven codegen for more statement types** (proposal 11
+   continuation): extend lower_ir_for_stmt() to handle
+   STASH/RETRIEVE/IGNORE/REMEMBER/READ_OUT, then ASSIGN. Each is
+   independently guarded by INTERCAL_NEW_IR.
+3. **Regalloc behavioural codegen** (proposal 12 continuation):
+   when var_reg[X] is set and there's no intervening control-flow
+   stopper between the def and the use, emit `mov w_dst, w<r>`
+   instead of `ldr w_dst, [_spot_X]`. Requires a register-state
+   cache that resets at every NEXT/COME FROM/RESUME boundary.
+4. **SCCP-WZ extension to syslib results** (proposal 13
+   continuation): currently arithmetic syslib calls collapse to
+   BOTTOM. Modelling them in the lattice (e.g., 1009 of two
+   constants is a constant) would feed the codegen-side
+   const-prop. Also: COME FROM source edges are not yet in
+   preds[], so the meet at COME FROM target sites is not full.
 5. **Bytecode parity with native** (proposal 17): the bytecode VM
-   currently supports a documented subset; full feature parity
-   (COME FROM, NEXT, arrays, syslib) requires real control-flow
-   plumbing.
-6. **LSP completion + go-to-definition** (proposal 18): semantic
-   tokens + hover + diagnostics are landed; completion and
-   navigation features remain.
-7. **Effect-driven elim for more error classes** (proposal 20):
-   currently elides only E275 on literal-RHS ASSIGN. Other ICL
-   codes (E123 stack overflow, E129 undef label, E436 stash, etc.)
-   could be elided when the analysis proves them unreachable.
+   has arithmetic operators but lacks COME FROM, NEXT, arrays.
+   Each requires real control-flow plumbing in the VM dispatch.
+6. **Effect-driven elim for more error classes** (proposal 20):
+   already extended to E621 and E436. E123 (stack overflow), E129
+   (undef label), E632 (resume past stack bottom) are candidates
+   when static depth analysis is feasible.
 
 Each is a focused multi-week project. None is required for the
 project's identity; each is depth.

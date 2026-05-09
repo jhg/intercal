@@ -55,6 +55,16 @@ vocabulary LLVM, GCC, rustc and the rest use as their first-class IR.
 (Bootstrap only.) Print a flat three-address listing of statements to
 stdout and exit. Conceptually GIMPLE-shaped. Inspection only; does not
 produce a binary.
+.TP
+.B \-\-emit-sccp-wz
+(Bootstrap only.) Print the result of a Wegman-Zadeck Sparse Conditional
+Constant Propagation analysis: per-statement lattice values
+.RB ( TOP / CONST(N) / BOTTOM )
+for every tracked variable, plus the executable-edge map. Implements the
+proper worklist algorithm with monotone meet at confluence points; the
+older
+.B \-\-emit-sccp
+flag remains as a simpler linear-walk teaching dump.
 .SH ENVIRONMENT
 .TP
 .B INTERCAL_HOME
@@ -115,6 +125,27 @@ Override the
 .B cc
 command used for assembly. Default:
 .BR cc .
+.TP
+.B INTERCAL_NEW_IR
+If set to
+.BR 1 ,
+codegen attempts the IR-driven lowering path before falling back to
+the legacy tree-walk codegen. Currently only
+.B GIVE_UP
+statements are routed through the new path; other types fall back.
+This is the migration scaffold for proposal #11; the legacy path
+remains the source of truth.
+.TP
+.B INTERCAL_REGALLOC_HINTS
+If set to
+.BR 1 ,
+codegen runs the linear-scan analysis ahead of emission and prefixes
+spot-variable assignments with assembly comments of the form
+.BR \(dq//\ regalloc:\ spot_N\ ->\ R<n>\(dq
+or
+.BR \(dq//\ regalloc:\ spot_N\ spilled\(dq .
+The instructions emitted are unchanged; the comments are advisory
+data for future register-keeping work.
 .SH EXIT STATUS
 .TP
 .B 0
