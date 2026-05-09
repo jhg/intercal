@@ -312,7 +312,7 @@ main() {
         done
         # Variables present in the document
         local seen_vars=""
-        local v
+        local v=""
         for v in $(echo "$text" | grep -oE '\.[0-9]+|:[0-9]+|,[0-9]+|;[0-9]+' | sort -u); do
           (( first )) || items_json+=','
           first=0

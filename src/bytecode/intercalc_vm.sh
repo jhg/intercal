@@ -26,7 +26,7 @@ to_roman() {
   local -a vals=(1000 900 500 400 100 90 50 40 10 9 5 4 1)
   local -a syms=("M" "CM" "D" "CD" "C" "XC" "L" "XL" "X" "IX" "V" "IV" "I")
   if (( n == 0 )); then echo ""; return; fi
-  local i
+  local i=""
   for (( i=1; i<=${#vals[@]}; i++ )); do
     while (( n >= vals[i] )); do
       r+="${syms[i]}"

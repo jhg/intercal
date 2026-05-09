@@ -293,7 +293,7 @@ build_ir_expr() {
 build_ir() {
   ir_ops=()
   _ir_next_temp=0
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-?}"
     ir_ops+=("STMT $i $t")
@@ -345,7 +345,7 @@ lower_ir_for_stmt() {
   (( start < 0 )) && return 1
   (( end < 0 )) && end=${#ir_ops[@]}
   local handled=0
-  local j
+  local j=""
   for (( j=start+1; j<end; j++ )); do
     op="${ir_ops[$((j+1))]}"
     case "$op" in
@@ -385,7 +385,7 @@ emit_ir_real() {
   echo "platform:    $_INTERCAL_PLATFORM"
   echo "ir_ops:      ${#ir_ops[@]}"
   echo
-  local op
+  local op=""
   for op in "${ir_ops[@]}"; do
     echo "  $op"
   done
@@ -541,7 +541,7 @@ emit_regalloc() {
   # mentions the source-language variable name (.N or :N).
   local n_defs=${#def_name[@]}
   local -a def_end
-  local d
+  local d=""
   for (( d=1; d<=n_defs; d++ )); do
     local name="${def_name[$d]}"
     local vkey="${name%.*}"
@@ -554,7 +554,7 @@ emit_regalloc() {
     local start=${def_start[$d]}
     local end=$start
     # Walk forward; stop at next definition of same vkey.
-    local j
+    local j=""
     for (( j=start+1; j<=stmt_count; j++ )); do
       local b="${stmt_body[$j]:-}"
       # Stop if a later def of the same variable replaces this one.
@@ -583,7 +583,7 @@ emit_regalloc() {
   local -a active   # indices into def_name (1-based)
   local -A reg_of   # def-index -> register slot 0..R-1
   local -A free_regs
-  local k
+  local k=""
   for (( k=0; k<R; k++ )); do
     free_regs[$k]=1
   done
@@ -606,7 +606,7 @@ emit_regalloc() {
   }
 
   pick_free_reg() {
-    local k
+    local k=""
     for (( k=0; k<R; k++ )); do
       if (( ${+free_regs[$k]} )) && (( free_regs[$k] )); then
         REPLY=$k
@@ -810,14 +810,14 @@ emit_sccp_wz() {
   # is { i-1, come_from_source }. We model a NEXT or NEXT_FROM target
   # as also having edge from the NEXT site.
   typeset -A preds
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     local plist=""
     if (( i > 1 )); then plist="$((i-1))"; fi
     # NEXT and NEXT_FROM targets receive an edge from the source.
     if [[ -n "${stmt_label[$i]:-}" ]]; then
       local lbl="${stmt_label[$i]}"
-      local s
+      local s=""
       for (( s=1; s<=stmt_count; s++ )); do
         local st="${stmt_type[$s]:-}"
         if [[ "$st" == "NEXT" || "$st" == "NEXT_FROM" ]] \
@@ -846,7 +846,7 @@ emit_sccp_wz() {
     local i=$1
     typeset -A incoming
     local p_str="${preds[$i]:-}"
-    local p
+    local p=""
     for p in ${=p_str}; do
       [[ -z "$p" ]] && continue
       (( ${exec_into[$p]:-0} )) || continue
@@ -919,7 +919,7 @@ emit_sccp_wz() {
       local t="${stmt_type[$cur]:-}"
       if [[ "$t" == "NEXT" || "$t" == "NEXT_FROM" ]]; then
         local lbl="${stmt_next_target[$cur]:-}"
-        local i2
+        local i2=""
         for (( i2=1; i2<=stmt_count; i2++ )); do
           if [[ "${stmt_label[$i2]:-}" == "$lbl" ]]; then
             exec_into[$i2]=1
@@ -1057,7 +1057,7 @@ emit_ssa() {
   done
   local total_blocks=$((blk + 1))
   local total_versions=0
-  local k
+  local k=""
   for k in "${(@v)var_version}"; do
     total_versions=$((total_versions + k))
   done
@@ -1079,7 +1079,7 @@ emit_ssa() {
   done
   blk_ends[$((blk + 1))]=$stmt_count
 
-  local b
+  local b=""
   for (( b=1; b<=total_blocks; b++ )); do
     local s=${blk_starts[$b]}
     local e=${blk_ends[$b]}
@@ -1375,7 +1375,7 @@ diagnose() {
   local -A var_used
   local -a labels
   local -a syslib_calls
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     (( stmt_polite[$i] )) && (( polite++ )) || true
     (( stmt_negated[$i] )) && (( not_count++ )) || true
@@ -1481,7 +1481,7 @@ process_includes() {
     local before="${match[1]}"
     local fname="${match[2]}"
     local after="${match[3]}"
-    local s
+    local s=""
     for s in "${_include_stack[@]}"; do
       if [[ "$s" == "$fname" ]]; then
         _include_error="ICL197I INCLUDE cycle detected: $fname"
@@ -1784,7 +1784,7 @@ scan_variables() {
 check_politeness() {
   if (( stmt_count < 5 )); then return; fi
   local polite=0
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     if (( stmt_polite[$i] )); then
       (( polite++ )) || true
@@ -1799,7 +1799,7 @@ check_politeness() {
 }
 
 check_labels() {
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     local lbl="${stmt_label[$i]}"
     [[ -z "$lbl" ]] && continue
@@ -1873,7 +1873,7 @@ check_unreferenced_labels() {
 #   Note that COME FROM was not in the original INTERCAL-72 spec; we
 #   adopted it as a standard feature per modern INTERCAL practice.
 resolve_come_from() {
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     if [[ "${stmt_type[$i]}" == "COME_FROM" ]]; then
       local target="${stmt_cf_target[$i]}"
@@ -1886,7 +1886,7 @@ resolve_come_from() {
 }
 
 detect_syslib() {
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     if [[ "${stmt_type[$i]}" == "NEXT" ]]; then
       local target="${stmt_next_target[$i]}"
@@ -2097,7 +2097,7 @@ compute_e275_safety() {
   stmt_e275_safe=()
   stmt_e621_safe=()
   stmt_e436_safe=()
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     local t="${stmt_type[$i]:-}"
     local body="${stmt_body[$i]:-}"
@@ -2767,14 +2767,14 @@ codegen_array_ref() {
     # Multi-dimensional: compute linear index
     # Save subscripts on stack, then compute index
     # For simplicity in bootstrap, compute iteratively
-    local s
+    local s=""
     for s in "${sub_ids[@]}"; do
       codegen_expr $s
       emit "  str w0, [sp, #-16]!"
     done
     # Now compute linear index: ((s1-1)*d2 + (s2-1))*d3 + ... + (sn-1)
     emit "  mov w0, #0"  # accumulated index
-    local j
+    local j=""
     for (( j=1; j<=nsubs; j++ )); do
       if (( j > 1 )); then
         # Multiply accumulated by dim[j]
@@ -2836,7 +2836,7 @@ codegen_program() {
     compute_regalloc_decisions
   fi
 
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     codegen_statement $i
   done
@@ -3274,7 +3274,7 @@ codegen_array_elem_assign() {
     # Multi-dim: compute linear index
     # Subscripts are on stack in reverse order (last pushed first)
     emit "  mov w0, #0"
-    local j
+    local j=""
     for (( j=1; j<=nsubs; j++ )); do
       if (( j > 1 )); then
         emit "  adrp x1, _${prefix}_${arr_num}_dims@PAGE"
@@ -3340,7 +3340,7 @@ codegen_array_dim() {
 
   # Evaluate each dimension and save
   local total_expr="1"
-  local d
+  local d=""
   for d in "${dim_parts[@]}"; do
     d="${d## }"
     d="${d%% }"
@@ -3353,7 +3353,7 @@ codegen_array_dim() {
 
   # Store dimensions and compute total size
   emit "  mov w10, #1"  # total elements
-  local j
+  local j=""
   for (( j=1; j<=ndims; j++ )); do
     local stack_off=$(( (ndims - j) * 16 ))
     emit "  ldr w11, [sp, #${stack_off}]"
@@ -3629,7 +3629,7 @@ codegen_gerund_modify() {
   for g in "${gerunds[@]}"; do
     local types="${gerund_map[$g]:-}"
     [[ -z "$types" ]] && continue
-    local j
+    local j=""
     for (( j=1; j<=stmt_count; j++ )); do
       for t in ${=types}; do
         if [[ "${stmt_type[$j]}" == "$t" ]]; then
@@ -3824,7 +3824,7 @@ emit_stmt_flags_only() {
   emit "// ========== Syslib Data =========="
   emit ".section __DATA,__data"
   emit "_stmt_flags:"
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     if (( stmt_negated[$i] )); then
       emit "  .byte 1"
@@ -3874,7 +3874,7 @@ emit_data() {
   # Statement flags (in __DATA,__data because negated stmts start at 1)
   emit ".section __DATA,__data"
   emit "_stmt_flags:"
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     if (( stmt_negated[$i] )); then
       emit "  .byte 1"
