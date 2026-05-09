@@ -104,12 +104,55 @@ stash_pop() {
   esac
 }
 
+# Buffer all ops then run them PC-driven so we can handle COME FROM
+# redirects. The streaming line-at-a-time model used previously cannot
+# express backward (or forward) jumps.
+typeset -a ops_buf
 while IFS= read -r line; do
   line="${line## }"
   line="${line%% }"
   [[ -z "$line" ]] && continue
+  ops_buf+=("$line")
+done
+
+# Pre-scan: build the redirect map from labels to the PC immediately
+# AFTER the matching COMEFROM line. The label fires at a labelled
+# stmt's ESTMT boundary; control transfers to whatever lies after the
+# COMEFROM op. By construction the bytecode emits an ESTMT after the
+# COMEFROM line, so the redirect target is "just past the ESTMT after
+# the COMEFROM" — i.e., the PC of the next non-ESTMT op.
+typeset -A redirect_target
+typeset pc_scan=0
+for (( pc_scan=0; pc_scan<${#ops_buf[@]}; pc_scan++ )); do
+  local op="${ops_buf[$((pc_scan+1))]}"
+  if [[ "$op" =~ '^COMEFROM ([0-9]+)$' ]]; then
+    local lbl="${match[1]}"
+    # Target is past the COMEFROM and its ESTMT.
+    local target=$((pc_scan + 2))
+    redirect_target[$lbl]=$target
+  fi
+done
+
+# pending_label: set when a LABEL op is executed; checked at ESTMT.
+typeset pending_label=""
+typeset pc=0
+while (( pc < ${#ops_buf[@]} )); do
+  local line="${ops_buf[$((pc+1))]}"
+  pc=$((pc + 1))
   set -- ${(z)line}
   case "$1" in
+    LABEL)
+      pending_label="$2"
+      ;;
+    COMEFROM)
+      # Already processed in the pre-scan; treat as a no-op.
+      ;;
+    ESTMT)
+      if [[ -n "$pending_label" ]] && (( ${+redirect_target[$pending_label]} )); then
+        pc=${redirect_target[$pending_label]}
+      fi
+      pending_label=""
+      ;;
     IPUSH) push "$2" ;;
     VPUSH)
       local v="${2#.}"

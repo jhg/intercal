@@ -31,6 +31,42 @@ src=${(U)src}
 src=${src//DO /$'\n'DO }
 src=${src//PLEASE /$'\n'PLEASE }
 
+# Hoist a label-prefix "(N)" that the DO/PLEASE-split left at the
+# end of a line so it sticks to the start of the next statement
+# chunk. We only treat trailing "(N)" as a label prefix when the
+# line content BEFORE the (N) does not look like a target-reference
+# context (COME FROM, NEXT, ABSTAIN FROM, REINSTATE).
+typeset -a tmp_lines
+tmp_lines=("${(@f)src}")
+typeset -a out_lines
+local L=""
+local i_l=0
+local n_lines=${#tmp_lines[@]}
+for (( i_l=1; i_l<=n_lines; i_l++ )); do
+  L="${tmp_lines[$i_l]}"
+  if [[ "$L" =~ '^(.*[^[:space:]])[[:space:]]+(\([0-9]+\))[[:space:]]*$' ]]; then
+    local before="${match[1]}"
+    local lblpfx="${match[2]}"
+    # Heuristic: if 'before' ends with a target-reference keyword,
+    # the (N) is a target reference, not a label prefix. Leave the
+    # line intact.
+    if [[ "$before" =~ '(COME FROM|NEXT|ABSTAIN FROM|REINSTATE)$' ]]; then
+      out_lines+=("$L")
+    else
+      out_lines+=("$before")
+      # Prepend lblpfx to the next line if there is one.
+      if (( i_l < n_lines )); then
+        tmp_lines[$((i_l+1))]="${lblpfx} ${tmp_lines[$((i_l+1))]}"
+      else
+        out_lines+=("$lblpfx")
+      fi
+    fi
+  else
+    out_lines+=("$L")
+  fi
+done
+src=$(printf '%s\n' "${out_lines[@]}")
+
 # Compile a single expression into stack ops.
 # Recursive descent over our small expression grammar:
 #   expr := atom | unary expr | spark|rabbitears (expr op expr) close
@@ -103,23 +139,52 @@ while IFS= read -r line; do
   line="${line%% }"
   [[ -z "$line" ]] && continue
   body="$line"
+  # Detect a (N) prefix and emit a LABEL marker before the statement's
+  # body. The COME FROM lookup later in the VM uses this marker to
+  # decide whether the just-executed statement triggers a redirect.
+  if [[ "$body" =~ '^\(([0-9]+)\)[[:space:]]*(.*)$' ]]; then
+    echo "LABEL ${match[1]}"
+    body="${match[2]}"
+  fi
+  # Strip leading DO/PLEASE keywords; both with and without a
+  # trailing space (the preprocessor occasionally splits a line at
+  # the bare keyword).
   body="${body#DO }"
   body="${body#PLEASE }"
+  [[ "$body" == "DO" ]] && body=""
+  [[ "$body" == "PLEASE" ]] && body=""
   body="${body## }"
+  body="${body%% }"
+
+  # The line might contain only a label or only a stray PLEASE/DO
+  # keyword (the surrounding "split on DO/PLEASE" preprocessing
+  # leaves these alone). Skip emitting any op for an empty body.
+  [[ -z "$body" ]] && continue
 
   if [[ "$body" =~ '^GIVE UP[[:space:]]*$' ]]; then
     echo "EXIT"
+    echo "ESTMT"
+    continue
+  fi
+
+  # COME FROM (N) marks the destination for label N's outgoing
+  # transfer.
+  if [[ "$body" =~ '^COME[[:space:]]+FROM[[:space:]]+\(([0-9]+)\)[[:space:]]*$' ]]; then
+    echo "COMEFROM ${match[1]}"
+    echo "ESTMT"
     continue
   fi
 
   if [[ "$body" =~ '^READ OUT[[:space:]]+\.([0-9]+)[[:space:]]*$' ]]; then
     echo "VPUSH .${match[1]}"
     echo "READOUT"
+    echo "ESTMT"
     continue
   fi
   if [[ "$body" =~ '^READ OUT[[:space:]]+:([0-9]+)[[:space:]]*$' ]]; then
     echo "VPUSH2 :${match[1]}"
     echo "READOUT2"
+    echo "ESTMT"
     continue
   fi
 
@@ -133,23 +198,28 @@ while IFS= read -r line; do
     else
       echo "POPV2 ${lhs}"
     fi
+    echo "ESTMT"
     continue
   fi
 
   if [[ "$body" =~ '^STASH[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "STASH ${match[1]}"
+    echo "ESTMT"
     continue
   fi
   if [[ "$body" =~ '^RETRIEVE[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "RETRIEVE ${match[1]}"
+    echo "ESTMT"
     continue
   fi
   if [[ "$body" =~ '^IGNORE[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "IGNORE ${match[1]}"
+    echo "ESTMT"
     continue
   fi
   if [[ "$body" =~ '^REMEMBER[[:space:]]+(\.[0-9]+|:[0-9]+)[[:space:]]*$' ]]; then
     echo "REMEMBER ${match[1]}"
+    echo "ESTMT"
     continue
   fi
 

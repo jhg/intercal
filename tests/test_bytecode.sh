@@ -154,10 +154,34 @@ else
 fi
 rm -f "$SRC_MIX"
 
-# Test 3: out-of-subset programs error cleanly
+# Test: COME FROM redirects after labelled stmt. Linear flow would
+# print I then II; COME FROM should print only I (the second part is
+# skipped via the redirect).
+SRC_CF=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_CF" <<'EOF'
+DO .1 <- #1
+(10) PLEASE DO READ OUT .1
+PLEASE DO .1 <- #2
+DO READ OUT .1
+DO GIVE UP
+PLEASE DO COME FROM (10)
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_CF" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "I" ]]; then
+  echo "PASS bytecode COME FROM redirects past linear flow"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL COME FROM: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_CF"
+
+# Test 3: out-of-subset programs error cleanly. NEXT/RESUME are
+# the still-unsupported control-flow primitives in this tier.
 SRC3=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC3" <<'EOF'
-DO COME FROM (10)
+DO (1009) NEXT
 DO .1 <- #5
 DO GIVE UP
 EOF
