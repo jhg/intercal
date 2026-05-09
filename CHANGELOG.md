@@ -40,16 +40,35 @@ tag; in-progress work appears under "Unreleased".
   `lower_ir_for_stmt`. STASH / RETRIEVE delegates to the existing
   `codegen_stash_var` / `codegen_retrieve_var` helpers so the
   emitted assembly is byte-identical to legacy.
-- Bytecode VM v2: COME FROM with PC-driven dispatch and label
+- Bytecode VM v3: COME FROM with PC-driven dispatch and label
   redirect map; NEXT / RESUME / FORGET with a 79-entry call
   stack mirroring the runtime contract (ICL123I on overflow,
-  ICL621I on RESUME #0, ICL632I on stack underflow).
-- Effect-driven elim now also covers E123 (NEXT stack overflow).
-  When the program is loop-free (no COME FROM, no NEXT FROM, no
-  REINSTATE) and every NEXT is forward-only (target is past its
-  own statement) AND total NEXT count is below the 79-entry
-  limit, the cmp+b.ge sequence is omitted at every NEXT.
-- `--emit-opt-summary` now also reports E123 elision counts.
+  ICL621I on RESUME #0, ICL632I on stack underflow); NEXT FROM
+  with BRANCH/BRANCH_NZ; ABSTAIN/REINSTATE (label and gerund)
+  with STMT_ENTER markers + abstain bitmap; probability prefix
+  %N; 1D arrays (DIM, APUT, AGET); WRITE IN scalars (English
+  digit names via fd 3); syslib evaluation (16-bit and 32-bit
+  arithmetic + division/multiply with overflow + random); TTM
+  output (READ OUT array with bit-reversed tape head, "Hello
+  World!" runs end-to-end).
+- Effect-driven elim now also covers E123 (NEXT stack overflow)
+  and E241 (array subscript out of bounds). E123 fires on
+  loop-free + forward-only NEXT programs. E241 fires when the
+  ARRAY_DIM target has all-literal dims AND the access subscript
+  is a literal in [1, dim].
+- `--emit-opt-summary` reports E123 + E240 + E241 elision counts.
+- INTERCAL_SCCP_WZ_FEED=1 silently runs Wegman-Zadeck SCCP after
+  compute_var_constants and merges its CONST results into
+  stmt_var_const, so codegen folds constants the simpler analysis
+  missed (notably across syslib calls). Skipped on programs with
+  STASH/RETRIEVE since SCCP-WZ doesn't model them.
+- `tests/test_bytecode_equiv.sh` runs every regression test
+  through both native and bytecode tiers and asserts identical
+  output. 15 / 35 passes after the bytecode tier extensions.
+- `src/compiler/stage3_substage1.i` plus
+  `tests/test_stage3_substage1.sh`: byte loader + tokeniser-loop
+  demonstrator on a real INTERCAL source file. Counts source
+  length and 'D' bytes via NEXT FROM + branchless conditional ADD.
 - E275 elision recognises spot-to-twospot widening (always safe) and
   SCCP-bounded var copies. `compute_var_constants` now runs before
   `compute_e275_safety` so the latter can consult the constant map.

@@ -143,6 +143,24 @@ statements are routed through the new path; other types fall back.
 This is the migration scaffold for proposal #11; the legacy path
 remains the source of truth.
 .TP
+.B INTERCAL_SCCP_WZ_FEED
+If set to
+.BR 1 ,
+run a silent pass of the Wegman-Zadeck SCCP analysis after
+.B compute_var_constants
+and merge any
+.B CONST(N)
+results into
+.B stmt_var_const
+that the simpler analysis missed (e.g., constants that flow through
+arithmetic syslib calls). Codegen consults the merged map and
+substitutes literal-immediate instructions where SCCP-WZ proves a
+constant. Sound: skipped entirely on programs that contain
+.B STASH
+or
+.B RETRIEVE
+since those aren't modelled in the lattice.
+.TP
 .B INTERCAL_REGALLOC_HINTS
 If set to
 .BR 1 ,
