@@ -17,7 +17,7 @@ zsh "$COMPILER" < "$SUB1" > "$SUB1_BIN" 2>/dev/null
 chmod +x "$SUB1_BIN"
 
 run_case() {
-  local name="$1" src="$2" exp_len="$3" exp_d="$4" exp_p="$5" exp_do="$6"
+  local name="$1" src="$2" exp_len="$3" exp_d="$4" exp_p="$5" exp_do="$6" exp_pl="$7"
   local in=$(mktemp /tmp/sub1_in.XXXXXX)
   printf '%s' "$src" > "$in"
   local out
@@ -28,12 +28,15 @@ run_case() {
   local actual_d="${lines[2]:-}"
   local actual_p="${lines[3]:-}"
   local actual_do="${lines[4]:-}"
+  local actual_pl="${lines[5]:-}"
   if [[ "$actual_len" == "$exp_len" ]] && [[ "$actual_d" == "$exp_d" ]] \
-     && [[ "$actual_p" == "$exp_p" ]] && [[ "$actual_do" == "$exp_do" ]]; then
-    echo "PASS $name (len=$actual_len d=$actual_d p=$actual_p do=$actual_do)"
+     && [[ "$actual_p" == "$exp_p" ]] && [[ "$actual_do" == "$exp_do" ]] \
+     && [[ "$actual_pl" == "$exp_pl" ]]; then
+    echo "PASS $name (len=$actual_len d=$actual_d p=$actual_p do=$actual_do pl=$actual_pl)"
     PASS=$((PASS + 1))
   else
-    echo "FAIL $name: expected len=$exp_len d=$exp_d p=$exp_p do=$exp_do, got len=$actual_len d=$actual_d p=$actual_p do=$actual_do"
+    echo "FAIL $name: expected len=$exp_len d=$exp_d p=$exp_p do=$exp_do pl=$exp_pl"
+    echo "       got len=$actual_len d=$actual_d p=$actual_p do=$actual_do pl=$actual_pl"
     FAIL=$((FAIL + 1))
   fi
   rm -f "$in"
@@ -41,19 +44,24 @@ run_case() {
 
 # Counts include the 'P' in "UP" (every program ends with GIVE UP).
 # DO-count tracks two-byte 'DO' sequences (statement-start proxy).
+# PL-count tracks two-byte 'PL' sequences (PLEASE-start proxy).
 
-# 'DO GIVE UP' = 11 bytes, 1 'D', 1 'P' (UP), 1 'DO' (start).
-run_case "give_up" $'DO GIVE UP\n' "XI" "I" "I" "I"
+# 'DO GIVE UP' = 11 bytes; 1 D; 1 P (UP); 1 DO; 0 PL.
+run_case "give_up" $'DO GIVE UP\n' "XI" "I" "I" "I" ""
 
-# 'DO READ OUT #5' + 'DO GIVE UP' = 26 bytes, 3 'D's, 1 'P', 2 'DO' starts.
-run_case "read_out_5" $'DO READ OUT #5\nDO GIVE UP\n' "XXVI" "III" "I" "II"
+# 'DO READ OUT #5' + 'DO GIVE UP' = 26 bytes; 3 Ds; 1 P; 2 DOs; 0 PLs.
+run_case "read_out_5" $'DO READ OUT #5\nDO GIVE UP\n' "XXVI" "III" "I" "II" ""
 
-# 'DO .1 <- #5' + 'DO READ OUT .1' + 'DO GIVE UP' = 38 bytes,
-# 4 'D's, 1 'P', 3 'DO' starts.
-run_case "assign_read" $'DO .1 <- #5\nDO READ OUT .1\nDO GIVE UP\n' "XXXVIII" "IV" "I" "III"
+# 'DO .1 <- #5' + 'DO READ OUT .1' + 'DO GIVE UP' = 38 bytes;
+# 4 Ds; 1 P; 3 DOs; 0 PLs.
+run_case "assign_read" $'DO .1 <- #5\nDO READ OUT .1\nDO GIVE UP\n' "XXXVIII" "IV" "I" "III" ""
 
-# 'PLEASE DO GIVE UP' = 18 bytes, 1 'D', 2 'P's, 1 'DO' (mid-line).
-run_case "with_please" $'PLEASE DO GIVE UP\n' "XVIII" "I" "II" "I"
+# 'PLEASE DO GIVE UP' = 18 bytes; 1 D; 2 Ps; 1 DO; 1 PL.
+run_case "with_please" $'PLEASE DO GIVE UP\n' "XVIII" "I" "II" "I" "I"
+
+# 'DO READ OUT #5' + 'PLEASE DO GIVE UP' = 33 bytes; 3 Ds; 2 Ps;
+# 2 DOs; 1 PL.
+run_case "mixed" $'DO READ OUT #5\nPLEASE DO GIVE UP\n' "XXXIII" "III" "II" "II" "I"
 
 rm -f "$SUB1_BIN"
 echo ""

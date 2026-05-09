@@ -226,11 +226,84 @@
         DO .33 <- '.32 ~ #1'
         DO (400) NEXT FROM .33
 
-        DON'T NOTE Output length .50 then count of 'D' .70 then
-        DON'T NOTE count of 'P' .90 then count of 'DO' :96.
+        DON'T NOTE substage 2 (continued): count two-byte 'PL'
+        DON'T NOTE sequences as a polite-statement-start proxy
+        DON'T NOTE (start of PLEASE).
+        PLEASE DO :104 <- #0
+        DO .42 <- #0
+
+(500)   DO STASH .1 .2 .3 .4
+        DO .1 <- .42
+        DO .2 <- #1
+        PLEASE DO (1009) NEXT
+        DO .42 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+
+        DO .43 <- ,10 SUB .42
+
+        DO STASH .1 .2 .3 .4
+        DO .1 <- .42
+        DO .2 <- #1
+        PLEASE DO (1009) NEXT
+        DO .105 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+        DO .106 <- ,10 SUB .105
+
+        DON'T NOTE byte[pos] == 'P' (#80)?
+        DO STASH .1 .2 .3 .4
+        DO .1 <- .43
+        DO .2 <- #80
+        PLEASE DO (1010) NEXT
+        DO .54 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+        DO .55 <- '.54 ~ .54'
+        PLEASE DO .56 <- '.55 ~ #1'
+        DO :107 <- '.56 $ #1'
+        DO :108 <- '?:107'
+        PLEASE DO .109 <- ':108 ~ #1'
+
+        DON'T NOTE byte[pos+1] == 'L' (#76)?
+        DO STASH .1 .2 .3 .4
+        DO .1 <- .106
+        DO .2 <- #76
+        PLEASE DO (1010) NEXT
+        DO .64 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+        DO .65 <- '.64 ~ .64'
+        PLEASE DO .66 <- '.65 ~ #1'
+        DO :117 <- '.66 $ #1'
+        DO :118 <- '?:117'
+        PLEASE DO .119 <- ':118 ~ #1'
+
+        DON'T NOTE AND of the two booleans.
+        DO :120 <- '.109 $ .119'
+        PLEASE DO :121 <- '&:120'
+        DO .122 <- ':121 ~ #1'
+
+        PLEASE DO STASH .1 .2 .3 .4
+        DO .1 <- :104
+        DO .2 <- .122
+        PLEASE DO (1009) NEXT
+        DO :104 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+
+        DON'T NOTE Loop test stops at .42 == .50.
+        DO STASH .1 .2 .3 .4
+        DO .1 <- .50
+        DO .2 <- .42
+        PLEASE DO (1010) NEXT
+        DO .131 <- .3
+        DO RETRIEVE .1 .2 .3 .4
+        PLEASE DO .132 <- '.131 ~ .131'
+        DO .133 <- '.132 ~ #1'
+        DO (500) NEXT FROM .133
+
+        DON'T NOTE Output length .50, D-count .70, P-count .90,
+        DON'T NOTE DO-seq count :96, PL-seq count :104.
         PLEASE DO READ OUT .50
         DO READ OUT .70
         PLEASE DO READ OUT .90
         PLEASE DO READ OUT :96
+        DO READ OUT :104
 
         PLEASE DO GIVE UP
