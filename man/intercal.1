@@ -56,6 +56,12 @@ vocabulary LLVM, GCC, rustc and the rest use as their first-class IR.
 stdout and exit. Conceptually GIMPLE-shaped. Inspection only; does not
 produce a binary.
 .TP
+.B \-\-emit-help
+(Bootstrap only.) Print the table of every flag and environment
+variable the bootstrap compiler accepts, then exit. Generated from
+the parser, so drift between this man page and reality becomes
+visible.
+.TP
 .B \-\-emit-opt-summary
 (Bootstrap only.) Print a one-page summary of optimisation
 decisions: counts of E275/E621/E436 runtime-check elisions,
@@ -160,6 +166,13 @@ constant. Sound: skipped entirely on programs that contain
 or
 .B RETRIEVE
 since those aren't modelled in the lattice.
+.TP
+.B BC_TRACE
+(Bytecode VM only.) If set to
+.BR 1 ,
+the bytecode VM emits one line per executed op to stderr,
+including the current PC and the data stack contents. Useful when
+debugging differences between the native and bytecode tiers.
 .TP
 .B INTERCAL_REGALLOC_HINTS
 If set to

@@ -4759,6 +4759,54 @@ OPT_BISECT_VERBOSE=0
 # Parse command-line flags
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
+    --emit-help)
+      cat <<'HELP'
+intercalc.sh — INTERCAL bootstrap compiler
+
+Usage:
+  zsh intercalc.sh [FLAG ...] < source.i > output
+
+Flags (all are bootstrap-only inspection or build modifiers):
+  --pure-syslib           use pure-INTERCAL syslib instead of native asm
+  --diagnose              print compile-time stats and exit
+  --emit-syslib           emit only the per-statement abstain flags
+  --emit-cfg              print the program's control-flow graph
+  --emit-3addr            print a flat three-address listing of statements
+  --emit-tokens           print the lexer's token stream
+  --emit-ir-full          print the full IR-with-statement-headers dump
+  --emit-ssa              print the SSA form (block-parameter style)
+  --emit-sccp             print SCCP linear-walk lattice values
+  --emit-sccp-wz          print Wegman-Zadeck SCCP lattice + executability
+  --emit-regalloc         print linear-scan register allocation trace
+  --emit-effects          print the per-statement ICL-code reachability set
+  --emit-ir-real          print the three-address IR (CONST, LOADV, ...)
+  --emit-opt-summary      print summary of optimisation decisions
+  --emit-help             print this help and exit
+  --time-report           print per-phase timing breakdown
+  --opt-bisect-limit=N    apply at most the first N optimisation decisions
+  --opt-bisect-verbose    log every opt_bisect_check decision
+
+Environment variables:
+  INTERCAL_PLATFORM       force platform: macos_arm64|linux_arm64|linux_x86_64
+  INTERCAL_HOME           override install root used to locate intercal_core
+  INTERCAL_SYSLIB         native|cache (cached pre-build of pure-INTERCAL syslib)
+  INTERCAL_REPRODUCIBLE   if 1, post-process macOS binaries for byte-stable output
+  INTERCAL_ASM_ONLY       if 1, emit assembly only (skip the cc invocation)
+  INTERCAL_CC             override cc command for assembly (default: cc)
+  INTERCAL_NEW_IR         if 1, route supported statements through the IR-driven
+                          codegen path; falls back per-type to legacy.
+  INTERCAL_REGALLOC_HINTS if 1, emit '// regalloc:' comments at variable stores
+  INTERCAL_SCCP_WZ_FEED   if 1, run silent SCCP-WZ and merge CONST results into
+                          stmt_var_const for codegen-side const folding
+
+Bytecode tier:
+  src/bytecode/intercalc_bc.sh   compile INTERCAL .i to bytecode
+  src/bytecode/intercalc_vm.sh   run bytecode (BC_TRACE=1 enables op trace)
+
+See 'man 1 intercal' or docs/ for details.
+HELP
+      exit 0
+      ;;
     --pure-syslib)        USE_PURE_SYSLIB=1; shift ;;
     --diagnose)           DIAGNOSE_MODE=1; shift ;;
     --emit-syslib)        EMIT_SYSLIB_MODE=1; INTERCAL_ASM_ONLY=1; shift ;;

@@ -68,7 +68,22 @@ tag; in-progress work appears under "Unreleased".
 - `src/compiler/stage3_substage1.i` plus
   `tests/test_stage3_substage1.sh`: byte loader + tokeniser-loop
   demonstrator on a real INTERCAL source file. Counts source
-  length and 'D' bytes via NEXT FROM + branchless conditional ADD.
+  length, 'D' bytes, and 'P' bytes via two NEXT FROM loops with
+  branchless conditional ADD.
+- `--emit-help` flag prints a self-documenting table of every
+  flag and INTERCAL_* environment variable. Test suite asserts
+  drift between code and docs is caught.
+- `BC_TRACE=1` for the bytecode VM emits one line per executed
+  op (PC + stack state) to stderr. Useful for differential
+  debugging native vs bytecode.
+- `tools/lint_zsh_quirks.sh` catches the bug class of bare
+  `local NAME` followed by `for NAME` (which leaks `NAME=value`
+  to stdout under intercalc.sh's zsh setup) and the
+  `${var//\\X/$'\\X'}` LSP-style substitution that doesn't
+  interpret the escape. Wired into pre-push.
+- Bytecode WRITE IN array (TTM input) and Label 666 syscalls 1-4
+  (open / read / write / close): the bytecode tier now covers the
+  full INTERCAL surface used by the regression suite.
 - E275 elision recognises spot-to-twospot widening (always safe) and
   SCCP-bounded var copies. `compute_var_constants` now runs before
   `compute_e275_safety` so the latter can consult the constant map.
@@ -101,6 +116,16 @@ tag; in-progress work appears under "Unreleased".
   as a successor of GIVE_UP and unconditional NEXT_FROM, which
   marked dead code as executable. Fixed; new test covers
   dead-code-after-GIVE_UP.
+- UNKNOWN-statement codegen emitted `b _rt_error_E000`
+  unconditionally. When the stmt was statically negated AND
+  `stmt_needs_flag=0` (the abstain check elided), the branch ran
+  unconditionally and fired ICL000I. Note [E000Elim] now skips
+  the body when both conditions hold. Discovered while debugging
+  stage3 substage 2/3.
+- bytecode `stash_push` depth check was O(depth) via `wc -w`.
+  Replaced with O(1) per-var depth counter.
+- bytecode `PROB` skip-to-ESTMT scan now defensively errors when
+  an unexpected `STMT_ENTER` appears before the matching ESTMT.
 - E436 conservative analysis treats NEXT FROM as a control-flow
   stopper for STASH/RETRIEVE soundness.
 - `check_unreferenced_labels` now treats NEXT FROM as a label

@@ -46,6 +46,7 @@ zsh tests/test_stage3_substage1.sh
 zsh tests/test_ir_coverage.sh
 zsh tests/test_bytecode_equiv.sh
 zsh tests/test_sccp_wz_feed.sh
+zsh tests/test_emit_help.sh
 echo "pre-push: lint_zsh_quirks"
 find "$ROOT_DIR"/src "$ROOT_DIR"/tools -name '*.sh' -print0 | xargs -0 zsh "$ROOT_DIR"/tools/lint_zsh_quirks.sh
 

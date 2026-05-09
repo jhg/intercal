@@ -15,8 +15,9 @@ Test results (3 platforms, all green in CI):
 | `tests/run_self_tests.sh` | 25 | Self-hosted MVP (template-passthrough) |
 | `tests/run_stage3_tests.sh` | 4 | Evolving compiler (stage3.i) |
 | `tests/test_lsp.sh` | 10 | LSP v0.4.0: hover, semantic tokens, completion, go-to-def, documentSymbol |
-| `tests/test_bytecode.sh` | 21 | Bytecode tier v3 (arithmetic, COME FROM, NEXT/RESUME, ABSTAIN, 1D arrays, TTM, WRITE IN, syslib eval) |
-| `tests/test_bytecode_equiv.sh` | 15 of 35 | Native vs bytecode equivalence sweep |
+| `tests/test_bytecode.sh` | 24 | Bytecode tier v4 (arithmetic, COME FROM, NEXT/RESUME, ABSTAIN, multi-dim arrays, TTM, WRITE IN, syslib eval, Label 666 file I/O) |
+| `tests/test_bytecode_equiv.sh` | 16 of 35 | Native vs bytecode equivalence sweep |
+| `tests/test_emit_help.sh` | 23 | `--emit-help` self-documenting CLI |
 | `tests/test_emit_sccp_wz.sh` | 14 | Wegman-Zadeck SCCP (16+32 bit syslib, COME FROM edges, syslib 1040/1050/1540/1549/1550) |
 | `tests/test_sccp_wz_feed.sh` | 1 | INTERCAL_SCCP_WZ_FEED=1 hooks SCCP-WZ into codegen |
 | `tests/test_new_ir.sh` | 8 | IR-driven codegen (GIVE_UP, ASSIGN, copy, STASH, RETRIEVE, IGNORE, REMEMBER) |
@@ -24,7 +25,7 @@ Test results (3 platforms, all green in CI):
 | `tests/test_regalloc_hints.sh` | 3 | Linear-scan decisions exposed to codegen |
 | `tests/test_emit_opt_summary.sh` | 4 | Optimisation decision summary diagnostic |
 | `tests/test_effect_elim_more.sh` | 9 | Effect-driven elision: E621, E436, E123, E240, E241 |
-| `tests/test_stage3_substage1.sh` | 3 | stage3 byte loader + tokeniser-loop demonstrator |
+| `tests/test_stage3_substage1.sh` | 4 | stage3 byte loader + 'D' counter + 'P' counter |
 | `tests/test_next_from.i` + `tests/test_stage3_loop.i` | 2 | NEXT FROM loop primitive |
 
 Supported platforms: macOS ARM64, Linux ARM64, Linux x86-64. Windows planned.
