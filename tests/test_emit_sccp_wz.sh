@@ -199,7 +199,64 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-rm -f "$SRC" "$SRC2" "$SRC3" "$SRC4" "$SRC5" "$SRC6" "$SRC7" "$SRC8"
+# Test 10: syslib 1040 (16-bit divide) folded.
+SRC9=$(mktemp /tmp/test_sccp_wz.XXXXXX)
+cat > "$SRC9" <<'EOF'
+DO .1 <- #20
+PLEASE DO .2 <- #4
+DO (1040) NEXT
+DO READ OUT .3
+PLEASE DO GIVE UP
+DON'T NOTE filler
+EOF
+OUT9=$(zsh "$COMPILER" --emit-sccp-wz < "$SRC9" 2>&1)
+if [[ "$OUT9" == *"spot_3       = CONST(5)"* ]]; then
+  echo "PASS syslib 1040 (16-bit div) -> CONST(5)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL 1040 not folded"
+  FAIL=$((FAIL + 1))
+fi
+
+# Test 11: syslib 1540 (32-bit multiply) folded.
+SRC10=$(mktemp /tmp/test_sccp_wz.XXXXXX)
+cat > "$SRC10" <<'EOF'
+DO :1 <- #100
+PLEASE DO :2 <- #200
+DO (1540) NEXT
+DO READ OUT :3
+PLEASE DO GIVE UP
+DON'T NOTE filler
+EOF
+OUT10=$(zsh "$COMPILER" --emit-sccp-wz < "$SRC10" 2>&1)
+if [[ "$OUT10" == *"twospot_3    = CONST(20000)"* ]]; then
+  echo "PASS syslib 1540 (32-bit mul) -> CONST(20000)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL 1540 not folded"
+  FAIL=$((FAIL + 1))
+fi
+
+# Test 12: syslib 1550 (32-bit divide).
+SRC11=$(mktemp /tmp/test_sccp_wz.XXXXXX)
+cat > "$SRC11" <<'EOF'
+DO :1 <- #1000
+PLEASE DO :2 <- #50
+DO (1550) NEXT
+DO READ OUT :3
+PLEASE DO GIVE UP
+DON'T NOTE filler
+EOF
+OUT11=$(zsh "$COMPILER" --emit-sccp-wz < "$SRC11" 2>&1)
+if [[ "$OUT11" == *"twospot_3    = CONST(20)"* ]]; then
+  echo "PASS syslib 1550 (32-bit div) -> CONST(20)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL 1550 not folded"
+  FAIL=$((FAIL + 1))
+fi
+
+rm -f "$SRC" "$SRC2" "$SRC3" "$SRC4" "$SRC5" "$SRC6" "$SRC7" "$SRC8" "$SRC9" "$SRC10" "$SRC11"
 echo ""
 echo "Total: $PASS passed, $FAIL failed"
 exit $((FAIL > 0))

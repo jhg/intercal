@@ -1244,6 +1244,40 @@ emit_sccp_wz() {
           else incoming[spot_3]="BOTTOM"
           fi
           ;;
+        1040)
+          # .3 = .1 / .2 (integer division; .3 = 0 if .2 == 0).
+          if sccp_const_value "$v1"; then local c1=$REPLY
+            if sccp_const_value "$v2"; then local c2=$REPLY
+              if (( c2 == 0 )); then
+                incoming[spot_3]="CONST(0)"
+              else
+                incoming[spot_3]="CONST($(( c1 / c2 )))"
+              fi
+            else incoming[spot_3]="BOTTOM"
+            fi
+          else incoming[spot_3]="BOTTOM"
+          fi
+          ;;
+        1050)
+          # .2 = :1 / .1 (32/16 -> 16-bit; errors on overflow;
+          # .2 = 0 if .1 == 0).
+          if sccp_const_value "$tv1"; then local cT=$REPLY
+            if sccp_const_value "$v1"; then local cD=$REPLY
+              if (( cD == 0 )); then
+                incoming[spot_2]="CONST(0)"
+              else
+                local q=$(( cT / cD ))
+                if (( q <= 65535 )); then
+                  incoming[spot_2]="CONST($q)"
+                else
+                  incoming[spot_2]="BOTTOM"
+                fi
+              fi
+            else incoming[spot_2]="BOTTOM"
+            fi
+          else incoming[spot_2]="BOTTOM"
+          fi
+          ;;
         1500)
           # :3 = (:1 + :2) mod 2^32; errors on overflow (no-overflow
           # path only).
@@ -1310,6 +1344,49 @@ emit_sccp_wz() {
             else incoming[twospot_1]="BOTTOM"
             fi
           else incoming[twospot_1]="BOTTOM"
+          fi
+          ;;
+        1540)
+          # :3 = :1 * :2; errors on overflow (only no-overflow path
+          # produces CONST).
+          if sccp_const_value "$tv1"; then local c1=$REPLY
+            if sccp_const_value "$tv2"; then local c2=$REPLY
+              local prod=$(( c1 * c2 ))
+              if (( prod <= 4294967295 )); then
+                incoming[twospot_3]="CONST($prod)"
+              else
+                incoming[twospot_3]="BOTTOM"
+              fi
+            else incoming[twospot_3]="BOTTOM"
+            fi
+          else incoming[twospot_3]="BOTTOM"
+          fi
+          ;;
+        1549)
+          # :3 = (:1 * :2) mod 2^32; :4 = #1 (no overflow) or #2.
+          if sccp_const_value "$tv1"; then local c1=$REPLY
+            if sccp_const_value "$tv2"; then local c2=$REPLY
+              local prod=$(( c1 * c2 ))
+              local of=$(( prod > 4294967295 ? 2 : 1 ))
+              incoming[twospot_3]="CONST($(( prod & 0xFFFFFFFF )))"
+              incoming[twospot_4]="CONST($of)"
+            else incoming[twospot_3]="BOTTOM"; incoming[twospot_4]="BOTTOM"
+            fi
+          else incoming[twospot_3]="BOTTOM"; incoming[twospot_4]="BOTTOM"
+          fi
+          ;;
+        1550)
+          # :3 = :1 / :2; :3 = 0 if :2 == 0.
+          if sccp_const_value "$tv1"; then local c1=$REPLY
+            if sccp_const_value "$tv2"; then local c2=$REPLY
+              if (( c2 == 0 )); then
+                incoming[twospot_3]="CONST(0)"
+              else
+                incoming[twospot_3]="CONST($(( c1 / c2 )))"
+              fi
+            else incoming[twospot_3]="BOTTOM"
+            fi
+          else incoming[twospot_3]="BOTTOM"
           fi
           ;;
       esac
