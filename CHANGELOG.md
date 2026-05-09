@@ -29,8 +29,9 @@ tag; in-progress work appears under "Unreleased".
   sites for future register-keeping work.
 - Wegman-Zadeck SCCP behind `--emit-sccp-wz`: faithful executable-edge
   gating, CFG worklist, monotone meet at confluence points,
-  TOP/CONST/BOTTOM lattice. Models syslib 1009/1010/1020/1030 add/sub
-  and includes COME FROM source edges in the predecessor map.
+  TOP/CONST/BOTTOM lattice. Models syslib 1009/1010/1020/1030
+  (16-bit) and 1500/1509/1510/1520/1530 (32-bit) arithmetic, plus
+  COME FROM source edges in the predecessor map.
 - `--emit-opt-summary`: diagnostic dump showing the cumulative effect
   of every static analysis pass (counts of E275/E621/E436 elisions,
   abstain-flag eliminations, constant-propagation entries).
