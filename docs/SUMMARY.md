@@ -81,6 +81,7 @@
 - [Advanced techniques we lack](techniques-we-lack.md)
 - [Improvement proposals](improvement-proposals.md)
 - [Proposals: implementation status](proposals-status.md)
+- [Stage 3 roadmap](stage3-roadmap.md)
 
 # Reference
 
