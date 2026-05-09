@@ -36,8 +36,20 @@ tag; in-progress work appears under "Unreleased".
   of every static analysis pass (counts of E275/E621/E436 elisions,
   abstain-flag eliminations, constant-propagation entries).
 - IR-driven codegen now handles literal-RHS ASSIGN, var-to-var
-  copy, and IGNORE / REMEMBER through `lower_ir_for_stmt`.
-  Per-statement-type fallback unchanged.
+  copy, IGNORE / REMEMBER, and STASH / RETRIEVE through
+  `lower_ir_for_stmt`. STASH / RETRIEVE delegates to the existing
+  `codegen_stash_var` / `codegen_retrieve_var` helpers so the
+  emitted assembly is byte-identical to legacy.
+- Bytecode VM v2: COME FROM with PC-driven dispatch and label
+  redirect map; NEXT / RESUME / FORGET with a 79-entry call
+  stack mirroring the runtime contract (ICL123I on overflow,
+  ICL621I on RESUME #0, ICL632I on stack underflow).
+- Effect-driven elim now also covers E123 (NEXT stack overflow).
+  When the program is loop-free (no COME FROM, no NEXT FROM, no
+  REINSTATE) and every NEXT is forward-only (target is past its
+  own statement) AND total NEXT count is below the 79-entry
+  limit, the cmp+b.ge sequence is omitted at every NEXT.
+- `--emit-opt-summary` now also reports E123 elision counts.
 - E275 elision recognises spot-to-twospot widening (always safe) and
   SCCP-bounded var copies. `compute_var_constants` now runs before
   `compute_e275_safety` so the latter can consult the constant map.

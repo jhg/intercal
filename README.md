@@ -15,11 +15,12 @@ Test results (3 platforms, all green in CI):
 | `tests/run_self_tests.sh` | 25 | Self-hosted MVP (template-passthrough) |
 | `tests/run_stage3_tests.sh` | 4 | Evolving compiler (stage3.i) |
 | `tests/test_lsp.sh` | 10 | LSP v0.4.0: hover, semantic tokens, completion, go-to-def, documentSymbol |
-| `tests/test_bytecode.sh` | 9 | Bytecode tier (stack VM with arithmetic) |
-| `tests/test_emit_sccp_wz.sh` | 9 | Wegman-Zadeck SCCP analysis (lattice, syslib modeling, COME FROM edges) |
-| `tests/test_new_ir.sh` | 7 | IR-driven codegen (GIVE_UP, ASSIGN, var-copy, IGNORE, REMEMBER) |
+| `tests/test_bytecode.sh` | 11 | Bytecode tier (stack VM, arithmetic, COME FROM, NEXT/RESUME) |
+| `tests/test_emit_sccp_wz.sh` | 11 | Wegman-Zadeck SCCP (16-bit + 32-bit syslib, COME FROM edges) |
+| `tests/test_new_ir.sh` | 8 | IR-driven codegen (GIVE_UP, ASSIGN, copy, STASH, RETRIEVE, IGNORE, REMEMBER) |
 | `tests/test_regalloc_hints.sh` | 3 | Linear-scan decisions exposed to codegen |
 | `tests/test_emit_opt_summary.sh` | 4 | Optimisation decision summary diagnostic |
+| `tests/test_effect_elim_more.sh` | 5 | Effect-driven elision: E621, E436, E123 |
 | `tests/test_next_from.i` + `tests/test_stage3_loop.i` | 2 | NEXT FROM loop primitive |
 
 Supported platforms: macOS ARM64, Linux ARM64, Linux x86-64. Windows planned.
