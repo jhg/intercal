@@ -261,6 +261,10 @@ compute_hover() {
     ABSTAIN) docs="Disable a labelled statement (or all statements of a gerund kind) until reinstated." ;;
     REINSTATE) docs="Re-enable a previously ABSTAINed statement (or gerund kind)." ;;
     GIVE) docs="GIVE UP terminates the program (clean exit)." ;;
+    COME) docs="COME FROM (label) — after the labelled statement runs, control transfers here. Adopted in this compiler as a standard feature even though INTERCAL-72 omitted it." ;;
+    READ) docs="READ OUT — write variables (Roman numerals for scalars, Turing Text Model for arrays)." ;;
+    WRITE) docs="WRITE IN — read variables. Scalars expect spelled-out English digit names (ONE TWO THREE for 123)." ;;
+    FROM) docs="Continuation of NEXT FROM (non-standard, this compiler's loop primitive: backward branch with no NEXT-stack push) or COME FROM. See docs/loop-extension.md." ;;
     *.[0-9]*|*:[0-9]*) docs="INTERCAL variable. Prefix . is 16-bit (spot), : is 32-bit (twospot), , is 16-bit array (tail), ; is 32-bit array (hybrid)." ;;
     *) docs="" ;;
   esac
