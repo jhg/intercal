@@ -45,6 +45,80 @@ else
 fi
 rm -f "$SRC2"
 
+# Test 3a: COPY between scalar variables
+SRC3a=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC3a" <<'EOF'
+DO .1 <- #100
+DO .2 <- .1
+DO READ OUT .2
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC3a" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "C" ]]; then
+  echo "PASS COPY .1 -> .2"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL COPY: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC3a"
+
+# Test 3b: STASH/RETRIEVE round-trip
+SRC3b=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC3b" <<'EOF'
+DO .1 <- #7
+DO STASH .1
+DO .1 <- #99
+DO RETRIEVE .1
+DO READ OUT .1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC3b" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "VII" ]]; then
+  echo "PASS STASH/RETRIEVE round-trip"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL STASH/RETRIEVE: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC3b"
+
+# Test 3c: IGNORE prevents reassignment
+SRC3c=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC3c" <<'EOF'
+DO .1 <- #5
+DO IGNORE .1
+DO .1 <- #99
+DO READ OUT .1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC3c" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "V" ]]; then
+  echo "PASS IGNORE blocks reassignment"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL IGNORE: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC3c"
+
+# Test 3d: twospot variables
+SRC3d=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC3d" <<'EOF'
+DO :1 <- #1000
+DO READ OUT :1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC3d" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "M" ]]; then
+  echo "PASS twospot M"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL twospot: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC3d"
+
 # Test 3: out-of-subset programs error cleanly
 SRC3=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC3" <<'EOF'
