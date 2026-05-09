@@ -177,6 +177,27 @@ else
 fi
 rm -f "$SRC_CF"
 
+# Test: NEXT FROM (unconditional) jumps without push.
+SRC_NF=$(mktemp /tmp/test_bc.XXXXXX)
+cat > "$SRC_NF" <<'EOF'
+DO .1 <- #5
+PLEASE DO (20) NEXT FROM
+DO READ OUT .1
+DO GIVE UP
+(20) DO .1 <- #99
+DO READ OUT .1
+DO GIVE UP
+EOF
+out=$(zsh "$BC_COMPILER" < "$SRC_NF" 2>/dev/null | zsh "$BC_VM" 2>/dev/null)
+if [[ "$out" == "XCIX" ]]; then
+  echo "PASS bytecode NEXT FROM unconditional"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL bytecode NEXT FROM: got '$out'"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_NF"
+
 # Test: NEXT to a labelled stmt that does work, RESUME #1 returns.
 SRC_NEXT=$(mktemp /tmp/test_bc.XXXXXX)
 cat > "$SRC_NEXT" <<'EOF'

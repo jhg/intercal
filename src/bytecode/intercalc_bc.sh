@@ -182,6 +182,19 @@ while IFS= read -r line; do
     echo "ESTMT"
     continue
   fi
+  # NEXT FROM (N): unconditional or conditional backward branch with
+  # no call-stack push. Mirror the native compiler's loop primitive.
+  if [[ "$body" =~ '^\(([0-9]+)\)[[:space:]]+NEXT[[:space:]]+FROM[[:space:]]+(.+)$' ]]; then
+    compile_expr "${match[2]}"
+    echo "BRANCH_NZ ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
+  if [[ "$body" =~ '^\(([0-9]+)\)[[:space:]]+NEXT[[:space:]]+FROM[[:space:]]*$' ]]; then
+    echo "BRANCH ${match[1]}"
+    echo "ESTMT"
+    continue
+  fi
   if [[ "$body" =~ '^RESUME[[:space:]]+#([0-9]+)[[:space:]]*$' ]]; then
     echo "RESUME ${match[1]}"
     echo "ESTMT"

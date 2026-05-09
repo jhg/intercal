@@ -156,6 +156,27 @@ while (( pc < ${#ops_buf[@]} )); do
       fi
       pending_label=""
       ;;
+    BRANCH)
+      # NEXT FROM (N) unconditional: jump to label without stack push.
+      local target_lbl="$2"
+      if (( ! ${+label_pc[$target_lbl]} )); then
+        echo "ICL129I PROGRAM HAS GOTTEN LOST (NEXT FROM to undefined label $target_lbl)" >&2
+        exit 1
+      fi
+      pc=${label_pc[$target_lbl]}
+      ;;
+    BRANCH_NZ)
+      # NEXT FROM (N) <expr>: pop expression result, jump if bit 0 set.
+      local target_lbl="$2"
+      pop
+      if (( REPLY & 1 )); then
+        if (( ! ${+label_pc[$target_lbl]} )); then
+          echo "ICL129I PROGRAM HAS GOTTEN LOST (NEXT FROM to undefined label $target_lbl)" >&2
+          exit 1
+        fi
+        pc=${label_pc[$target_lbl]}
+      fi
+      ;;
     CALL)
       # NEXT to label N: push current pc as return target, jump to
       # the labelled statement's PC. Stack overflow at 80 mirrors
