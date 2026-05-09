@@ -50,7 +50,7 @@ to_roman() {
     echo ""
     return
   fi
-  local i
+  local i=0
   for (( i=1; i<=${#vals[@]}; i++ )); do
     while (( n >= vals[i] )); do
       r+="${syms[i]}"

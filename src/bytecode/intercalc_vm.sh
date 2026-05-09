@@ -78,28 +78,30 @@ do_unary() {
   esac
 }
 
+typeset -A spot_stash_depth twospot_stash_depth
 stash_push() {
   local kind=$1 var=$2 val=$3
   # Enforce per-variable stash depth limit (1024 entries, matching
-  # the native runtime's _stash_sp[1023] cap).
+  # the native runtime's _stash_sp[1023] cap). O(1): incremented
+  # depth counter rather than scanning the stash string.
   case "$kind" in
     spot)
-      local cur="${spot_stash[$var]:-}"
-      local depth=$(echo "$cur" | wc -w)
-      if (( depth >= 1023 )); then
+      local d=${spot_stash_depth[$var]:-0}
+      if (( d >= 1023 )); then
         echo "ICL000I per-var stash overflow on .${var}" >&2
         exit 1
       fi
-      spot_stash[$var]="${val} ${cur}"
+      spot_stash[$var]="${val} ${spot_stash[$var]:-}"
+      spot_stash_depth[$var]=$((d + 1))
       ;;
     twospot)
-      local cur="${twospot_stash[$var]:-}"
-      local depth=$(echo "$cur" | wc -w)
-      if (( depth >= 1023 )); then
+      local d=${twospot_stash_depth[$var]:-0}
+      if (( d >= 1023 )); then
         echo "ICL000I per-var stash overflow on :${var}" >&2
         exit 1
       fi
-      twospot_stash[$var]="${val} ${cur}"
+      twospot_stash[$var]="${val} ${twospot_stash[$var]:-}"
+      twospot_stash_depth[$var]=$((d + 1))
       ;;
   esac
 }
@@ -114,6 +116,7 @@ stash_pop() {
       local rest="${cur#* }"
       [[ "$rest" == "$cur" ]] && rest=""
       spot_stash[$var]="$rest"
+      spot_stash_depth[$var]=$((${spot_stash_depth[$var]:-1} - 1))
       ;;
     twospot)
       local cur="${twospot_stash[$var]:-}"
@@ -122,6 +125,7 @@ stash_pop() {
       local rest="${cur#* }"
       [[ "$rest" == "$cur" ]] && rest=""
       twospot_stash[$var]="$rest"
+      twospot_stash_depth[$var]=$((${twospot_stash_depth[$var]:-1} - 1))
       ;;
   esac
 }
@@ -218,18 +222,27 @@ while (( pc < ${#ops_buf[@]} )); do
       ;;
     PROB)
       # Roll a 0..99 random and skip the rest of the stmt if the
-      # roll is >= the percentage.
+      # roll is >= the percentage. Use the most recently set
+      # pending_label's stmt id if available, otherwise fall back
+      # to forward-scan; tracking the current stmt id explicitly
+      # avoids ambiguity if future ops introduce nested ESTMTs.
       local _pct="$2"
       if (( (RANDOM % 100) >= _pct )); then
-        # Find the matching ESTMT for the most recent STMT_ENTER.
-        # The stmt_end_pc map indexes by id; we don't have id here,
-        # so scan forward.
+        # We don't track current_stmt_id during execution (only the
+        # pre-scan does). Forward-scan to the next ESTMT; safe today
+        # because INTERCAL stmts don't nest.
         local _scan=$pc
         while (( _scan < ${#ops_buf[@]} )); do
           local _o="${ops_buf[$((_scan+1))]}"
           if [[ "$_o" == "ESTMT" ]]; then
             pc=$((_scan + 1))
             break
+          fi
+          # Defensive: if we hit another STMT_ENTER first, the
+          # statement is malformed (no ESTMT before next stmt).
+          if [[ "$_o" == "STMT_ENTER "* ]]; then
+            echo "VM ERROR: PROB found STMT_ENTER before ESTMT" >&2
+            exit 1
           fi
           _scan=$((_scan + 1))
         done

@@ -129,14 +129,14 @@ codegen_array_ref() {
     fi
   else
     # Multi-dimensional: compute linear index
-    local s
+    local s=""
     for s in "${sub_ids[@]}"; do
       codegen_expr $s
       emit "  push rax"
     done
     # Now compute linear index: ((s1-1)*d2 + (s2-1))*d3 + ... + (sn-1)
     emit "  xor eax, eax"
-    local j
+    local j=""
     for (( j=1; j<=nsubs; j++ )); do
       if (( j > 1 )); then
         emit "  lea rcx, [rip + _${prefix}_${arr_num}_dims]"
@@ -186,7 +186,7 @@ codegen_program() {
     emit ""
   fi
 
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     codegen_statement $i
   done
@@ -499,7 +499,7 @@ codegen_array_elem_assign() {
     # Multi-dim: compute linear index
     # Subscripts are on stack in reverse order (last pushed first)
     emit "  xor eax, eax"
-    local j
+    local j=""
     for (( j=1; j<=nsubs; j++ )); do
       if (( j > 1 )); then
         emit "  lea rcx, [rip + _${prefix}_${arr_num}_dims]"
@@ -561,7 +561,7 @@ codegen_array_dim() {
   local ndims=${#dim_parts[@]}
 
   # Evaluate each dimension and save
-  local d
+  local d=""
   for d in "${dim_parts[@]}"; do
     d="${d## }"
     d="${d%% }"
@@ -574,7 +574,7 @@ codegen_array_dim() {
 
   # Store dimensions and compute total size
   emit "  mov r10d, 1"  # total elements
-  local j
+  local j=""
   for (( j=1; j<=ndims; j++ )); do
     local stack_off=$(( (ndims - j) * 8 ))
     emit "  mov r11d, [rsp + ${stack_off}]"
@@ -764,7 +764,7 @@ codegen_gerund_modify() {
   for g in "${gerunds[@]}"; do
     local types="${gerund_map[$g]:-}"
     [[ -z "$types" ]] && continue
-    local j
+    local j=""
     for (( j=1; j<=stmt_count; j++ )); do
       for t in ${=types}; do
         if [[ "${stmt_type[$j]}" == "$t" ]]; then
@@ -927,7 +927,7 @@ emit_stmt_flags_only_x86() {
   emit "# ========== Syslib Data =========="
   emit ".section .data"
   emit "_stmt_flags:"
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     if (( stmt_negated[$i] )); then
       emit "  .byte 1"
@@ -976,7 +976,7 @@ emit_data() {
   # Statement flags (in .data because negated stmts start at 1)
   emit ".section .data"
   emit "_stmt_flags:"
-  local i
+  local i=""
   for (( i=1; i<=stmt_count; i++ )); do
     if (( stmt_negated[$i] )); then
       emit "  .byte 1"
