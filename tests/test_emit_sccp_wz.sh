@@ -64,7 +64,30 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-rm -f "$SRC" "$SRC2"
+# Test 4: dead code after GIVE UP is not marked executable.
+SRC3=$(mktemp /tmp/test_sccp_wz.XXXXXX)
+cat > "$SRC3" <<'EOF'
+DO .1 <- #5
+PLEASE DO .2 <- #7
+DO READ OUT .1
+PLEASE DO READ OUT .2
+DO GIVE UP
+DO .3 <- #99
+DO .4 <- #88
+DON'T NOTE filler
+EOF
+OUT3=$(zsh "$COMPILER" --emit-sccp-wz < "$SRC3" 2>&1)
+exec_count=$(echo "$OUT3" | grep -oE 'executable statements: [0-9]+' | grep -oE '[0-9]+')
+# 5 reachable (1..5), 3 unreachable (6..8). Expect 5.
+if [[ "$exec_count" == "5" ]]; then
+  echo "PASS dead code after GIVE UP excluded (executable=5)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL expected 5 executable, got [$exec_count]"
+  FAIL=$((FAIL + 1))
+fi
+
+rm -f "$SRC" "$SRC2" "$SRC3"
 echo ""
 echo "Total: $PASS passed, $FAIL failed"
 exit $((FAIL > 0))

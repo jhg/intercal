@@ -909,12 +909,22 @@ emit_sccp_wz() {
     worklist=("${worklist[@]:1}")
     if process_stmt "$cur"; then
       # Outgoing changed: enqueue successors and mark them executable.
-      local succ=0
-      for succ in $((cur+1)); do
-        (( succ > stmt_count )) && continue
-        exec_into[$succ]=1
-        worklist+=("$succ")
-      done
+      # GIVE_UP and unconditional NEXT_FROM (no expression) have no
+      # fall-through successor.
+      local cur_t="${stmt_type[$cur]:-}"
+      local has_fallthrough=1
+      [[ "$cur_t" == "GIVE_UP" ]] && has_fallthrough=0
+      if [[ "$cur_t" == "NEXT_FROM" ]] && [[ -z "${stmt_next_from_expr[$cur]:-}" ]]; then
+        has_fallthrough=0
+      fi
+      if (( has_fallthrough )); then
+        local succ=0
+        for succ in $((cur+1)); do
+          (( succ > stmt_count )) && continue
+          exec_into[$succ]=1
+          worklist+=("$succ")
+        done
+      fi
       # NEXT/NEXT_FROM/COME FROM successors.
       local t="${stmt_type[$cur]:-}"
       if [[ "$t" == "NEXT" || "$t" == "NEXT_FROM" ]]; then
