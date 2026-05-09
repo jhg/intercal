@@ -133,6 +133,212 @@ peephole_optimize() {
   asm=$(printf "%s\n" "${result[@]}")
 }
 
+emit_regalloc() {
+  # Note [LinearScanDemo]
+  #   Poletto-Sarkar linear-scan over SSA-versioned variables. We
+  #   compute live intervals as: definition statement (start) and
+  #   the last statement that mentions the SSA name (end).
+  #
+  #   For our demo: each SSA value is named "spot_N.V" or "twospot_N.V"
+  #   following --emit-ssa. Last-use is approximated as the last
+  #   statement i where the variable .N appears in the body.
+  #
+  #   R = 4 virtual registers. Spill heuristic: when R intervals are
+  #   active and a new one starts, spill the active interval with the
+  #   farthest endpoint (per the paper); if the new interval outlives
+  #   every active one, spill the new interval itself.
+  #
+  #   This is a teaching dump. Codegen does not consume the output.
+  local i
+  echo "=== Liveness + linear-scan ==="
+  echo "platform:    $_INTERCAL_PLATFORM"
+  echo "stmts:       $stmt_count"
+  echo "registers:   R0 R1 R2 R3 (4 virtual)"
+  echo
+
+  # Pass 1: collect SSA-versioned defs and their statement indices.
+  # Reuse the SSA logic from emit_ssa: each ASSIGN to .N or :N is a
+  # fresh def. RETRIEVE bumps version too.
+  local -A var_version
+  local -a def_name def_start
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-}"
+    local body="${stmt_body[$i]:-}"
+    case "$t" in
+      ASSIGN)
+        local target="${body%%<-*}"
+        target="${target## }"; target="${target%% }"
+        local vk=""
+        if [[ "$target" =~ '^\.([0-9]+)$' ]]; then
+          vk="spot_${match[1]}"
+        elif [[ "$target" =~ '^:([0-9]+)$' ]]; then
+          vk="twospot_${match[1]}"
+        fi
+        [[ -z "$vk" ]] && continue
+        local cur="${var_version[$vk]:-0}"
+        cur=$((cur + 1))
+        var_version[$vk]=$cur
+        def_name+=("${vk}.${cur}")
+        def_start+=($i)
+        ;;
+      RETRIEVE)
+        local vlist="${body#RETRIEVE }"
+        for tok in ${=vlist}; do
+          tok="${tok## }"; tok="${tok%% }"
+          [[ -z "$tok" ]] && continue
+          local vk=""
+          if [[ "$tok" =~ '^\.([0-9]+)$' ]]; then
+            vk="spot_${match[1]}"
+          elif [[ "$tok" =~ '^:([0-9]+)$' ]]; then
+            vk="twospot_${match[1]}"
+          fi
+          [[ -z "$vk" ]] && continue
+          local cur="${var_version[$vk]:-0}"
+          cur=$((cur + 1))
+          var_version[$vk]=$cur
+          def_name+=("${vk}.${cur}")
+          def_start+=($i)
+        done
+        ;;
+    esac
+  done
+
+  # Pass 2: compute end statement (last use) per def. Approximate by
+  # walking forward and recording the highest stmt index that
+  # mentions the source-language variable name (.N or :N).
+  local n_defs=${#def_name[@]}
+  local -a def_end
+  local d
+  for (( d=1; d<=n_defs; d++ )); do
+    local name="${def_name[$d]}"
+    local vkey="${name%.*}"
+    local pretty=""
+    if [[ "$vkey" == spot_* ]]; then
+      pretty=".${vkey#spot_}"
+    elif [[ "$vkey" == twospot_* ]]; then
+      pretty=":${vkey#twospot_}"
+    fi
+    local start=${def_start[$d]}
+    local end=$start
+    # Walk forward; stop at next definition of same vkey.
+    local j
+    for (( j=start+1; j<=stmt_count; j++ )); do
+      local b="${stmt_body[$j]:-}"
+      # Stop if a later def of the same variable replaces this one.
+      if (( d < n_defs )) && [[ "${def_name[$((d+1))]:-}" == "${vkey}."* ]]; then
+        if (( ${def_start[$((d+1))]:-stmt_count+1} == j )); then
+          break
+        fi
+      fi
+      if [[ "$b" == *"$pretty"* ]]; then
+        end=$j
+      fi
+    done
+    def_end+=($end)
+  done
+
+  echo "live intervals:"
+  for (( d=1; d<=n_defs; d++ )); do
+    printf "  %s: [%d, %d]\n" "${def_name[$d]}" "${def_start[$d]}" "${def_end[$d]}"
+  done
+  echo
+
+  # Pass 3: linear scan. Sort intervals by start (already by
+  # construction); R=4. Active set: indices of intervals currently
+  # using a register, sorted by end-point.
+  local R=4
+  local -a active   # indices into def_name (1-based)
+  local -A reg_of   # def-index -> register slot 0..R-1
+  local -A free_regs
+  local k
+  for (( k=0; k<R; k++ )); do
+    free_regs[$k]=1
+  done
+  local -A spilled
+
+  expire_old() {
+    local current_start=$1
+    local -a survivors
+    for idx in "${active[@]}"; do
+      local e=${def_end[$idx]}
+      if (( e >= current_start )); then
+        survivors+=("$idx")
+      else
+        # Free this interval's register
+        local r=${reg_of[$idx]}
+        free_regs[$r]=1
+      fi
+    done
+    active=("${survivors[@]}")
+  }
+
+  pick_free_reg() {
+    local k
+    for (( k=0; k<R; k++ )); do
+      if (( ${+free_regs[$k]} )) && (( free_regs[$k] )); then
+        REPLY=$k
+        return 0
+      fi
+    done
+    return 1
+  }
+
+  spill_at() {
+    # Spill the active interval with the farthest endpoint.
+    local farthest_idx="" farthest_end=-1
+    for idx in "${active[@]}"; do
+      local e=${def_end[$idx]}
+      if (( e > farthest_end )); then
+        farthest_end=$e
+        farthest_idx=$idx
+      fi
+    done
+    REPLY=$farthest_idx
+  }
+
+  echo "linear-scan trace:"
+  for (( d=1; d<=n_defs; d++ )); do
+    local s=${def_start[$d]}
+    expire_old $s
+    if (( ${#active[@]} == R )); then
+      spill_at
+      local victim=$REPLY
+      if (( ${def_end[$victim]} > def_end[$d] )); then
+        # Spill victim, give its register to d.
+        local r=${reg_of[$victim]}
+        unset "reg_of[$victim]"
+        spilled[$victim]=1
+        reg_of[$d]=$r
+        # Replace victim in active with d (re-sort by end ascending).
+        local -a new_active
+        for idx in "${active[@]}"; do
+          [[ "$idx" == "$victim" ]] && continue
+          new_active+=("$idx")
+        done
+        new_active+=($d)
+        active=("${new_active[@]}")
+        printf "  %s: spill %s -> R%d (taken from %s)\n" \
+          "${def_name[$d]}" "${def_name[$victim]}" "$r" "${def_name[$victim]}"
+      else
+        # Spill d itself.
+        spilled[$d]=1
+        printf "  %s: spill (lives longer than every active)\n" "${def_name[$d]}"
+      fi
+    else
+      pick_free_reg
+      local r=$REPLY
+      free_regs[$r]=0
+      reg_of[$d]=$r
+      active+=($d)
+      printf "  %s: assign R%d\n" "${def_name[$d]}" "$r"
+    fi
+  done
+
+  echo
+  echo "active set after scan: ${#active[@]} intervals"
+  echo "spilled: ${(@k)spilled}"
+}
+
 emit_sccp() {
   # Note [SCCPAnalysis]
   #   Wegman-Zadeck Sparse Conditional Constant Propagation, applied
@@ -2819,6 +3025,7 @@ EMIT_TOKENS_MODE=0
 EMIT_IR_FULL_MODE=0
 EMIT_SSA_MODE=0
 EMIT_SCCP_MODE=0
+EMIT_REGALLOC_MODE=0
 TIME_REPORT=0
 # Note [OptBisect]
 #   --opt-bisect-limit=N caps the number of optional transformations
@@ -2842,6 +3049,7 @@ while [[ "${1:-}" == --* ]]; do
     --emit-ir-full)       EMIT_IR_FULL_MODE=1; shift ;;
     --emit-ssa)           EMIT_SSA_MODE=1; shift ;;
     --emit-sccp)          EMIT_SCCP_MODE=1; shift ;;
+    --emit-regalloc)      EMIT_REGALLOC_MODE=1; shift ;;
     --time-report)        TIME_REPORT=1; shift ;;
     --opt-bisect-limit=*) OPT_BISECT_LIMIT=${1#--opt-bisect-limit=}; shift ;;
     --opt-bisect-verbose) OPT_BISECT_VERBOSE=1; shift ;;
@@ -2960,6 +3168,11 @@ main() {
 
   if (( EMIT_SCCP_MODE )); then
     emit_sccp
+    exit 0
+  fi
+
+  if (( EMIT_REGALLOC_MODE )); then
+    emit_regalloc
     exit 0
   fi
 

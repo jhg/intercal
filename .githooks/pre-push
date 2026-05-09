@@ -29,6 +29,7 @@ zsh tests/test_peephole_dsl.sh
 zsh tests/test_emit_ir_full.sh
 zsh tests/test_emit_ssa.sh
 zsh tests/test_emit_sccp.sh
+zsh tests/test_emit_regalloc.sh
 
 # Csmith-INTERCAL differential testing (10 random programs)
 echo "pre-push: csmith differential (10 programs)"
