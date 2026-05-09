@@ -364,6 +364,40 @@ build_ir() {
       done
       continue
     fi
+    if [[ "$t" == "READ_OUT" ]]; then
+      local body="${stmt_body[$i]:-}"
+      local items="${body#READ OUT }"
+      items="${items## }"
+      local tok=""
+      for tok in ${=items}; do
+        tok="${tok## }"; tok="${tok%% }"
+        [[ -z "$tok" ]] && continue
+        # Only single-scalar read-out is in the IR slice. Arrays
+        # (',N' / ';N' bare) and complex expressions stay on legacy.
+        local vk=""
+        if [[ "$tok" =~ '^\.([0-9]+)$' ]]; then vk="spot_${match[1]}"
+        elif [[ "$tok" =~ '^:([0-9]+)$' ]]; then vk="twospot_${match[1]}"
+        fi
+        if [[ -n "$vk" ]]; then
+          ir_ops+=("READOUT $vk")
+        else
+          # Mark statement as IR-incomplete; lower_ir_for_stmt will
+          # see the STMT marker without supported ops and bail out.
+          break
+        fi
+      done
+      continue
+    fi
+    # Control-flow statements that delegate to legacy codegen via the
+    # shared-helper pattern. The IR op carries the stmt index so the
+    # lower can call the existing codegen function with full context.
+    if [[ "$t" == "NEXT" ]] || [[ "$t" == "NEXT_FROM" ]] \
+       || [[ "$t" == "RESUME" ]] || [[ "$t" == "FORGET" ]] \
+       || [[ "$t" == "ABSTAIN" ]] || [[ "$t" == "REINSTATE" ]] \
+       || [[ "$t" == "ARRAY_DIM" ]]; then
+      ir_ops+=("DELEGATE $t $i")
+      continue
+    fi
     if [[ "$t" == "ASSIGN" ]]; then
       local body="${stmt_body[$i]:-}"
       local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
@@ -472,6 +506,42 @@ lower_ir_for_stmt() {
             emit "  mov byte ptr [rip + _${_pfx}_${_num}_ign], ${_val}"
             ;;
         esac
+        handled=1
+        ;;
+      "DELEGATE "*)
+        # The shared-helper pattern: the IR op holds a statement type
+        # and index; we call the existing codegen function so the
+        # emitted assembly is byte-identical to the legacy path.
+        local _rest="${op#DELEGATE }"
+        local _ty="${_rest%% *}"
+        local _idx="${_rest##* }"
+        case "$_ty" in
+          NEXT)        codegen_next $_idx ;;
+          NEXT_FROM)   codegen_next_from $_idx ;;
+          RESUME)      codegen_resume $_idx ;;
+          FORGET)      codegen_forget $_idx ;;
+          ABSTAIN)     codegen_abstain $_idx ;;
+          REINSTATE)   codegen_reinstate $_idx ;;
+          ARRAY_DIM)   codegen_array_dim $_idx ;;
+          *) return 1 ;;
+        esac
+        handled=1
+        ;;
+      "READOUT "*)
+        local _vs="${op#READOUT }"
+        if [[ "$_INTERCAL_PLATFORM" == "linux_x86_64" ]]; then
+          return 1
+        fi
+        local _pfx="" _num=""
+        if [[ "$_vs" == spot_* ]]; then _pfx="spot"; _num="${_vs#spot_}"
+        elif [[ "$_vs" == twospot_* ]]; then _pfx="twospot"; _num="${_vs#twospot_}"
+        else
+          return 1
+        fi
+        emit "  adrp x0, _${_pfx}_${_num}@PAGE"
+        emit "  add x0, x0, _${_pfx}_${_num}@PAGEOFF"
+        emit "  ldr w0, [x0]"
+        emit "  bl _rt_write_roman"
         handled=1
         ;;
       "STASH "*|"RETRIEVE "*)
