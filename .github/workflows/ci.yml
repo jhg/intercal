@@ -89,6 +89,7 @@ jobs:
           zsh tests/test_emit_ssa.sh
           zsh tests/test_emit_sccp.sh
           zsh tests/test_emit_regalloc.sh
+          zsh tests/test_include.sh
 
       - name: Csmith-INTERCAL differential (5 programs)
         run: zsh tests/run_csmith_diff.sh 5

@@ -937,12 +937,85 @@ next_uid() {
 # SECTION 3: Lexer / Tokenizer
 # ============================================================
 
+# Note [DoInclude]
+#   Non-standard extension: 'DO INCLUDE "filename"' splices the named
+#   file's contents at parse time. Resolution is relative to:
+#     1. The current working directory.
+#     2. The directory of the file being processed (when known).
+#   Cycle detection: a stack of currently-open files; if INCLUDE
+#   targets one already on the stack, error out.
+#   Label namespace is FLAT: included files share the same label
+#   space as the includer; duplicates trigger ICL182 as usual.
+#
+#   The include syntax is parsed before tokenisation by string-
+#   substituting the directive with the file's contents. We treat
+#   case-insensitive '"' as the only legal quote (not the rabbit-
+#   ears '"'), to keep the syntax distinct from INTERCAL operators.
+
+typeset -a _include_stack
+typeset -g _include_result=""
+typeset -g _include_error=""
+
+# Walks $1 in-place and writes the expanded text into the global
+# _include_result, or sets _include_error on failure. Avoids the
+# command-substitution subshell that otherwise eats exit codes.
+process_includes() {
+  local text="$1"
+  local depth=$2
+  if (( depth > 32 )); then
+    _include_error="ICL197I INCLUDE depth limit (32) exceeded"
+    return 1
+  fi
+  local rest="$text"
+  while [[ "$rest" =~ '(.*)DO INCLUDE "([^"]+)"(.*)' ]]; do
+    local before="${match[1]}"
+    local fname="${match[2]}"
+    local after="${match[3]}"
+    local s
+    for s in "${_include_stack[@]}"; do
+      if [[ "$s" == "$fname" ]]; then
+        _include_error="ICL197I INCLUDE cycle detected: $fname"
+        return 1
+      fi
+    done
+    local found=""
+    if [[ -f "$fname" ]]; then
+      found="$fname"
+    elif (( ${#_include_stack[@]} > 0 )) && [[ -f "${_include_stack[-1]:h}/$fname" ]]; then
+      found="${_include_stack[-1]:h}/$fname"
+    fi
+    if [[ -z "$found" ]]; then
+      _include_error="ICL197I INCLUDE file not found: $fname"
+      return 1
+    fi
+    _include_stack+=("$found")
+    local sub
+    sub=$(cat "$found")
+    sub=${sub//$'\n'/ }
+    sub=${sub//$'\t'/ }
+    sub=${sub//$'\r'/ }
+    process_includes "$sub" $((depth + 1)) || return 1
+    sub="$_include_result"
+    _include_stack=("${_include_stack[@]:0:$((${#_include_stack[@]}-1))}")
+    rest="${before} ${sub} ${after}"
+  done
+  _include_result="$rest"
+  return 0
+}
+
 read_source() {
   local raw
   raw=$(cat)
   raw=${raw//$'\n'/ }
   raw=${raw//$'\t'/ }
   raw=${raw//$'\r'/ }
+  # Process DO INCLUDE directives before uppercasing to preserve
+  # case-sensitive filenames. Note [DoInclude].
+  if ! process_includes "$raw" 0; then
+    print -u2 "$_include_error"
+    exit 1
+  fi
+  raw="$_include_result"
   SOURCE=${(U)raw}
 }
 
