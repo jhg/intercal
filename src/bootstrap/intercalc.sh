@@ -1475,6 +1475,139 @@ detect_syslib() {
 # ABSTAIN/REINSTATE statement targets it (by label or by gerund).
 # Statements that are never modified can skip the 4-instruction flag
 # load at their entry point: dead-flag elimination.
+# Note [VarConstantProp]
+#   Cross-statement constant propagation: if a variable is assigned
+#   only with literal #N values and never modified by IGNORE/REMEMBER/
+#   STASH/RETRIEVE/ABSTAIN-on-CALCULATING, we record its value in
+#   var_const[VARSPEC] and codegen_expr substitutes the literal at
+#   read sites instead of emitting a load.
+#
+#   This is a simpler, monotonically-conservative variant of SCCP:
+#   - The first ASSIGN of #N to a var sets var_const[var] = N.
+#   - Any subsequent ASSIGN of a non-literal, OR any read by WRITE_IN,
+#     OR any reachable RETRIEVE, makes var_const[var] = BOTTOM (drop).
+#   - At each codegen_expr call to read .V, we look up the per-stmt
+#     value (computed at the corresponding statement). For simplicity
+#     we record the var_const state at the START of each statement;
+#     later use sites in the same statement see this snapshot.
+typeset -A var_const
+typeset -A stmt_var_const   # stmt_index|varname -> value at start of stmt
+
+compute_var_constants() {
+  var_const=()
+  stmt_var_const=()
+  local i
+  local -A var_bottom
+  for (( i=1; i<=stmt_count; i++ )); do
+    local t="${stmt_type[$i]:-}"
+    local body="${stmt_body[$i]:-}"
+    case "$t" in
+      WRITE_IN)
+        local items="${body#WRITE IN }"
+        for tok in ${=items}; do
+          tok="${tok## }"; tok="${tok%% }"; [[ -z "$tok" ]] && continue
+          if [[ "$tok" =~ '^\.([0-9]+)$' ]]; then
+            var_bottom[spot_${match[1]}]=1
+          elif [[ "$tok" =~ '^:([0-9]+)$' ]]; then
+            var_bottom[twospot_${match[1]}]=1
+          fi
+        done
+        ;;
+      RETRIEVE|STASH)
+        local items="${body#RETRIEVE }"; items="${items#STASH }"
+        for tok in ${=items}; do
+          tok="${tok## }"; tok="${tok%% }"; [[ -z "$tok" ]] && continue
+          if [[ "$tok" =~ '^\.([0-9]+)$' ]]; then
+            var_bottom[spot_${match[1]}]=1
+          elif [[ "$tok" =~ '^:([0-9]+)$' ]]; then
+            var_bottom[twospot_${match[1]}]=1
+          fi
+        done
+        ;;
+      ASSIGN)
+        local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
+        local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
+        if ! [[ "$rhs" =~ '^#([0-9]+)$' ]]; then
+          if [[ "$target" =~ '^\.([0-9]+)$' ]]; then
+            var_bottom[spot_${match[1]}]=1
+          elif [[ "$target" =~ '^:([0-9]+)$' ]]; then
+            var_bottom[twospot_${match[1]}]=1
+          fi
+        fi
+        ;;
+      ABSTAIN|REINSTATE)
+        if [[ "$body" == *CALCULATING* ]]; then
+          typeset -g var_const_disabled=1
+          return
+        fi
+        # ABSTAIN FROM (label) form: mark the target statement's
+        # assigned variable as BOTTOM so we do not propagate its
+        # value through (it may not run at all).
+        if [[ "$body" =~ \(([0-9]+)\) ]]; then
+          local lbl="${match[1]}"
+          local ts="${label_to_stmt[$lbl]:-}"
+          if [[ -n "$ts" && "$ts" != syslib_* && "$ts" != syscall_666 ]]; then
+            local tt="${stmt_type[$ts]:-}"
+            if [[ "$tt" == "ASSIGN" ]]; then
+              local tb="${stmt_body[$ts]:-}"
+              local ttarget="${tb%%<-*}"; ttarget="${ttarget## }"; ttarget="${ttarget%% }"
+              if [[ "$ttarget" =~ '^\.([0-9]+)$' ]]; then
+                var_bottom[spot_${match[1]}]=1
+              elif [[ "$ttarget" =~ '^:([0-9]+)$' ]]; then
+                var_bottom[twospot_${match[1]}]=1
+              fi
+            fi
+          fi
+        fi
+        ;;
+      COME_FROM)
+        # COME FROM creates an implicit re-entry; defs across the
+        # come-from edge cannot be propagated reliably. Mark all
+        # currently-assigned vars BOTTOM by disabling globally.
+        typeset -g var_const_disabled=1
+        return
+        ;;
+      NEXT)
+        # NEXT to non-syslib transfers control somewhere; the
+        # destination may modify state we do not track. Conservative:
+        # disable globally.
+        local target="${stmt_next_target[$i]:-}"
+        if [[ -n "$target" ]] && (( target < 1000 || target > 1999 )); then
+          typeset -g var_const_disabled=1
+          return
+        fi
+        ;;
+    esac
+  done
+  typeset -g var_const_disabled=0
+  local -A current_const
+  local k=""
+  for (( i=1; i<=stmt_count; i++ )); do
+    for k in "${(@k)current_const}"; do
+      stmt_var_const[${i}:${k}]="${current_const[$k]}"
+    done
+    local t="${stmt_type[$i]:-}"
+    [[ "$t" != "ASSIGN" ]] && continue
+    local body="${stmt_body[$i]:-}"
+    local target="${body%%<-*}"; target="${target## }"; target="${target%% }"
+    local rhs="${body#*<-}"; rhs="${rhs## }"; rhs="${rhs%% }"
+    if [[ "$rhs" =~ '^#([0-9]+)$' ]]; then
+      local val="${match[1]}"
+      if [[ "$target" =~ '^\.([0-9]+)$' ]]; then
+        local vk="spot_${match[1]}"
+        if (( ! ${+var_bottom[$vk]} )); then
+          current_const[$vk]=$val
+        fi
+      elif [[ "$target" =~ '^:([0-9]+)$' ]]; then
+        local vk="twospot_${match[1]}"
+        if (( ! ${+var_bottom[$vk]} )); then
+          current_const[$vk]=$val
+        fi
+      fi
+    fi
+  done
+}
+
 # Note [E275Elim]
 #   Per-statement static check: an ASSIGN of a #N constant where N
 #   is in [0, 65535] for spot or [0, 4294967295] for twospot CANNOT
@@ -1986,15 +2119,32 @@ codegen_expr() {
       ;;
     VAR_SPOT)
       local num=${expr_val[$id]}
-      emit "  adrp x1, _spot_${num}@PAGE"
-      emit "  add x1, x1, _spot_${num}@PAGEOFF"
-      emit "  ldr w0, [x1]"
+      # Note [VarConstantProp]: substitute literal if SCCP-style
+      # analysis proved this var is a known constant at the start
+      # of the current statement.
+      local key="${current_stmt_idx:-0}:spot_${num}"
+      if (( ! ${var_const_disabled:-0} )) \
+         && (( ${+stmt_var_const[$key]} )) \
+         && opt_bisect_check "constprop_spot_${num}_at_${current_stmt_idx:-0}"; then
+        emit "  mov w0, #${stmt_var_const[$key]}"
+      else
+        emit "  adrp x1, _spot_${num}@PAGE"
+        emit "  add x1, x1, _spot_${num}@PAGEOFF"
+        emit "  ldr w0, [x1]"
+      fi
       ;;
     VAR_TWOSPOT)
       local num=${expr_val[$id]}
-      emit "  adrp x1, _twospot_${num}@PAGE"
-      emit "  add x1, x1, _twospot_${num}@PAGEOFF"
-      emit "  ldr w0, [x1]"
+      local key="${current_stmt_idx:-0}:twospot_${num}"
+      if (( ! ${var_const_disabled:-0} )) \
+         && (( ${+stmt_var_const[$key]} )) \
+         && opt_bisect_check "constprop_twospot_${num}_at_${current_stmt_idx:-0}"; then
+        emit "  mov w0, #${stmt_var_const[$key]}"
+      else
+        emit "  adrp x1, _twospot_${num}@PAGE"
+        emit "  add x1, x1, _twospot_${num}@PAGEOFF"
+        emit "  ldr w0, [x1]"
+      fi
       ;;
     ARRAY_TAIL_REF|ARRAY_HYBRID_REF)
       codegen_array_ref $id
@@ -2173,6 +2323,9 @@ codegen_program() {
 
 codegen_statement() {
   local i=$1
+  # Note [VarConstantProp]: track current stmt for codegen_expr's
+  # VAR_SPOT/VAR_TWOSPOT lookups in stmt_var_const.
+  typeset -g current_stmt_idx=$i
   emit ""
   emit "_stmt_${i}:  // ${stmt_type[$i]}"
 
@@ -3329,6 +3482,7 @@ main() {
   time_phase flag_checks compute_flag_checks
   time_phase ignore_checks compute_ignore_checks
   time_phase e275_safety compute_e275_safety
+  time_phase var_constants compute_var_constants
   time_phase unref_labels check_unreferenced_labels
 
   if (( DIAGNOSE_MODE )); then

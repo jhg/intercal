@@ -35,6 +35,7 @@ zsh tests/test_emit_effects.sh
 zsh tests/test_bytecode.sh
 zsh tests/test_lsp.sh
 zsh tests/test_effect_elim.sh
+zsh tests/test_sccp_codegen.sh
 
 # Csmith-INTERCAL differential testing (10 random programs)
 echo "pre-push: csmith differential (10 programs)"
