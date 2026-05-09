@@ -151,6 +151,47 @@ else
 fi
 rm -f "$SRC_E240B"
 
+# Test 8: literal subscript on literal-dim array -> E241 elided.
+SRC_E241=$(mktemp /tmp/test_eff_more.XXXXXX)
+cat > "$SRC_E241" <<'EOF'
+PLEASE DO ,1 <- #5
+DO ,1 SUB #2 <- #42
+PLEASE DO .1 <- ,1 SUB #2
+DO READ OUT .1
+DO GIVE UP
+EOF
+asm=$(INTERCAL_ASM_ONLY=1 zsh "$COMPILER" < "$SRC_E241" 2>/dev/null)
+n=$(echo "$asm" | grep -c "_rt_error_E241" 2>/dev/null)
+n=${n:-0}
+if (( n == 0 )); then
+  echo "PASS literal sub on literal-dim array elides E241"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL E241 not elided: $n references"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_E241"
+
+# Test 9: out-of-range literal sub keeps the E241 check.
+SRC_E241B=$(mktemp /tmp/test_eff_more.XXXXXX)
+cat > "$SRC_E241B" <<'EOF'
+PLEASE DO ,1 <- #3
+DO .1 <- ,1 SUB #99
+DO READ OUT .1
+PLEASE DO GIVE UP
+EOF
+asm=$(INTERCAL_ASM_ONLY=1 zsh "$COMPILER" < "$SRC_E241B" 2>/dev/null)
+n=$(echo "$asm" | grep -c "_rt_error_E241" 2>/dev/null)
+n=${n:-0}
+if (( n >= 1 )); then
+  echo "PASS out-of-range sub keeps E241 check ($n)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL out-of-range sub should keep E241"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_E241B"
+
 echo ""
 echo "Total: $PASS passed, $FAIL failed"
 exit $((FAIL > 0))

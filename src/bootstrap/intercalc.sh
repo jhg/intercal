@@ -144,7 +144,7 @@ emit_opt_summary() {
   echo "stmts:       $stmt_count"
   echo
   local n_assign=0 n_e275_safe=0 n_e621_safe=0 n_e436_safe=0
-  local n_e123_safe=0 n_e240_safe=0
+  local n_e123_safe=0 n_e240_safe=0 n_e241_safe=0
   local n_no_flag=0 n_var_const=0
   local n_resume=0 n_retrieve=0 n_next=0 n_arrdim=0
   local i=0
@@ -162,6 +162,7 @@ emit_opt_summary() {
     (( ${+stmt_e436_safe[$i]} )) && n_e436_safe=$((n_e436_safe + 1))
     (( ${+stmt_e123_safe[$i]} )) && n_e123_safe=$((n_e123_safe + 1))
     (( ${+stmt_e240_safe[$i]} )) && n_e240_safe=$((n_e240_safe + 1))
+    (( ${+stmt_e241_safe[$i]} )) && n_e241_safe=$((n_e241_safe + 1))
     (( ! ${stmt_needs_flag[$i]:-1} )) && n_no_flag=$((n_no_flag + 1))
   done
   # Count stmt_var_const entries (each entry is one stmt:varspec pair).
@@ -176,6 +177,7 @@ emit_opt_summary() {
   echo "  E123 elided (stack-depth skip):   $n_e123_safe / $n_next"
   echo "ARRAY_DIM stmts:                    $n_arrdim"
   echo "  E240 elided (zero-dim skip):      $n_e240_safe / $n_arrdim"
+  echo "Array-access stmts E241 elided:     $n_e241_safe"
   echo
   echo "Abstain-flag check elided:          $n_no_flag / $stmt_count stmts"
   echo "Constant-propagation entries:       $n_const_pairs (stmt × varspec)"
@@ -2615,6 +2617,8 @@ typeset -A stmt_e436_safe   # RETRIEVE preceded by sufficient STASH on every pat
 typeset -A stmt_e123_safe   # NEXT that statically cannot overflow the stack
 typeset -A stmt_e240_safe   # ARRAY_DIM whose dim exprs are all literal nonzero
 typeset -A stmt_e632_safe   # RESUME provably has stack depth >= popcount
+typeset -A stmt_e241_safe   # array access whose subscript is statically in range
+typeset -A array_literal_dim   # tracks tail_N / hybrid_N -> dim (1D only)
 
 compute_e275_safety() {
   stmt_e275_safe=()
@@ -2623,6 +2627,8 @@ compute_e275_safety() {
   stmt_e123_safe=()
   stmt_e240_safe=()
   stmt_e632_safe=()
+  stmt_e241_safe=()
+  array_literal_dim=()
 
   # Note [E123Elim]
   #   The NEXT stack overflows when 80 entries accumulate. The
@@ -2720,9 +2726,12 @@ compute_e275_safety() {
         fi
         ;;
       ARRAY_DIM)
-        # All dimensions literal nonzero -> E240 unreachable.
+        # All dimensions literal nonzero -> E240 unreachable. Also
+        # capture 1D literal dims for downstream E241 elision.
         local dims_str="${body#*<-}"
         dims_str="${dims_str## }"
+        local target_str="${body%%<-*}"
+        target_str="${target_str## }"; target_str="${target_str%% }"
         local -a _dim_parts
         _dim_parts=("${(@s:BY:)dims_str}")
         local _all_safe=1
@@ -2736,6 +2745,20 @@ compute_e275_safety() {
           fi
         done
         (( _all_safe )) && stmt_e240_safe[$i]=1
+        # Track 1D literal dim for E241 elision.
+        if (( _all_safe )) && (( ${#_dim_parts[@]} == 1 )); then
+          local _vk=""
+          if [[ "$target_str" =~ '^,([0-9]+)$' ]]; then _vk="tail_${match[1]}"
+          elif [[ "$target_str" =~ '^;([0-9]+)$' ]]; then _vk="hybrid_${match[1]}"
+          fi
+          if [[ -n "$_vk" ]]; then
+            local _onlyd="${_dim_parts[1]}"
+            _onlyd="${_onlyd## }"; _onlyd="${_onlyd%% }"
+            if [[ "$_onlyd" =~ '^#([0-9]+)$' ]]; then
+              array_literal_dim[$_vk]=${match[1]}
+            fi
+          fi
+        fi
         ;;
       RETRIEVE)
         # RETRIEVE is safe (E436 unreachable) when a preceding STASH
@@ -2772,6 +2795,29 @@ compute_e275_safety() {
         (( all_safe )) && stmt_e436_safe[$i]=1
         ;;
     esac
+  done
+
+  # E241 post-pass: scan every stmt for literal-subscript accesses
+  # against known-dim arrays. Runs after the main case loop so
+  # array_literal_dim is fully populated.
+  local _i_e241=0
+  for (( _i_e241=1; _i_e241<=stmt_count; _i_e241++ )); do
+    local _b="${stmt_body[$_i_e241]:-}"
+    local _all_acc_safe=1 _saw_acc=0
+    local _scan="$_b"
+    while [[ "$_scan" =~ '([,;])([0-9]+)[[:space:]]+SUB[[:space:]]+#([0-9]+)' ]]; do
+      _saw_acc=1
+      local _ap="${match[1]}" _an="${match[2]}" _as="${match[3]}"
+      local _vk=""
+      [[ "$_ap" == "," ]] && _vk="tail_$_an" || _vk="hybrid_$_an"
+      local _kdim="${array_literal_dim[$_vk]:-}"
+      if [[ -z "$_kdim" ]] || (( _as < 1 )) || (( _as > _kdim )); then
+        _all_acc_safe=0
+        break
+      fi
+      _scan="${_scan#*#${match[3]}}"
+    done
+    (( _saw_acc )) && (( _all_acc_safe )) && stmt_e241_safe[$_i_e241]=1
   done
 }
 
@@ -3358,7 +3404,9 @@ codegen_array_ref() {
     emit "  add x1, x1, _${prefix}_${arr_num}_dims@PAGEOFF"
     emit "  ldr w2, [x1]"
     emit "  cmp w0, w2"
-    emit "  b.hs _rt_error_E241"
+    if ! ( (( ${+stmt_e241_safe[${current_stmt_idx:-0}]} )) && opt_bisect_check "elim_e241_stmt_${current_stmt_idx:-0}" ); then
+      emit "  b.hs _rt_error_E241"
+    fi
     # Load element
     emit "  adrp x1, _${prefix}_${arr_num}_ptr@PAGE"
     emit "  add x1, x1, _${prefix}_${arr_num}_ptr@PAGEOFF"
@@ -3874,7 +3922,9 @@ codegen_array_elem_assign() {
     emit "  add x1, x1, _${prefix}_${arr_num}_dims@PAGEOFF"
     emit "  ldr w2, [x1]"
     emit "  cmp w0, w2"
-    emit "  b.hs _rt_error_E241"
+    if ! ( (( ${+stmt_e241_safe[${current_stmt_idx:-0}]} )) && opt_bisect_check "elim_e241_stmt_${current_stmt_idx:-0}" ); then
+      emit "  b.hs _rt_error_E241"
+    fi
   else
     # Multi-dim: compute linear index
     # Subscripts are on stack in reverse order (last pushed first)
