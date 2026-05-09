@@ -51,6 +51,21 @@ A real self-hosted compiler is a worthy goal. The 5,000-10,000-line stage3 imple
 
 The recommendation: pick Option A or B as a documented language extension, parallel to our already-non-standard Label 666 syscall extension. Document the choice in `AGENTS.md` and `docs/666.md` (or a new `docs/loop-extension.md`).
 
+## Loop primitive: resolved
+
+The loop-primitive question is resolved. We adopted Option B (NEXT FROM)
+with the conditional refinement `(LABEL) NEXT FROM <expr>`. See
+`docs/loop-extension.md` for the design and `tests/test_next_from.i`
+plus `tests/test_stage3_loop.i` for end-to-end verification.
+
+The latter is the substage-1 mechanic in miniature: a fixed array of
+five bytes, a counter that walks the array with NEXT FROM, an
+equality test against a target byte, and a branchless conditional
+ADD into the running count. Output: III, the count of matches. The
+same mechanic generalises to scanning the 60000-byte source array
+once the surrounding I/O scaffolding (already in stage3.i) is wired
+up to the new loop.
+
 ## Sub-stages once the loop primitive lands
 
 1. **Byte-by-byte tokeniser**: read source, classify into D/P/N/space/letter/punctuation tokens. Output: a token stream as an array.
