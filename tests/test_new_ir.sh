@@ -107,6 +107,30 @@ else
 fi
 rm -f "$SRC_VV" "$BIN_VV"
 
+# Test prereq: STASH/RETRIEVE through IR (delegates to legacy
+# helpers; the test confirms behavioural equivalence).
+SRC_SR=$(mktemp /tmp/test_new_ir.XXXXXX)
+cat > "$SRC_SR" <<'EOF'
+DO .1 <- #5
+PLEASE DO STASH .1
+DO .1 <- #99
+DO RETRIEVE .1
+PLEASE DO READ OUT .1
+DO GIVE UP
+EOF
+BIN_SR=$(mktemp /tmp/test_new_ir.XXXXXX)
+INTERCAL_NEW_IR=1 zsh "$COMPILER" < "$SRC_SR" > "$BIN_SR" 2>/dev/null
+chmod +x "$BIN_SR"
+out=$("$BIN_SR"); rc=$?
+if [[ "$out" == "V" ]] && (( rc == 0 )); then
+  echo "PASS IR-driven STASH/RETRIEVE round-trip"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL IR STASH/RETRIEVE: out=[$out] rc=$rc"
+  FAIL=$((FAIL + 1))
+fi
+rm -f "$SRC_SR" "$BIN_SR"
+
 # Test 4 prereq: IGNORE/REMEMBER routes through IR.
 SRC_IR=$(mktemp /tmp/test_new_ir.XXXXXX)
 cat > "$SRC_IR" <<'EOF'

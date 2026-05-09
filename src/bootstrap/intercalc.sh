@@ -345,7 +345,8 @@ build_ir() {
       ir_ops+=("GIVE_UP")
       continue
     fi
-    if [[ "$t" == "IGNORE" ]] || [[ "$t" == "REMEMBER" ]]; then
+    if [[ "$t" == "IGNORE" ]] || [[ "$t" == "REMEMBER" ]] \
+       || [[ "$t" == "STASH" ]] || [[ "$t" == "RETRIEVE" ]]; then
       local body="${stmt_body[$i]:-}"
       local items="${body#${t} }"
       items="${items## }"
@@ -471,6 +472,36 @@ lower_ir_for_stmt() {
             emit "  mov byte ptr [rip + _${_pfx}_${_num}_ign], ${_val}"
             ;;
         esac
+        handled=1
+        ;;
+      "STASH "*|"RETRIEVE "*)
+        local _kw="${op%% *}"
+        local _vs="${op#* }"
+        # Only spot/twospot supported here; arrays via STASH/RETRIEVE
+        # are not yet wired through the IR path. Fall back to legacy.
+        if [[ "$_vs" != spot_* && "$_vs" != twospot_* ]]; then
+          return 1
+        fi
+        # Linux x86_64 has its own dedicated codegen backend; delegate
+        # there rather than reimplement.
+        if [[ "$_INTERCAL_PLATFORM" == "linux_x86_64" ]]; then
+          return 1
+        fi
+        local _pfx="" _num=""
+        if [[ "$_vs" == spot_* ]]; then
+          _pfx="spot"
+          _num="${_vs#spot_}"
+        else
+          _pfx="twospot"
+          _num="${_vs#twospot_}"
+        fi
+        if [[ "$_kw" == "STASH" ]]; then
+          # Reuse the existing helper so the emitted assembly matches
+          # the legacy path byte-for-byte.
+          codegen_stash_var "$_pfx" "$_num" $i
+        else
+          codegen_retrieve_var "$_pfx" "$_num" $i
+        fi
         handled=1
         ;;
       CONST*)
